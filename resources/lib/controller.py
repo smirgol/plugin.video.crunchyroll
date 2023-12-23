@@ -771,6 +771,7 @@ def start_playback(args, api: API):
     if is_helper.check_inputstream():
         item.setProperty("inputstream", "inputstream.adaptive")
         item.setProperty("inputstream.adaptive.manifest_type", "hls")
+        item.setSubtitles([req["subtitles"][args.subtitle]["url"]])
         # start playback
         xbmcplugin.setResolvedUrl(int(args.argv[1]), True, item)
 
