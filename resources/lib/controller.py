@@ -753,9 +753,8 @@ def start_playback(args, api: API):
             else:
                 url = url[""]["url"]
         else:
-            #software subtitles
-            url = req["streams"]["multitrack_adaptive_hls_v2"]
-            url = url[""]["url"]
+            #multitrack_adaptive_hls_v2 includes soft subtitles in the stream
+            url = req["streams"]["multitrack_adaptive_hls_v2"][""]["url"]
     except IndexError:
         item = xbmcgui.ListItem(getattr(args, "title", "Title not provided"))
         xbmcplugin.setResolvedUrl(int(args.argv[1]), False, item)
