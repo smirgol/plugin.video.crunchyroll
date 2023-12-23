@@ -743,13 +743,18 @@ def start_playback(args, api: API):
     # vo_drm_adaptive_dash
     # vo_drm_adaptive_hls
 
-    try:
-        url = req["streams"]["adaptive_hls"]
-        if args.subtitle in url:
-            url = url[args.subtitle]["url"]
-        elif args.subtitle_fallback in url:
-            url = url[args.subtitle_fallback]["url"]
+    try:        
+        if args.addon.getSetting("soft_subtitles") == "false":
+            url = req["streams"]["adaptive_hls"]
+            if args.subtitle in url:
+                url = url[args.subtitle]["url"]
+            elif args.subtitle_fallback in url:
+                url = url[args.subtitle_fallback]["url"]
+            else:
+                url = url[""]["url"]
         else:
+            #software subtitles
+            url = req["streams"]["multitrack_adaptive_hls_v2"]
             url = url[""]["url"]
     except IndexError:
         item = xbmcgui.ListItem(getattr(args, "title", "Title not provided"))
