@@ -75,6 +75,7 @@ def show_queue(args, api: API):
                     "tvshowtitle": entry.tvshowtitle,
                     "duration": entry.duration,
                     "playcount": entry.playcount,
+                    "season": entry.season,
                     "episode": entry.episode,
                     "episode_id": entry.episode_id,
                     "collection_id": entry.collection_id,
@@ -99,7 +100,7 @@ def show_queue(args, api: API):
         except Exception:
             utils.log_error_with_trace(args, "Failed to add item to queue view: %s" % (json.dumps(item, indent=4)))
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "episodes")
     return True
 
 
@@ -180,7 +181,7 @@ def search_anime(args, api: API):
                        "mode": args.mode},
                       is_folder=True)
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "tvshows")
 
     return True
 
@@ -263,7 +264,7 @@ def show_history(args, api: API):
                        "mode": args.mode},
                       is_folder=True)
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "episodes")
 
     return True
 
@@ -321,7 +322,7 @@ def list_seasons(args, mode, api: API):
         except Exception:
             utils.log_error_with_trace(args, "Failed to add item to seasons view: %s" % (json.dumps(item, indent=4)))
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "seasons")
 
 
 def list_seasons_without_filter(args, mode, api: API):
@@ -353,7 +354,7 @@ def list_seasons_without_filter(args, mode, api: API):
             is_folder=True
         )
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "seasons")
 
     return True
 
@@ -501,7 +502,7 @@ def list_filter(args, mode, api: API):
             is_folder=True
         )
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "tvshows")
 
     # @TODO: update
     #
@@ -570,7 +571,7 @@ def list_filter_without_category(args, mode, api: API):
                 "Failed to add category name item to list_filter view: %s" % (json.dumps(category_item, indent=4))
             )
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "tvshows")
 
     return True
 
@@ -632,7 +633,7 @@ def view_series(args, api: API):
             utils.log_error_with_trace(args,
                                        "Failed to add item to view_series view: %s" % (json.dumps(item, indent=4)))
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "seasons")
     return True
 
 
@@ -686,10 +687,11 @@ def view_episodes(args, api: API):
             view.add_item(
                 args,
                 {
-                    "title": item["series_title"] + " #" + str(item["episode_number"]) + " - " + item["title"],
+                    "title": (str(item["season_number"]) + "x" if item["season_number"] else "") + utils.twoDigits(item["episode_number"]) + ". " + item["title"],
                     "tvshowtitle": item["series_title"],
                     "duration": int(item["duration_ms"] / 1000),
                     "playcount": utils.get_watched_status_from_playheads_data(req_playheads, item["id"]),
+                    "season": item["season_number"],
                     "episode": item["episode_number"],
                     "episode_id": item["id"],
                     "collection_id": args.collection_id,
@@ -711,7 +713,7 @@ def view_episodes(args, api: API):
             utils.log_error_with_trace(args,
                                        "Failed to add item to view_episodes view: %s" % (json.dumps(item, indent=4)))
 
-    view.end_of_directory(args)
+    view.end_of_directory(args, "episodes")
     return True
 
 

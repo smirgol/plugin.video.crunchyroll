@@ -203,3 +203,11 @@ def convert_subtitle_index_to_string(subtitle_index: int) -> str:
         return ""
     else:
         return "en-US"
+
+
+def twoDigits(n):
+    if not n:
+        return "00"
+    if n < 10:
+        return "0" + str(n)
+    return str(n)
