@@ -144,7 +144,7 @@ class MovieData(Object):
     def __init__(self, data: dict):
         from . import utils
 
-        meta = data.get("panel").get("movie_metadata")
+        meta = data.get("movie_metadata")
 
         self.title: str = meta.get("movie_listing_title", "")
         self.tvshowtitle: str = meta.get("movie_listing_title", "")
@@ -152,32 +152,32 @@ class MovieData(Object):
         self.playhead: int = data.get("playhead", 0)
         self.season: str = ""
         self.episode: str = "1"
-        self.episode_id: str | None = data.get("panel", {}).get("id")
+        self.episode_id: str | None = data.get("id")
         self.collection_id: str | None = None
         self.series_id: str | None = None
-        self.plot: str = data.get("panel", {}).get("description", "")
-        self.plotoutline: str = data.get("panel", {}).get("description", "")
+        self.plot: str = data.get("description", "")
+        self.plotoutline: str = data.get("description", "")
         self.year: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
         self.aired: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
         self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
+        self.thumb: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
+        self.fanart: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
         self.playcount: int = 0
         self.stream_id: str | None = None
 
         try:
             # note that for fetching streams we need a special guid, not the episode_id
             self.stream_id = utils.get_stream_id_from_url(
-                data.get("panel", {}).get("__links__", {}).get("streams", {}).get("href", "")
+                data.get("__links__", {}).get("streams", {}).get("href", "")
             )
 
             # history data has the stream_id at a different location
             if self.stream_id is None:
                 self.stream_id = utils.get_stream_id_from_url(
-                    data.get("panel", {}).get("streams_link")
+                    data.get("streams_link")
                 )
 
             if self.stream_id is None:
@@ -195,38 +195,38 @@ class EpisodeData(Object):
     def __init__(self, data: dict):
         from . import utils
 
-        meta = data.get("panel").get("episode_metadata")
+        meta = data.get("episode_metadata")
 
         self.title: str = utils.format_long_episode_title(meta.get("season_title"), meta.get("episode_number"),
-                                                          data.get("panel").get("title"))
+                                                          data.get("title"))
         self.tvshowtitle: str = meta.get("series_title", "")
         self.duration: int = int(meta.get("duration_ms", 0) / 1000)
         self.playhead: int = data.get("playhead", 0)
         self.season: int = meta.get("season_number", "")
         self.episode: str = meta.get("episode", "")
-        self.episode_id: str | None = data.get("panel", {}).get("id")
+        self.episode_id: str | None = data.get("id")
         self.collection_id: str | None = meta.get("season_id")
         self.series_id: str | None = meta.get("series_id")
-        self.plot: str = data.get("panel", {}).get("description", "")
-        self.plotoutline: str = data.get("panel", {}).get("description", "")
+        self.plot: str = data.get("description", "")
+        self.plotoutline: str = data.get("description", "")
         self.year: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
+        self.thumb: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
+        self.fanart: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
         self.playcount: int = 0
         self.stream_id: str | None = None
 
         try:
             # note that for fetching streams we need a special guid, not the episode_id
             self.stream_id = utils.get_stream_id_from_url(
-                data.get("panel", {}).get("__links__", {}).get("streams", {}).get("href", "")
+                data.get("__links__", {}).get("streams", {}).get("href", "")
             )
 
             # history data has the stream_id at a different location
             if self.stream_id is None:
                 self.stream_id = utils.get_stream_id_from_url(
-                    data.get("panel", {}).get("streams_link")
+                    data.get("streams_link")
                 )
 
             if self.stream_id is None:
@@ -237,6 +237,23 @@ class EpisodeData(Object):
 
         if self.playhead is not None and self.duration is not None:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
+
+
+# dto
+class SeriesData(Object):
+    def __init__(self, data: dict):
+        from . import utils
+
+        meta = data.get("series_metadata")
+
+        self.title: str = data.get("title")
+        self.tvshowtitle: str = data.get("title")
+        self.series_id: str = data.get("id")
+        self.plot: str = data.get("description")
+        self.plotoutline: str = data.get("description")
+        self.year: str = meta.get("series_launch_year")
+        self.poster: str = utils.get_image_from_struct(data, "poster_tall", 2)
+        self.fanart: str = utils.get_image_from_struct(data, "poster_wide", 2)
 
 
 class CrunchyrollError(Exception):

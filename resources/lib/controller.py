@@ -49,54 +49,13 @@ def show_queue(args, api: API):
         view.end_of_directory(args)
         return False
 
-    # display media
-    for item in req.get("items"):
-        # video no longer available
-        # @TODO: re-add filtering of non-available items / premium content
-        # if not ("most_likely_media" in item and "series" in item and item["most_likely_media"]["available"] and item["most_likely_media"]["premium_available"]):
-        #    continue
-
-        try:
-            if item.get("panel").get("type") == "episode":
-                entry = EpisodeData(item)
-            elif item["panel"]["type"] == "movie":
-                entry = MovieData(item)
-            else:
-                utils.crunchy_log(args, "queue | unhandled index for metadata. %s" % (json.dumps(item, indent=4)),
-                                  xbmc.LOGERROR)
-                continue
-
-            view.add_item(
-                args,
-                {
-                    "title": entry.title,
-                    "tvshowtitle": entry.tvshowtitle,
-                    "duration": entry.duration,
-                    "playcount": entry.playcount,
-                    "season": entry.season,
-                    "episode": entry.episode,
-                    "episode_id": entry.episode_id,
-                    "collection_id": entry.collection_id,
-                    "series_id": entry.series_id,
-                    "plot": entry.plot,
-                    "plotoutline": entry.plotoutline,
-                    "genre": "",  # no longer available
-                    "year": entry.year,
-                    "aired": entry.aired,
-                    "premiered": entry.premiered,
-                    "thumb": entry.thumb,
-                    "fanart": entry.fanart,
-                    "stream_id": entry.stream_id,
-                    "playhead": entry.playhead,
-                    "mode": "videoplay"
-                },
-                is_folder=False
-                # potentially unsafe, it can possibly delete the whole playlist if something goes really wrong
-                # callback=lambda li:
-                #     li.addContextMenuItems([(args.addon.getLocalizedString(30068), 'RunPlugin(%s?mode=remove_from_queue&content_id=%s&session_restart=True)' % (sys.argv[0], entry.episode_id))])
-            )
-        except Exception:
-            utils.log_error_with_trace(args, "Failed to add item to queue view: %s" % (json.dumps(item, indent=4)))
+    # @TODO: re-add filtering of non-available items / premium content
+    # if not ("most_likely_media" in item and "series" in item and item["most_likely_media"]["available"] and item["most_likely_media"]["premium_available"]):
+    #    continue
+    utils.add_items_to_view(req.get("items"), args, api)
+    # # potentially unsafe, it can possibly delete the whole playlist if something goes really wrong
+    # callback=lambda li:
+    #     li.addContextMenuItems([(args.addon.getLocalizedString(30068), 'RunPlugin(%s?mode=remove_from_queue&content_id=%s&session_restart=True)' % (sys.argv[0], entry.episode_id))])
 
     view.end_of_directory(args, "episodes")
     return True
@@ -207,67 +166,7 @@ def show_history(args, api: API):
 
     num_pages = int(math.ceil(req["total"] / items_per_page))
 
-    series_ids = [
-        item.get("panel").get("episode_metadata").get("series_id") if item.get("panel") and item.get("panel").get(
-            "episode_metadata") and item.get("panel").get("episode_metadata").get("series_id") else "0" for item in
-        req.get("data")]
-    series_data = utils.get_series_data_from_series_ids(args, series_ids, api)
-
-    for item in req.get("data"):
-        try:
-            # skip episodes completely that don't have at least the type information
-            # @see https://github.com/smirgol/plugin.video.crunchyroll/issues/8
-            if not item.get('panel') or not item.get('panel').get('type'):
-                continue
-
-            if item.get("panel").get("type") == "episode":
-                entry = EpisodeData(item)
-            elif item.get("panel").get("type") == "movie":
-                entry = MovieData(item)
-            else:
-                utils.crunchy_log(args, "history | unhandled index for metadata. %s" % (json.dumps(item, indent=4)),
-                                  xbmc.LOGERROR)
-                continue
-
-            poster = entry.thumb
-            fanart = entry.fanart
-            if entry.series_id:
-                series_obj = series_data.get(entry.series_id)
-                if series_obj:
-                    poster = utils.get_image_from_struct(series_obj, "poster_tall", 2)
-                    fanart = utils.get_image_from_struct(series_obj, "poster_wide", 2)
-
-            # add to view
-            view.add_item(
-                args,
-                {
-                    "title": entry.title,
-                    "tvshowtitle": entry.tvshowtitle,
-                    "duration": entry.duration,
-                    "playcount": entry.playcount,
-                    "season": entry.season,
-                    "episode": entry.episode,
-                    "episode_id": entry.episode_id,
-                    "collection_id": entry.collection_id,
-                    "series_id": entry.series_id,
-                    "plot": entry.plot,
-                    "plotoutline": entry.plotoutline,
-                    "genre": "",  # no longer available
-                    "year": entry.year,
-                    "aired": entry.aired,
-                    "premiered": entry.premiered,
-                    "thumb": entry.thumb,
-                    "poster": poster,
-                    "fanart": fanart,
-                    "stream_id": entry.stream_id,
-                    "playhead": entry.playhead,
-                    "mode": "videoplay"
-                },
-                is_folder=False
-            )
-
-        except Exception:
-            utils.log_error_with_trace(args, "Failed to add item to history view: %s" % (json.dumps(item, indent=4)))
+    utils.add_items_to_view(req.get("data"), args, api)
 
     if current_page < num_pages:
         view.add_item(args,
@@ -302,69 +201,7 @@ def show_resume_episodes(args, api: API):
         view.end_of_directory(args)
         return False
 
-    series_ids = [
-        item.get("panel").get("episode_metadata").get("series_id") if item.get("panel") and item.get("panel").get(
-            "episode_metadata") and item.get("panel").get("episode_metadata").get("series_id") else "0" for item in
-        req.get("data")]
-    series_data = utils.get_series_data_from_series_ids(args, series_ids, api)
-
-    for item in req.get("data"):
-        try:
-            # skip episodes completely that don't have at least the type information
-            # @see https://github.com/smirgol/plugin.video.crunchyroll/issues/8
-            if not item.get('panel') or not item.get('panel').get('type'):
-                continue
-
-            if item.get("panel").get("type") == "episode":
-                entry = EpisodeData(item)
-            elif item.get("panel").get("type") == "movie":
-                entry = MovieData(item)
-            else:
-                utils.crunchy_log(args, "history | unhandled index for metadata. %s" % (json.dumps(item, indent=4)),
-                                  xbmc.LOGERROR)
-                continue
-
-            poster = entry.thumb
-            fanart = entry.fanart
-            if entry.series_id:
-                series_obj = series_data.get(entry.series_id)
-                if series_obj:
-                    poster = utils.get_image_from_struct(series_obj, "poster_tall", 2)
-                    fanart = utils.get_image_from_struct(series_obj, "poster_wide", 2)
-                else:
-                    utils.log("Cannot retrieve series %s" % entry.series_id)
-
-            # add to view
-            view.add_item(
-                args,
-                {
-                    "title": entry.title,
-                    "tvshowtitle": entry.tvshowtitle,
-                    "duration": entry.duration,
-                    "playcount": entry.playcount,
-                    "season": entry.season,
-                    "episode": entry.episode,
-                    "episode_id": entry.episode_id,
-                    "collection_id": entry.collection_id,
-                    "series_id": entry.series_id,
-                    "plot": entry.plot,
-                    "plotoutline": entry.plotoutline,
-                    "genre": "",  # no longer available
-                    "year": entry.year,
-                    "aired": entry.aired,
-                    "premiered": entry.premiered,
-                    "thumb": entry.thumb,
-                    "poster": poster,
-                    "fanart": fanart,
-                    "stream_id": entry.stream_id,
-                    "playhead": entry.playhead,
-                    "mode": "videoplay"
-                },
-                is_folder=False
-            )
-
-        except Exception:
-            utils.log_error_with_trace(args, "Failed to add item to resume view: %s" % (json.dumps(item, indent=4)))
+    utils.add_items_to_view(req.get("data"), args, api)
 
     items_left = req.get("total") - (int(getattr(args, "offset", 0)) * items_per_page) - len(req.get("data"))
 
@@ -811,6 +648,7 @@ def view_episodes(args, api: API):
                     "plotoutline": item["description"],
                     "aired": item["episode_air_date"][:10],
                     "premiered": item["availability_starts"][:10],  # ???
+                    "poster": args.thumb,
                     "thumb": utils.get_image_from_struct(item, "thumbnail", 2),
                     "fanart": args.fanart,
                     "mode": "videoplay",

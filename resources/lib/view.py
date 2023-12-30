@@ -56,18 +56,39 @@ def add_item(
         total_items=0,
         mediatype="video",
         callback: Callable[[xbmcgui.ListItem], None] = None
-):
+) -> xbmcgui.ListItem:
     """Add item to directory listing.
     """
+    li = create_xbmc_item(args, info, True, mediatype)
 
-    # create list item
-    li = xbmcgui.ListItem(label=info["title"])
+    # add item to list
+    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
+                                url=li.getPath(),
+                                listitem=li,
+                                isFolder=is_folder,
+                                totalItems=total_items)
 
-    # get infoLabels
-    info_labels = make_info_label(args, info)
+    return li
+
+
+def create_xbmc_item(
+        args,
+        info,
+        is_folder=True,
+        mediatype="video",
+        callback: Callable[[xbmcgui.ListItem], None] = None
+) -> xbmcgui.ListItem:
+    """Create XBMC item for directory listing.
+    """
 
     # get url
     u = build_url(args, info)
+
+    # create list item
+    li = xbmcgui.ListItem(label=info["title"], path=u)
+
+    # get infoLabels
+    info_labels = make_info_label(args, info)
 
     if is_folder:
         # directory
@@ -100,12 +121,7 @@ def add_item(
     if callback:
         callback(li)
 
-    # add item to list
-    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
-                                url=u,
-                                listitem=li,
-                                isFolder=is_folder,
-                                totalItems=total_items)
+    return li
 
 
 def quote_value(value):
