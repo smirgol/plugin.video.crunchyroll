@@ -39,12 +39,14 @@ class VideoPlayerStreamData(Object):
         self.stream_url: str | None = None
         self.subtitle_urls: list[str] | None = None
         self.skip_events_data: Dict = {}
+        self.unmodified_skip_events_data: Dict = {}
         self.playheads_data: Dict = {}
         # PlayableItem which is about to be played, that contains cms object data
         self.playable_item: PlayableItem | None = None
         # PlayableItem which contains cms obj data of playable_item's parent, if exists (Episodes, not Movies). currently not used.
         self.playable_item_parent: PlayableItem | None = None
         self.token: str | None = None
+        self.next_playable_item: PlayableItem | None = None
 
 
 class VideoStream(Object):
@@ -86,38 +88,44 @@ class VideoStream(Object):
         video_player_stream_data.token = async_data.get('stream_data').get('token')
 
         video_player_stream_data.skip_events_data = async_data.get('skip_events_data')
+        video_player_stream_data.unmodified_skip_events_data = dict(async_data.get('skip_events_data'))
         video_player_stream_data.playheads_data = async_data.get('playheads_data')
         video_player_stream_data.playable_item = async_data.get('playable_item')
         video_player_stream_data.playable_item_parent = async_data.get('playable_item_parent')
+        video_player_stream_data.next_playable_item = async_data.get('next_playable_item')
 
         return video_player_stream_data
 
     async def _gather_async_data(self) -> Dict[str, Any]:
         """ gather data asynchronously and return them as a dictionary """
 
+        episode_id = G.args.get_arg('episode_id')
+        series_id = G.args.get_arg('series_id')
+
         # create threads
         # actually not sure if this works, as the requests lib is not async
         # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
         t_stream_data = asyncio.create_task(self._get_stream_data_from_api())
-        t_skip_events_data = asyncio.create_task(self._get_skip_events(G.args.get_arg('episode_id')))
-        t_playheads = asyncio.create_task(get_playheads_from_api(G.args.get_arg('episode_id')))
-        t_item_data = asyncio.create_task(
-            get_cms_object_data_by_ids([G.args.get_arg('episode_id')]))
-        # t_item_parent_data = asyncio.create_task(get_cms_object_data_by_ids(G.args, G.api, G.args.get_arg('series_id')))
+        t_skip_events_data = asyncio.create_task(self._get_skip_events(episode_id))
+        t_playheads = asyncio.create_task(get_playheads_from_api(episode_id))
+        t_item_data = asyncio.create_task(get_cms_object_data_by_ids([episode_id, series_id]))
+        t_upnext_data = asyncio.create_task(self._get_upnext_episode(episode_id))
 
         # start async requests and fetch results
-        results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data)
+        results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data, t_upnext_data)
 
-        playable_item = get_listables_from_response([results[3].get(G.args.get_arg('episode_id'))]) if \
-            results[3] else None
+        listable_items = get_listables_from_response([value for key, value in results[3].items()]) if results[3] else []
+        playable_items = [item for item in listable_items if item.id == episode_id]
+        parent_listables = [item for item in listable_items if item.id == series_id]
+        upnext_items = get_listables_from_response([results[4]]) if results[4] else None
 
         return {
             'stream_data': results[0] or {},
             'skip_events_data': results[1] or {},
             'playheads_data': results[2] or {},
-            'playable_item': playable_item[0] if playable_item else None,
-            'playable_item_parent': None
-            # get_listables_from_response([results[4]])[0] if results[4] else None
+            'playable_item': playable_items[0] if playable_items else None,
+            'playable_item_parent': parent_listables[0] if parent_listables else None,
+            'next_playable_item': upnext_items[0] if upnext_items else None,
         }
 
     @staticmethod
@@ -311,7 +319,8 @@ class VideoStream(Object):
 
         # if none of the skip options are enabled in setting, don't fetch that data
         if (G.args.addon.getSetting("enable_skip_intro") != "true" and
-                G.args.addon.getSetting("enable_skip_credits") != "true"):
+                G.args.addon.getSetting("enable_skip_credits") != "true" and
+                G.args.addon.getSetting("upnext_mode") == "disabled"):
             return None
 
         try:
@@ -359,3 +368,27 @@ class VideoStream(Object):
                 crunchy_log("_get_skip_events: check for %s FAILED" % skip_type, xbmc.LOGINFO)
 
         return prepared if len(prepared) > 0 else None
+
+    @staticmethod
+    async def _get_upnext_episode(id: str) -> Optional[Dict]:
+        """ fetch upnext episode data from api """
+
+        # if upnext integration is disabled, don't fetch data
+        if G.args.addon.getSetting("upnext_mode") == "disabled":
+            return None
+
+        try:
+            req = G.api.make_request(
+                method="GET",
+                url=G.api.UPNEXT_ENDPOINT.format(id),
+                params={
+                    "locale": G.args.subtitle
+                }
+            )
+        except (CrunchyrollError, requests.exceptions.RequestException) as e:
+            crunchy_log("_get_upnext_episode: failed to load for: %s" % id)
+            return None
+        if not req or "error" in req or len(req.get("data", [])) == 0:
+            return None
+
+        return req.get("data")[0]

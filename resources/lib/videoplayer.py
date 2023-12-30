@@ -24,11 +24,13 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import utils
-from resources.lib.globals import G
-from resources.lib.gui import SkipModalDialog, _show_modal_dialog
-from resources.lib.model import Object, CrunchyrollError, LoginError
-from resources.lib.videostream import VideoPlayerStreamData, VideoStream
+from . import utils, view
+from .addons import upnext
+from .api import API
+from .globals import G
+from .gui import SkipModalDialog, _show_modal_dialog
+from .model import Object, CrunchyrollError, LoginError
+from .videostream import VideoPlayerStreamData, VideoStream
 
 
 class VideoPlayer(Object):
@@ -56,8 +58,11 @@ class VideoPlayer(Object):
 
         self._handle_update_playhead()
         self._handle_skipping()
+
         if not self._wait_for_playback_started(10):
             utils.crunchy_log('Timeout reached, video did not start playback in 10 seconds', xbmc.LOGERROR)
+
+        self._handle_upnext()
 
     def is_playing(self) -> bool:
         """ Returns true if playback is running. Note that it also returns true when paused. """
@@ -207,6 +212,59 @@ class VideoPlayer(Object):
         utils.crunchy_log("_handle_skipping: starting thread", xbmc.LOGINFO)
         threading.Thread(target=self.thread_check_skipping).start()
 
+    def _handle_upnext(self):
+        try:
+            next_episode = self._stream_data.next_playable_item
+            if not next_episode:
+                utils.crunchy_log("_handle_upnext: No episode or disabled upnext integration")
+                return
+            next_url = view.build_url(
+                {
+                    "series_id": G.args.get_arg("series_id"),
+                    "episode_id": next_episode.episode_id,
+                    "stream_id": next_episode.stream_id
+                },
+                "video_episode_play"
+            )
+            show_next_at_seconds = self._compute_when_episode_ends()
+            # Needs to wait 1s, otherwise, upnext will show next dialog at episode start...
+            xbmc.sleep(1000)
+            utils.crunchy_log("_handle_upnext: Next URL (shown at %ds): %s" % (show_next_at_seconds, next_url))
+            upnext.send_next_info(G.args, self._stream_data.playable_item, next_episode, next_url, show_next_at_seconds, self._stream_data.playable_item_parent)
+        except Exception:
+            utils.crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
+
+    def _compute_when_episode_ends(self) -> int:
+        upnext_mode = G.args.addon.getSetting("upnext_mode")
+        if upnext_mode == "disabled":
+            return None
+
+        video_end = self._stream_data.playable_item.duration
+        fixed_duration = int(G.args.addon.getSetting("upnext_fixed_duration"), 10)
+        result = video_end - fixed_duration
+
+        skip_events_data = self._stream_data.unmodified_skip_events_data
+        if upnext_mode == "fixed" or not skip_events_data or (not skip_events_data.get("credits") and not skip_events_data.get("preview")):
+            return result
+
+        credits_start = skip_events_data.get("credits", {}).get("start")
+        credits_end = skip_events_data.get("credits", {}).get("end")
+        preview_start = skip_events_data.get("preview", {}).get("start")
+        preview_end = skip_events_data.get("preview", {}).get("end")
+        # If there are outro and preview
+        # and if the outro ends when the preview start
+        if upnext_mode == "best" and credits_start and credits_end and preview_start and credits_end + 3 > preview_start:
+            result = credits_start
+        # If there is a preview
+        elif preview_start:
+            result = preview_start
+        # If there is outro without preview
+        # and if the outro ends in the last 20 seconds video
+        elif upnext_mode == "best" and credits_start and credits_end and video_end <= credits_end + 20:
+            result = credits_start
+
+        return result
+
     def thread_update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
 
@@ -306,7 +364,7 @@ class VideoPlayer(Object):
         ).start()
 
     def clear_active_stream(self):
-        if not G.args.get_arg('episode_id') or not self._stream_data.token:
+        if not G.args.get_arg('episode_id') or not self._stream_data or not self._stream_data.token:
             return
 
         try:

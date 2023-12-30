@@ -125,5 +125,31 @@
                 </setting>
             </group>
         </category>
+        <category id="addons_options" label="30240" help="">
+            <group id="1" label="30240">
+                <setting id="upnext_mode" type="string" label="30090" help="">
+                    <level>0</level>
+                    <default>disabled</default>
+                    <constraints>
+                        <options>
+                            <option label="30091">best</option>
+                            <option label="30092">preview</option>
+                            <option label="30093">fixed</option>
+                            <option label="30094">disabled</option>
+                        </options>
+                    </constraints>
+                    <control type="list" format="string">
+                        <heading>30090</heading>
+                    </control>
+                </setting>
+                <setting id="upnext_fixed_duration" type="number" label="30089" help="">
+                    <level>0</level>
+                    <default>15</default>
+                    <control type="edit" format="number">
+                        <heading>30089</heading>
+                    </control>
+                </setting>
+            </group>
+        </category>
     </section>
 </settings>
