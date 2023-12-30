@@ -732,8 +732,9 @@ def view_series(args, api: API):
                     "aired": None,  # item["created"][:10],
                     "premiered": None,  # item["created"][:10],
                     "status": u"Completed" if item["is_complete"] else u"Continuing",
-                    "thumb": args.thumb,
-                    "fanart": args.fanart,
+                    # TODO
+                    # "thumb": args.thumb,
+                    # "fanart": args.fanart,
                     "mode": "episodes"
                 },
                 is_folder=True
@@ -811,8 +812,10 @@ def view_episodes(args, api: API):
                     "plotoutline": item["description"],
                     "aired": item["episode_air_date"][:10],
                     "premiered": item["availability_starts"][:10],  # ???
+                    # TODO
+                    # "poster": args.thumb,
                     "thumb": utils.get_image_from_struct(item, "thumbnail", 2),
-                    "fanart": args.fanart,
+                    # "fanart": args.fanart,
                     "mode": "videoplay",
                     # note that for fetching streams we need a special guid, not the episode_id
                     "stream_id": stream_id,

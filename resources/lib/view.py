@@ -25,6 +25,7 @@ except ImportError:
 import xbmcvfs
 import xbmcgui
 import xbmcplugin
+from . import router
 
 from typing import Callable
 
@@ -119,18 +120,12 @@ def quote_value(value):
 def build_url(args, info):
     """Create url
     """
-    s = ""
-    # step 1 copy new information from info
-    for key, value in list(info.items()):
-        if value:
-            s = s + "&" + key + "=" + quote_value(value)
+    path_args = {}
+    path_args.update(args.__dict__)
+    path_args.update(info)
 
-    # step 2 copy old information from args, but don't append twice
-    for key, value in list(args.__dict__.items()):
-        if value and key in types and not "&" + str(key) + "=" in s:
-            s = s + "&" + key + "=" + quote_value(value)
-
-    return args.argv[0] + "?" + s[1:]
+    result = args._addonurl + router.build_path(path_args)
+    return result
 
 
 def make_info_label(args, info):

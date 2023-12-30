@@ -21,7 +21,7 @@ import xbmc
 import xbmcaddon
 
 # plugin constants
-_addon = xbmcaddon.Addon(id=sys.argv[0][9:-1])
+_addon = xbmcaddon.Addon(id=sys.argv[0][9:33])
 _plugin = _addon.getAddonInfo("name")
 _version = _addon.getAddonInfo("version")
 
