@@ -24,7 +24,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import utils
+from resources.lib import utils, view
 from resources.lib.api import API
 from resources.lib.gui import SkipModalDialog, _show_modal_dialog
 from resources.lib.model import Object, Args, CrunchyrollError
@@ -102,7 +102,8 @@ class VideoPlayer(Object):
         """ Sets up the playback"""
 
         # prepare playback
-        item = xbmcgui.ListItem(self._args.get_arg('title', 'Title not provided'), path=self._stream_data.stream_url)
+        item = self._prepare_xbmc_list_item()
+        item.setPath(self._stream_data.stream_url)
         item.setMimeType("application/vnd.apple.mpegurl")
         item.setContentLookup(False)
 
@@ -130,6 +131,18 @@ class VideoPlayer(Object):
             utils.crunchy_log(self._args, "Inputstream Adaptive failed, trying directly with kodi", xbmc.LOGINFO)
             item.setProperty("inputstream", "")
             xbmc.Player().play(self._stream_data.stream_url, item)
+
+    def _prepare_xbmc_list_item(self):
+        """ Create XBMC list item from API metadata """
+
+        objects = utils.get_data_from_object_ids(self._args, [ self._args.series_id, self._args.episode_id ], self._api)
+        entry = objects.get(self._args.episode_id)
+        series_obj = objects.get(self._args.series_id)
+        if not entry:
+            return xbmcgui.ListItem(self._args.get_arg('title', 'Title not provided'))
+
+        media_info = utils.create_media_info_from_objects_data(entry, series_obj)
+        return view.create_xbmc_item(self._args, media_info)
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
