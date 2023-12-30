@@ -189,32 +189,51 @@ class API:
             data=None,
             json=None
     ) -> Optional[Dict]:
-        if params is None:
-            params = dict()
-        if headers is None:
-            headers = dict()
         if self.account_data:
             if expiration := self.account_data.expires:
                 current_time = utils.get_date()
                 if current_time > utils.str_to_date(expiration):
                     self.create_session(refresh=True)
+        r = self._process_request(method, url, headers, params, data, json)
+        # We get sometimes issues after host suspend/resume with expiration date, so we get token expiration error from server.
+        # We could retrieve token expiration code from response body but r.text is empty when status_code is lower than 400.
+        if r.status_code == 401:
+            self.create_session(refresh=True)
+            r = self._process_request(method, url, headers, params, data, json)
+        return utils.get_json_from_response(r)
+
+    def _process_request(
+            self,
+            method: str,
+            url: str,
+            headers=None,
+            params=None,
+            data=None,
+            json=None
+    ) -> Optional[Dict]:
+        if params is None:
+            params = dict()
+        if headers is None:
+            headers = dict()
+        base_params = params.copy()
+        if self.account_data:
             params.update({
                 "Policy": self.account_data.cms.policy,
                 "Signature": self.account_data.cms.signature,
                 "Key-Pair-Id": self.account_data.cms.key_pair_id
             })
-        headers.update(self.api_headers)
+        request_headers = self.api_headers.copy()
+        request_headers.update(headers)
+        utils.log("Request: %s - Params: %s - Headers: %s" % (url, base_params, request_headers))
 
-        r = self.http.request(
+        return self.http.request(
             method,
             url,
-            headers=headers,
+            headers=request_headers,
             params=params,
             data=data,
             json=json
         )
-
-        return utils.get_json_from_response(r)
 
     def make_unauthenticated_request(
             self,
