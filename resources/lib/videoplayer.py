@@ -19,6 +19,7 @@ import time
 from typing import Optional
 
 import inputstreamhelper
+import requests
 import xbmc
 import xbmcgui
 import xbmcplugin
@@ -237,8 +238,8 @@ class VideoPlayer(Object):
                                 'Content-Type': 'application/json'
                             }
                         )
-                    except ConnectionError:
-                        # catch timeout exception
+                    except requests.exceptions.RequestException:
+                        # catch timeout or any other possible exception
                         utils.crunchy_log(self._args, "Failed to update playhead to crunchyroll")
                         pass
         except RuntimeError:

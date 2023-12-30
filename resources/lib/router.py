@@ -1,11 +1,27 @@
+# -*- coding: utf-8 -*-
+# Crunchyroll
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
+from typing import Any, Optional
 
 PARAMETER_ROUTE_MODE: str = "__parameter"
 
 # A route is formatted with {parameters}, its linked value will be the "mode" parameter.
 # If value is PARAMETER_ROUTE_MODE, the "mode" parameter will be taken from the url.
-routes: dict = {
+plugin_routes: dict = {
     "/menu/{mode}": PARAMETER_ROUTE_MODE,
     "/menu/{mode}/offset/{offset}": PARAMETER_ROUTE_MODE,
     "/menu/{mode}/{genre}": PARAMETER_ROUTE_MODE,
@@ -20,8 +36,9 @@ routes: dict = {
     "/video/{series_id}/{episode_id}/{stream_id}": "videoplay"
 }
 
-def extract_url_params(url: str) -> dict:
-    for pattern, mode in routes.items():
+
+def extract_url_params(url: str) -> Optional[dict]:
+    for pattern, mode in plugin_routes.items():
         if pattern[0] == "/":
             pattern = pattern[1:]
         regexp = "^/?" + pattern.replace("{", "(?P<").replace("}", ">[^/]+)") + "$"
@@ -32,18 +49,20 @@ def extract_url_params(url: str) -> dict:
                 mode = result.group("mode")
             resp["mode"] = mode
             return resp
-    
+
     return None
 
-def build_path(args: dict) -> str:
+
+def build_path(args: dict) -> Optional[str]:
     # Find routes matching mode
     routes_for_mode = get_matching_routes_with_params_from_mode(args.get("mode"))
     # Filter routes by existing args
-    routes_for_params = {route: params for route, params in routes_for_mode.items() if check_args_contains_params(args, params)}
+    routes_for_params = {route: params for route, params in routes_for_mode.items() if
+                         check_args_contains_params(args, params)}
     # Choose the best one
     param_number: int = 0
-    selected_route: str = None
-    selected_params: list = None
+    selected_route: str | None = None
+    selected_params: list | None = None
     for route, params in routes_for_params.items():
         if len(params) > param_number:
             param_number = len(params)
@@ -57,14 +76,16 @@ def build_path(args: dict) -> str:
         result = result.replace("{%s}" % param, str(args.get(param)))
     return result
 
-def get_matching_routes_with_params_from_mode(searching_mode: str) -> list:
+
+def get_matching_routes_with_params_from_mode(searching_mode: str) -> dict[Any, list]:
     routes = get_matching_routes_from_mode(searching_mode)
     return {route: get_params_from_route(route) for route in routes}
+
 
 def get_matching_routes_from_mode(searching_mode: str) -> list:
     # TODO: Cache it
     routes_by_mode = {}
-    for pattern, mode in routes.items():
+    for pattern, mode in plugin_routes.items():
         if not routes_by_mode.get(mode):
             routes_by_mode[mode] = []
         routes_by_mode.get(mode).append(pattern)
@@ -74,10 +95,11 @@ def get_matching_routes_from_mode(searching_mode: str) -> list:
 
     return routes_by_mode.get(searching_mode)
 
+
 def get_params_from_route(route: str) -> list:
     # TODO: Cache it
     params_by_route = {}
-    for pattern, mode in routes.items():
+    for pattern, mode in plugin_routes.items():
         params_by_route[pattern] = get_params_from_pattern(pattern)
 
     if not params_by_route.get(route):
@@ -85,8 +107,10 @@ def get_params_from_route(route: str) -> list:
 
     return params_by_route.get(route)
 
+
 def get_params_from_pattern(pattern: str) -> list:
-    return re.findall(r"\{([^}]+)\}", pattern)
+    return re.findall(r"\{([^}]+)}", pattern)
+
 
 def check_args_contains_params(args: dict, params: list) -> bool:
     for param in params:
