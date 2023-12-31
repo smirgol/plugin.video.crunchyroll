@@ -17,79 +17,149 @@
 import re
 from typing import Optional, Dict
 
-PARAMETER_ROUTE_MODE: str = "__parameter"
-
-# A route is formatted with {parameters}, its linked value will be the "mode" parameter.
-# If value is PARAMETER_ROUTE_MODE, the "mode" parameter will be taken from the url.
+# An URL is formatted with {parameters}, each parameter are passed to contoller args.
+# The "mode" option will be passed to args if set.
 plugin_routes: dict = {
-    "/menu/{mode}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/offset/{offset}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}/offset/{offset}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}/category/{category_filter}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}/season/{season_filter}": PARAMETER_ROUTE_MODE,
-    "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}": PARAMETER_ROUTE_MODE,
-    "/series/{series_id}": "series",
-    "/series/{series_id}/{collection_id}": "episodes",
-    "/series/{series_id}/{collection_id}/offset/{offset}": "episodes",
-    "/video/{series_id}/{episode_id}/{stream_id}": "videoplay",
-    "/video/{episode_id}/{stream_id}": "videoplay"
+    "main_submenu": {
+        "url": "/menu/{mode}"
+    },
+    "main_submenu_with_offset": {
+        "url": "/menu/{mode}/offset/{offset}"
+    },
+    "genre_submenu": {
+        "url": "/menu/{mode}/{genre}"
+    },
+    "genre_submenu_with_offset": {
+        "url": "/menu/{mode}/{genre}/offset/{offset}"
+    },
+    "category_submenu": {
+        "url": "/menu/{mode}/{genre}/category/{category_filter}"
+    },
+    "category_submenu_with_offset": {
+        "url": "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}"
+    },
+    "season_submenu": {
+        "url": "/menu/{mode}/{genre}/season/{season_filter}"
+    },
+    "season_submenu_with_offset": {
+        "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}"
+    },
+    "series_view": {
+        "url": "/series/{series_id}",
+        "mode": "series"
+    },
+    "collection_view": {
+        "url": "/series/{series_id}/{collection_id}",
+        "mode": "episodes"
+    },
+    "collection_view_with_offset": {
+        "url": "/series/{series_id}/{collection_id}/offset/{offset}",
+        "mode": "episodes"
+    },
+    "video_episode_play": {
+        "url": "/video/{series_id}/{episode_id}/{stream_id}",
+        "mode": "videoplay"
+    },
+    "video_movie_play": {
+        "url": "/video/{episode_id}/{stream_id}",
+        "mode": "videoplay"
+    }
 }
 
 
 def extract_url_params(url: str) -> Optional[dict]:
-    for pattern, mode in plugin_routes.items():
+    """
+    The router logic itself.
+    It iterates over routes and return params for the first found matching pattern (which should be the only one).
+    """
+    for route_name, route_conf in plugin_routes.items():
+        pattern = route_conf.get("url")
         if pattern[0] == "/":
             pattern = pattern[1:]
         regexp = "^/?" + pattern.replace("{", "(?P<").replace("}", ">[^/]+)") + "$"
         result = re.match(regexp, url)
         if result is not None:
             resp = result.groupdict()
-            if mode == PARAMETER_ROUTE_MODE:
-                mode = result.group("mode")
-            resp["mode"] = mode
+            resp["current_route"] = route_name
+            if not resp.get("mode"):
+                resp["mode"] = route_conf.get("mode")
             return resp
 
     return None
 
 
 def build_path(args: dict) -> Optional[str]:
-    # Find routes matching mode
-    routes_for_mode = get_matching_routes_with_params_from_mode(args.get("mode"))
-    # Filter routes by existing args
-    routes_for_params = {route: params for route, params in routes_for_mode.items() if
-                         check_args_contains_params(args, params)}
-    # Choose the best one
+    """
+    Build URL from plugin list item args.
+    It will use the route configuration designated by "route" arg.
+    If "route" arg was not set, it will try to find an URL matching the "mode" arg and other available args.
+    """
+    route_name = args.get("route")
+    if not route_name:
+        route_name = find_route_matching_args(args)
+        if not route_name:
+            return None
+    return create_path_from_route(route_name, args)
+
+
+def find_route_matching_args(args: dict) -> Optional[str]:
+    """
+    Try to get the best matching route to given "mode" arg and plugin list item args.
+    """
+    # Get all routes matching mode
+    routes_matching_mode = filter_routes_by_mode(args.get("mode"))
+    # Extract parameter list for each route
+    params_by_route_matching_mode = {
+        route_name: extract_params_from_pattern(route_conf.get("url"))
+        for route_name, route_conf in routes_matching_mode.items()
+    }
+    # Filter out routes that require non existing args
+    filtered_params = {
+        route: params
+        for route, params in params_by_route_matching_mode.items()
+        if check_args_contains_params(args, params)
+    }
+    # Choose the best one by looking for the largest parameter count
     param_number: int = 0
     selected_route: str | None = None
-    selected_params: list | None = None
-    for route, params in routes_for_params.items():
+    for route, params in filtered_params.items():
         if len(params) > param_number:
             param_number = len(params)
             selected_route = route
-            selected_params = params
     if not selected_route:
         return None
-    # Build URL from selected route
-    result = selected_route
-    for param in selected_params:
+    return selected_route
+
+
+def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
+    """
+    Build URL from a route name and plugin list item args.
+    """
+    # Retrieve pattern
+    route = plugin_routes.get(route_name)
+    if not route:
+        return None
+    result = route.get("url")
+    # Replace each {parameter} by its value from args
+    pattern_params = extract_params_from_pattern(result)
+    for param in pattern_params:
         result = result.replace("{%s}" % param, str(args.get(param)))
     return result
 
 
-def get_matching_routes_with_params_from_mode(searching_mode: str) -> Dict[str, list]:
-    routes = get_matching_routes_from_mode(searching_mode)
-    return {route: get_params_from_route(route) for route in routes}
-
-
-def get_matching_routes_from_mode(searching_mode: str) -> list:
+def filter_routes_by_mode(searching_mode: str) -> list:
+    """
+    Filter routes by mode.
+    If no route was found for requested mode, return all routes without mode set.
+    """
+    PARAMETER_ROUTE_MODE = "__no_mode_set"
     # TODO: Cache it
     routes_by_mode = {}
-    for pattern, mode in plugin_routes.items():
+    for route_name, route_conf in plugin_routes.items():
+        mode = route_conf.get("mode", PARAMETER_ROUTE_MODE)
         if not routes_by_mode.get(mode):
-            routes_by_mode[mode] = []
-        routes_by_mode.get(mode).append(pattern)
+            routes_by_mode[mode] = {}
+        routes_by_mode.get(mode)[route_name] = route_conf
 
     if not routes_by_mode.get(searching_mode):
         return routes_by_mode.get(PARAMETER_ROUTE_MODE)
@@ -97,19 +167,7 @@ def get_matching_routes_from_mode(searching_mode: str) -> list:
     return routes_by_mode.get(searching_mode)
 
 
-def get_params_from_route(route: str) -> list:
-    # TODO: Cache it
-    params_by_route = {}
-    for pattern, mode in plugin_routes.items():
-        params_by_route[pattern] = get_params_from_pattern(pattern)
-
-    if not params_by_route.get(route):
-        return params_by_route.get(PARAMETER_ROUTE_MODE)
-
-    return params_by_route.get(route)
-
-
-def get_params_from_pattern(pattern: str) -> list:
+def extract_params_from_pattern(pattern: str) -> list:
     return re.findall(r"\{([^}]+)}", pattern)
 
 

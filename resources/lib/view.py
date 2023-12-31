@@ -88,10 +88,10 @@ def add_item(
         cm = []
         if path_params.get("series_id"):
             cm.append((args.addon.getLocalizedString(30045),
-                       "Container.Update(%s/series/%s)" % (args.addonurl, path_params.get("series_id"))))
+                       "Container.Update(%s)" % build_url(args, path_params, "series_view")))
         if path_params.get("collection_id"):
             cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s/series/%s/%s)" % (args.addonurl, path_params.get("series_id"), path_params.get("collection_id"))))
+                       "Container.Update(%s)" % build_url(args, path_params, "collection_view")))
         if len(cm) > 0:
             li.addContextMenuItems(cm)
 
@@ -121,11 +121,15 @@ def quote_value(value):
     return quote_plus(value)
 
 
-def build_url(args, path_params):
+def build_url(args, path_params, route_name: str=None):
     """Create url
     """
 
-    result = args.addonurl + router.build_path(path_params)
+    if route_name is None:
+        path = router.build_path(path_params)
+    else:
+        path = router.create_path_from_route(route_name, path_params)
+    result = args.addonurl + path
     return result
 
 
