@@ -24,7 +24,7 @@ import xbmc
 import xbmcvfs
 
 from . import utils
-from .model import AccountData, Args
+from .model import AccountData, Args, LoginError
 
 
 class API:
@@ -187,53 +187,45 @@ class API:
             headers=None,
             params=None,
             data=None,
-            json=None
-    ) -> Optional[Dict]:
-        if self.account_data:
-            if expiration := self.account_data.expires:
-                current_time = utils.get_date()
-                if current_time > utils.str_to_date(expiration):
-                    self.create_session(refresh=True)
-        r = self._process_request(method, url, headers, params, data, json)
-        # We get sometimes issues after host suspend/resume with expiration date, so we get token expiration error from server.
-        # We could retrieve token expiration code from response body but r.text is empty when status_code is lower than 400.
-        if r.status_code == 401:
-            self.create_session(refresh=True)
-            r = self._process_request(method, url, headers, params, data, json)
-        return utils.get_json_from_response(r)
-
-    def _process_request(
-            self,
-            method: str,
-            url: str,
-            headers=None,
-            params=None,
-            data=None,
-            json=None
+            json=None,
+            is_retry=False
     ) -> Optional[Dict]:
         if params is None:
             params = dict()
         if headers is None:
             headers = dict()
-        base_params = params.copy()
         if self.account_data:
+            if expiration := self.account_data.expires:
+                current_time = utils.get_date()
+                if current_time > utils.str_to_date(expiration):
+                    self.create_session(refresh=True)
             params.update({
                 "Policy": self.account_data.cms.policy,
                 "Signature": self.account_data.cms.signature,
                 "Key-Pair-Id": self.account_data.cms.key_pair_id
             })
-        request_headers = self.api_headers.copy()
-        request_headers.update(headers)
-        utils.log("Request: %s - Params: %s - Headers: %s" % (url, base_params, request_headers))
+        headers.update(self.api_headers)
 
-        return self.http.request(
+        r = self.http.request(
             method,
             url,
-            headers=request_headers,
+            headers=headers,
             params=params,
             data=data,
             json=json
         )
+
+        # something went wrong with authentication, possibly an expired token that wasn't caught above due to host
+        # clock issues. set expiration date to 0 and re-call, triggering a full session refresh.
+        if r.status_code == 401:
+            if is_retry:
+                raise LoginError('Request to API failed twice due to authentication issues.')
+
+            utils.crunchy_log(self.args, "make_request_proposal: request failed due to auth error", xbmc.LOGERROR)
+            self.account_data.expires = 0
+            return self.make_request(method, url, headers, params, data, json, True)
+
+        return utils.get_json_from_response(r)
 
     def make_unauthenticated_request(
             self,
