@@ -135,14 +135,18 @@ class VideoPlayer(Object):
     def _prepare_xbmc_list_item(self):
         """ Create XBMC list item from API metadata """
 
-        objects = utils.get_data_from_object_ids(self._args, [ self._args.series_id, self._args.episode_id ], self._api)
-        entry = objects.get(self._args.episode_id)
-        series_obj = objects.get(self._args.series_id)
-        if not entry:
-            return False
+        try:
+            objects = utils.get_data_from_object_ids(self._args, [ self._args.series_id, self._args.episode_id ], self._api)
+            entry = objects.get(self._args.episode_id)
+            series_obj = objects.get(self._args.series_id)
+            if not entry:
+                return False
 
-        media_info = utils.create_media_info_from_objects_data(entry, series_obj)
-        return view.create_xbmc_item(self._args, media_info)
+            media_info = utils.create_media_info_from_objects_data(entry, series_obj)
+            return view.create_xbmc_item(self._args, media_info)
+        except Exception:
+            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id, xbmc.LOGINFO)
+            return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
