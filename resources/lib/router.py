@@ -33,7 +33,8 @@ plugin_routes: dict = {
     "/series/{series_id}": "series",
     "/series/{series_id}/{collection_id}": "episodes",
     "/series/{series_id}/{collection_id}/offset/{offset}": "episodes",
-    "/video/{series_id}/{episode_id}/{stream_id}": "videoplay"
+    "/video/{series_id}/{episode_id}/{stream_id}": "videoplay",
+    "/video/{episode_id}/{stream_id}": "videoplay"
 }
 
 

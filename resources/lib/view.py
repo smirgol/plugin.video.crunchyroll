@@ -124,7 +124,7 @@ def build_url(args, info):
     path_args.update(args.__dict__)
     path_args.update(info)
 
-    result = args._addonurl + router.build_path(path_args)
+    result = args.addonurl + router.build_path(path_args)
     return result
 
 

@@ -84,6 +84,10 @@ class Args(object):
         return self._addonid
 
     @property
+    def addonurl(self):
+        return self._addonurl
+
+    @property
     def argv(self):
         return self._argv
 
@@ -98,6 +102,10 @@ class Args(object):
     @property
     def subtitle_fallback(self):
         return self._subtitle_fallback
+
+    @property
+    def url(self):
+        return self._url
 
 
 class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
