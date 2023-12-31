@@ -67,8 +67,12 @@ def add_item(
     # get infoLabels
     info_labels = make_info_label(args, info)
 
+    path_params = {}
+    path_params.update(args.__dict__)
+    path_params.update(info)
+
     # get url
-    u = build_url(args, info)
+    u = build_url(args, path_params)
 
     if is_folder:
         # directory
@@ -82,12 +86,12 @@ def add_item(
 
         # add context menu
         cm = []
-        if u"series_id" in u:
+        if path_params.get("series_id"):
             cm.append((args.addon.getLocalizedString(30045),
-                       "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "series", u)))
-        if u"collection_id" in u:
+                       "Container.Update(%s/series/%s)" % (args.addonurl, path_params.get("series_id"))))
+        if path_params.get("collection_id"):
             cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "episodes", u)))
+                       "Container.Update(%s/series/%s/%s)" % (args.addonurl, path_params.get("series_id"), path_params.get("collection_id"))))
         if len(cm) > 0:
             li.addContextMenuItems(cm)
 
@@ -117,14 +121,11 @@ def quote_value(value):
     return quote_plus(value)
 
 
-def build_url(args, info):
+def build_url(args, path_params):
     """Create url
     """
-    path_args = {}
-    path_args.update(args.__dict__)
-    path_args.update(info)
 
-    result = args.addonurl + router.build_path(path_args)
+    result = args.addonurl + router.build_path(path_params)
     return result
 
 

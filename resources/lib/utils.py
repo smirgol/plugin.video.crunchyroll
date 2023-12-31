@@ -113,6 +113,10 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
     return r_json
 
 
+def get_series_data_from_series_id(args, id: str, api) -> dict:
+    return get_series_data_from_series_ids(args, [id], api).get(id)
+
+
 def get_series_data_from_series_ids(args, ids: list, api) -> dict:
     req = api.make_request(
         method="GET",

@@ -15,13 +15,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import re
 import sys
 
 import xbmc
 import xbmcaddon
 
 # plugin constants
-_addon = xbmcaddon.Addon(id=sys.argv[0][9:33])
+_addon = xbmcaddon.Addon(id=re.sub(r"^plugin://([^/]+)/.*$", r"\1", sys.argv[0]))
 _plugin = _addon.getAddonInfo("name")
 _version = _addon.getAddonInfo("version")
 
