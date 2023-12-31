@@ -59,7 +59,7 @@ def add_item(
 ) -> xbmcgui.ListItem:
     """Add item to directory listing.
     """
-    li = create_xbmc_item(args, info, True, mediatype)
+    li = create_xbmc_item(args, info, is_folder, mediatype)
 
     # add item to list
     xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
