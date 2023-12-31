@@ -197,6 +197,8 @@ def get_raw_panel_from_dict(item: dict) -> Object:
     result = get_object_data_from_dict(item.get("panel"))
     if result:
         result.playhead = item.get("playhead", 0)
+        if result.duration is not None:
+            result.playcount = 1 if (int(result.playhead / result.duration * 100)) > 90 else 0
     return result
 
 
