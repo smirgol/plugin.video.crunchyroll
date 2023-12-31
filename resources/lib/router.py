@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-from typing import Any, Optional
+from typing import Optional, Dict
 
 PARAMETER_ROUTE_MODE: str = "__parameter"
 
@@ -77,7 +77,7 @@ def build_path(args: dict) -> Optional[str]:
     return result
 
 
-def get_matching_routes_with_params_from_mode(searching_mode: str) -> dict[Any, list]:
+def get_matching_routes_with_params_from_mode(searching_mode: str) -> Dict[str, list]:
     routes = get_matching_routes_from_mode(searching_mode)
     return {route: get_params_from_route(route) for route in routes}
 
