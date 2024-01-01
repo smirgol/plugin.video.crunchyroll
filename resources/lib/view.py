@@ -63,7 +63,7 @@ def add_item(
 
         This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
-    li = create_xbmc_item(args, info, True, mediatype, callbacks)
+    li = create_xbmc_item(args, info, is_folder, mediatype, callback)
 
     # add item to list
     xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
