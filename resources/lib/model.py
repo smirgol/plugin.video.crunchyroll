@@ -140,6 +140,8 @@ class AccountData(Object):
         self.username: str = data.get("username")
 
 
+
+# @todo: create common base class
 class MovieData(Object):
     def __init__(self, data: dict):
         from . import utils
@@ -191,6 +193,7 @@ class MovieData(Object):
 
 
 # dto
+# @todo: create common base class
 class EpisodeData(Object):
     def __init__(self, data: dict):
         from . import utils
@@ -240,6 +243,7 @@ class EpisodeData(Object):
 
 
 # dto
+# @todo: create common base class
 class SeriesData(Object):
     def __init__(self, data: dict):
         from . import utils

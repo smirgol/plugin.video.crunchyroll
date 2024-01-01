@@ -26,7 +26,6 @@ import xbmcgui
 from . import utils
 from . import view
 from .api import API
-from .model import EpisodeData, MovieData
 from .videoplayer import VideoPlayer
 
 
@@ -52,7 +51,9 @@ def show_queue(args, api: API):
     # @TODO: re-add filtering of non-available items / premium content
     # if not ("most_likely_media" in item and "series" in item and item["most_likely_media"]["available"] and item["most_likely_media"]["premium_available"]):
     #    continue
+
     utils.add_items_to_view(req.get("items"), args, api)
+
     # # potentially unsafe, it can possibly delete the whole playlist if something goes really wrong
     # callback=lambda li:
     #     li.addContextMenuItems([(args.addon.getLocalizedString(30068), 'RunPlugin(%s?mode=remove_from_queue&content_id=%s&session_restart=True)' % (sys.argv[0], entry.episode_id))])
