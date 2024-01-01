@@ -27,7 +27,7 @@ import xbmcplugin
 from resources.lib import utils, view
 from resources.lib.api import API
 from resources.lib.gui import SkipModalDialog, _show_modal_dialog
-from resources.lib.model import Object, Args, CrunchyrollError
+from resources.lib.model import Object, Args, CrunchyrollError, EpisodeData, SeriesData
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
 
@@ -41,6 +41,9 @@ class VideoPlayer(Object):
         self._args = args
         self._api = api
         self._stream_data: VideoPlayerStreamData | None = None
+        # @todo: what about movies and other future content types?
+        self._episode_data: EpisodeData | None = None
+        self._series_data: SeriesData | None = None
         self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
 
         self._skip_modal_duration_max = 10
@@ -55,6 +58,7 @@ class VideoPlayer(Object):
         if self._player.isPlaying():
             utils.log("Skipping playback because already playing")
 
+        self._load_playing_item_data()
         self._prepare_and_start_playback()
 
         self._handle_resume()
@@ -133,21 +137,28 @@ class VideoPlayer(Object):
             item.setProperty("inputstream", "")
             xbmc.Player().play(self._stream_data.stream_url, item)
 
+    def _load_playing_item_data(self):
+        """ Load episode and series data from API """
+
+        try:
+            objects = utils.get_data_from_object_ids(self._args, [self._args.series_id, self._args.episode_id],
+                                                     self._api)
+            self._episode_data = objects.get(self._args.episode_id)
+            self._series_data = objects.get(self._args.series_id)
+        except Exception:
+            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id,
+                              xbmc.LOGINFO)
+
     def _prepare_xbmc_list_item(self):
         """ Create XBMC list item from API metadata """
 
-        try:
-            objects = utils.get_data_from_object_ids(self._args, [ self._args.series_id, self._args.episode_id ], self._api)
-            entry = objects.get(self._args.episode_id)
-            series_obj = objects.get(self._args.series_id)
-            if not entry:
-                return False
-
-            media_info = utils.create_media_info_from_objects_data(entry, series_obj)
-            return view.create_xbmc_item(self._args, media_info)
-        except Exception:
-            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id, xbmc.LOGINFO)
+        if not self._episode_data:
+            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id,
+                              xbmc.LOGINFO)
             return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
+
+        media_info = utils.create_media_info_from_objects_data(self._episode_data, self._series_data)
+        return view.create_xbmc_item(self._args, media_info)
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
@@ -201,7 +212,7 @@ class VideoPlayer(Object):
 
         # check whether we have the required data to enable this
         if not self._check_and_filter_skip_data():
-            utils.crunchy_log(self._args, "_handle_skipping: Nothing to skip", xbmc.LOGINFO)
+            utils.crunchy_log(self._args, "_handle_skipping: required data for skipping is empty", xbmc.LOGINFO)
             return
 
         # run thread in background to check when whe reach a section where we can skip

@@ -152,6 +152,7 @@ def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[
 
 
 def add_items_to_view(items: list, args, api):
+    # collect series ids to fetch additional data from api, like poster and fanart
     series_ids = [
         item.get("panel").get("episode_metadata").get("series_id")
         if item.get("panel") and item.get("panel").get("episode_metadata") and item.get("panel").get("episode_metadata").get("series_id")
@@ -200,10 +201,14 @@ def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeD
     if not item:
         return None
 
-    result = get_object_data_from_dict(item.get("panel"))
-    if result:
-        result.playhead = item.get("playhead", 0)
-    return result
+    # copy required metadata that is not part of playhead to playhead
+    # setting after creating class instance does not work, as the constructor is calculating "playcount" based on this
+    copy = item
+    copy.get('panel').update({
+        'playhead': item.get('playhead', 0)
+    })
+
+    return get_object_data_from_dict(copy.get("panel"))
 
 
 def get_object_data_from_dict(raw_data: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:

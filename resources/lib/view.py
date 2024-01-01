@@ -15,8 +15,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-
 try:
     from urllib import quote_plus
 except ImportError:
@@ -61,7 +59,7 @@ def add_item(
 ):
     """Add item to directory listing.
     """
-    li = create_xbmc_item(args, info, True, mediatype, callback)
+    li = create_xbmc_item(args, info, is_folder, mediatype, callback)
 
     # add item to list
     xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),

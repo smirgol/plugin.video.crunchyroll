@@ -26,7 +26,7 @@ import xbmcgui
 from . import utils
 from . import view
 from .api import API
-from .model import EpisodeData, MovieData, CrunchyrollError
+from .model import CrunchyrollError
 from .videoplayer import VideoPlayer
 
 

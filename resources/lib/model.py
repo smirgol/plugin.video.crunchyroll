@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 import re
+import sys
 
 try:
     from urllib import unquote_plus
@@ -54,8 +54,9 @@ class Args(object):
         self._subtitle_fallback = None
         # needed to pass some data around
         self.playhead = None
-        self.stream_id = None
+        self.series_id = None
         self.episode_id = None
+        self.stream_id = None
         self.duration = None
 
         self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
@@ -161,7 +162,6 @@ class AccountData(Object):
         self.username: str = data.get("username")
 
 
-
 # @todo: create common base class
 class MovieData(Object):
     def __init__(self, data: dict):
@@ -259,7 +259,7 @@ class EpisodeData(Object):
         except Exception:
             raise CrunchyrollError("Failed to get stream id for %s" % self.title)
 
-        if self.playhead is not None and self.duration is not None:
+        if self.playhead > 0 and self.duration > 0:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
 
 
