@@ -26,6 +26,7 @@ import xbmcgui
 from . import utils
 from . import view
 from .api import API
+from .model import CrunchyrollError
 from .videoplayer import VideoPlayer
 
 
@@ -546,10 +547,6 @@ def view_series(args, api: API):
         view.end_of_directory(args)
         return False
 
-    series_data = utils.get_series_data_from_series_id(args, args.series_id, api)
-    poster = utils.get_image_from_struct(series_data, "poster_tall", 2)
-    fanart = utils.get_image_from_struct(series_data, "poster_wide", 2)
-
     # display media
     for item in req["items"]:
         try:
@@ -626,10 +623,6 @@ def view_episodes(args, api: API):
         }
     )
 
-    series_data = utils.get_series_data_from_series_id(args, args.series_id, api)
-    poster = utils.get_image_from_struct(series_data, "poster_tall", 2)
-    fanart = utils.get_image_from_struct(series_data, "poster_wide", 2)
-
     # display media
     for item in req["items"]:
         try:
@@ -689,34 +682,35 @@ def start_playback(args, api: API):
     utils.crunchy_log(args, "playback stopped", xbmc.LOGINFO)
 
 
+# @todo: the callback magic to add this to a list item somehow triggers an "Attempt to use invalid handle -1" warning
 def add_to_queue(args, api: API) -> bool:
     # api request
-    req = api.make_request(
-        method="POST",
-        url=API.WATCHLIST_ADD_ENDPOINT.format(api.account_data.account_id),
-        json={
-            "content_id": args.content_id
-        },
-        params={
-            "locale": args.subtitle,
-            "preferred_audio_language": api.account_data.default_audio_language
-        },
-        headers={
-            'Content-Type': 'application/json'
-        }
-    )
-
-    # check for error
-    if not req or "error" in req:
-        view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
-        view.end_of_directory(args)
-        xbmcgui.Dialog().notification(
-            '%s Error' % args.addonname,
-            'Failed to add item to watchlist',
-            xbmcgui.NOTIFICATION_ERROR,
-            3
+    try:
+        req = api.make_request(
+            method="POST",
+            url=API.WATCHLIST_ADD_ENDPOINT.format(api.account_data.account_id),
+            json={
+                "content_id": args.content_id
+            },
+            params={
+                "locale": args.subtitle,
+                "preferred_audio_language": api.account_data.default_audio_language
+            },
+            headers={
+                'Content-Type': 'application/json'
+            }
         )
-        return False
+    except CrunchyrollError as e:
+        if 'content.add_watchlist_item_v2.item_already_exists' in str(e):
+            xbmcgui.Dialog().notification(
+                '%s Error' % args.addonname,
+                'Failed to add item to watchlist',
+                xbmcgui.NOTIFICATION_ERROR,
+                3
+            )
+            return False
+        else:
+            raise e
 
     xbmcgui.Dialog().notification(
         args.addonname,
