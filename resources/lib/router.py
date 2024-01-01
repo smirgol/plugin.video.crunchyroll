@@ -15,9 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-from typing import Optional, Dict
+from typing import Optional
 
-# An URL is formatted with {parameters}, each parameter are passed to contoller args.
+# A URL is formatted with {parameters}, each parameter are passed to controller args.
 # The "mode" option will be passed to args if set.
 plugin_routes: dict = {
     "main_submenu": {
@@ -92,7 +92,7 @@ def build_path(args: dict) -> Optional[str]:
     """
     Build URL from plugin list item args.
     It will use the route configuration designated by "route" arg.
-    If "route" arg was not set, it will try to find an URL matching the "mode" arg and other available args.
+    If "route" arg was not set, it will try to find a URL matching the "mode" arg and other available args.
     """
     route_name = args.get("route")
     if not route_name:
@@ -113,7 +113,7 @@ def find_route_matching_args(args: dict) -> Optional[str]:
         route_name: extract_params_from_pattern(route_conf.get("url"))
         for route_name, route_conf in routes_matching_mode.items()
     }
-    # Filter out routes that require non existing args
+    # Filter out routes that require non-existing args
     filtered_params = {
         route: params
         for route, params in params_by_route_matching_mode.items()
@@ -147,7 +147,7 @@ def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
     return result
 
 
-def filter_routes_by_mode(searching_mode: str) -> list:
+def filter_routes_by_mode(searching_mode: str) -> dict:
     """
     Filter routes by mode.
     If no route was found for requested mode, return all routes without mode set.

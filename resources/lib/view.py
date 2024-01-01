@@ -15,19 +15,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-
 try:
     from urllib import quote_plus
 except ImportError:
     from urllib.parse import quote_plus
 
-import xbmcvfs
+from typing import Callable
+
 import xbmcgui
 import xbmcplugin
-from . import router
+import xbmcvfs
 
-from typing import Callable
+from . import router
 
 # keys allowed in setInfo
 types = ["count", "size", "date", "genre", "country", "year", "episode", "season", "sortepisode", "top250", "setid",
@@ -113,7 +112,7 @@ def add_item(
                                 totalItems=total_items)
 
 
-def quote_value(value):
+def quote_value(value) -> str:
     """Quote value depending on python
     """
     if not isinstance(value, str):
@@ -121,7 +120,7 @@ def quote_value(value):
     return quote_plus(value)
 
 
-def build_url(args, path_params, route_name: str=None):
+def build_url(args, path_params, route_name: str = None) -> str:
     """Create url
     """
 
@@ -133,7 +132,7 @@ def build_url(args, path_params, route_name: str=None):
     return result
 
 
-def make_info_label(args, info):
+def make_info_label(args, info) -> dict:
     """Generate info_labels from existing dict
     """
     info_labels = {}
