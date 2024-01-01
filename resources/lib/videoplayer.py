@@ -236,7 +236,7 @@ class VideoPlayer(Object):
                             }
                         )
                     except requests.exceptions.RequestException:
-                        # catch timeout exception
+                        # catch timeout or any other possible exception
                         utils.crunchy_log(self._args, "Failed to update playhead to crunchyroll")
                         pass
         except RuntimeError:
