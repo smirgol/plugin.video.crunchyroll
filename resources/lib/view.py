@@ -15,8 +15,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-
 from resources.lib.api import API
 from resources.lib.model import ListableItem, EpisodeData, MovieData, Args, SeasonData
 
@@ -25,11 +23,12 @@ try:
 except ImportError:
     from urllib.parse import quote_plus
 
-import xbmcvfs
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 
 from typing import Callable, Optional, List
+from . import router
 
 # keys allowed in setInfo
 types = ["count", "size", "date", "genre", "country", "year", "episode", "season", "sortepisode", "top250", "setid",
@@ -86,8 +85,12 @@ def create_xbmc_item(
     """Create XBMC item for directory listing.
     """
 
+    path_params = {}
+    path_params.update(args.__dict__)
+    path_params.update(info)
+
     # get url
-    u = build_url(args, info)
+    u = build_url(args, path_params)
 
     # create list item
     li = xbmcgui.ListItem(label=info["title"], path=u)
@@ -108,13 +111,12 @@ def create_xbmc_item(
         # add context menu to jump to seasons xor episodes
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
-        if u"series_id" in u:
+        if path_params.get("series_id"):
             cm.append((args.addon.getLocalizedString(30045),
-                       "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "seasons", u)))
-        if u"season_id" in u:
+                       "Container.Update(%s)" % build_url(args, path_params, "series_view")))
+        if path_params.get("collection_id"):
             cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "episodes", u)))
-
+                       "Container.Update(%s)" % build_url(args, path_params, "collection_view")))
         if len(cm) > 0:
             li.addContextMenuItems(cm)
 
@@ -182,35 +184,41 @@ def add_listables(
         )
 
 
-def quote_value(value):
+def quote_value(value) -> str:
     """Quote value depending on python
     """
     if not isinstance(value, str):
         value = str(value)
     return quote_plus(value)
 
+# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
+whitelist_url_args = [ "duration", "playhead" ]
 
-def build_url(args, info):
+def build_url(args, path_params: dict, route_name: str=None) -> str:
     """Create url
     """
 
-    # @todo: we really should filter that, as most params added to the url are no longer required
+    # Get base route
+    if route_name is None:
+        path = router.build_path(path_params)
+    else:
+        path = router.create_path_from_route(route_name, path_params)
+    if path is None:
+        path = "/"
 
     s = ""
-    # step 1 copy new information from info
-    for key, value in list(info.items()):
-        if value:
+    # Add whitelisted parameters
+    for key, value in path_params.items():
+        if key in whitelist_url_args and value:
             s = s + "&" + key + "=" + quote_value(value)
+    if len(s) > 0:
+        s = "?" + s[1:]
 
-    # step 2 copy old information from args, but don't append twice
-    for key, value in list(args.args.items()):
-        if value and key in types and not "&" + str(key) + "=" in s:
-            s = s + "&" + key + "=" + quote_value(value)
-
-    return args.argv[0] + "?" + s[1:]
+    result = args.addonurl + path + s
+    return result
 
 
-def make_info_label(args, info):
+def make_info_label(args, info) -> dict:
     """Generate info_labels from existing dict
     """
     info_labels = {}

@@ -83,6 +83,10 @@ def get_listables_from_response(args: Args, data: Dict) -> List[ListableItem]:
     return listable_items
 
 
+def get_series_data_from_series_id(args, series_id: str, api) -> dict:
+    return get_series_data_from_series_ids(args, [series_id], api).get(series_id)
+
+
 def get_series_data_from_series_ids(args: Args, api: API, ids: list) -> dict:
     """ fetch info from api object endpoint for given ids. Useful to complement missing data """
 

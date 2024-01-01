@@ -31,6 +31,8 @@ from json import dumps
 
 import xbmcaddon
 
+from . import router
+
 
 class Args(object):
     """Arguments class
@@ -46,7 +48,8 @@ class Args(object):
         # addon specific data
         self.PY2 = sys.version_info[0] == 2  #: True for Python 2
         self._argv = argv
-        self._addonid = self._argv[0][9:-1]
+        self._addonurl = re.sub(r"^(plugin://[^/]+)/.*$", r"\1", argv[0])
+        self._addonid = self._addonurl[9:]
         self._addon = xbmcaddon.Addon(id=self._addonid)
         self._addonname = self._addon.getAddonInfo("name")
         self._cj = None
@@ -57,7 +60,15 @@ class Args(object):
         self._subtitle = None
         self._subtitle_fallback = None
 
-        # copy url args to self._args
+        self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
+
+        route_params = router.extract_url_params(self._url)
+        
+        if route_params is not None:
+            for key, value in route_params.items():
+                if value:
+                    setattr(self, key, unquote_plus(value))
+
         for key, value in kwargs.items():
             if value:
                 self._args[key] = unquote_plus(value[0])
@@ -88,6 +99,10 @@ class Args(object):
         return self._addonid
 
     @property
+    def addonurl(self):
+        return self._addonurl
+
+    @property
     def argv(self):
         return self._argv
 
@@ -106,6 +121,10 @@ class Args(object):
     @property
     def args(self):
         return self._args
+
+    @property
+    def url(self):
+        return self._url
 
 
 class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
