@@ -22,6 +22,7 @@ import requests
 import xbmc
 import xbmcgui
 from requests import Response
+from requests.exceptions import HTTPError
 
 try:
     from urlparse import parse_qs
@@ -82,7 +83,12 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
 
     # no content - possibly POST/DELETE request?
     if not r or not r.text:
-        return None
+        try:
+            r.raise_for_status()
+            return None
+        except HTTPError as e:
+            # r.text is empty when status code cause raise
+            r = e.response
 
     # handle text/plain response (e.g. fetch subtitle)
     if response_type == "text/plain":
@@ -108,7 +114,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
     elif "message" in r_json and "code" in r_json:
         message = r_json.get("message")
         raise CrunchyrollError(f"[{code}] Error occurred: {message}")
-    if code != 200:
+    if not r.ok:
         raise CrunchyrollError(f"[{code}] {r.text}")
 
     return r_json
@@ -293,7 +299,7 @@ def log_error_with_trace(args, message, show_notification: bool = True) -> None:
 
     if show_notification:
         xbmcgui.Dialog().notification(
-            '%s Error' % args.addonname,
+            '%s Error' % addon_name,
             'Please check logs for details',
             xbmcgui.NOTIFICATION_ERROR,
             5

@@ -43,7 +43,7 @@ def show_queue(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -91,7 +91,7 @@ def search_anime(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -160,7 +160,7 @@ def show_history(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -546,6 +546,10 @@ def view_series(args, api: API):
         view.end_of_directory(args)
         return False
 
+    series_data = utils.get_series_data_from_series_id(args, args.series_id, api)
+    poster = utils.get_image_from_struct(series_data, "poster_tall", 2)
+    fanart = utils.get_image_from_struct(series_data, "poster_wide", 2)
+
     # display media
     for item in req["items"]:
         try:
@@ -601,7 +605,7 @@ def view_episodes(args, api: API):
     #        to find out if and which we haven't seen fully yet.
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -621,6 +625,10 @@ def view_episodes(args, api: API):
             "content_ids": ','.join(episode_ids)
         }
     )
+
+    series_data = utils.get_series_data_from_series_id(args, args.series_id, api)
+    poster = utils.get_image_from_struct(series_data, "poster_tall", 2)
+    fanart = utils.get_image_from_struct(series_data, "poster_wide", 2)
 
     # display media
     for item in req["items"]:
@@ -699,7 +707,7 @@ def add_to_queue(args, api: API) -> bool:
     )
 
     # check for error
-    if req and "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         xbmcgui.Dialog().notification(
