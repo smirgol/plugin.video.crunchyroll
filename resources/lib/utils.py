@@ -196,7 +196,7 @@ def add_items_to_view(items: list, args, api):
             log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
 
 
-def get_data_from_object_ids(args, ids: list, api) -> Object:
+def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
     req = api.make_request(
         method="GET",
         url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
@@ -208,10 +208,10 @@ def get_data_from_object_ids(args, ids: list, api) -> Object:
     if not req or "error" in req:
         return {}
 
-    return {item.get("id") : get_object_data_from_dict(item) for item in req.get("data")}
+    return {item.get("id"): get_object_data_from_dict(item) for item in req.get("data")}
 
 
-def get_raw_panel_from_dict(item: dict) -> Object:
+def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
     if not item:
         return None
 
@@ -237,7 +237,8 @@ def get_object_data_from_dict(raw_data: dict) -> Object:
         return None
 
 
-def create_media_info_from_objects_data(entry: Object, series_obj: SeriesData) -> dict:
+def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, EpisodeData], series_obj: SeriesData) -> \
+        Optional[Dict]:
     if not entry:
         return
 

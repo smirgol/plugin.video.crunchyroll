@@ -510,6 +510,7 @@ def start_playback(args, api: API):
     utils.crunchy_log(args, "playback stopped", xbmc.LOGINFO)
 
 
+# @todo: the callback magic to add this to a list item somehow triggers an "Attempt to use invalid handle -1" warning
 def add_to_queue(args, api: API) -> bool:
     # api request
     try:
