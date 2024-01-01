@@ -119,16 +119,30 @@ def quote_value(value) -> str:
         value = str(value)
     return quote_plus(value)
 
+# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
+whitelist_url_args = [ "duration", "playhead" ]
 
-def build_url(args, path_params, route_name: str = None) -> str:
+def build_url(args, path_params: dict, route_name: str=None) -> str:
     """Create url
     """
 
+    # Get base route
     if route_name is None:
         path = router.build_path(path_params)
     else:
         path = router.create_path_from_route(route_name, path_params)
-    result = args.addonurl + path
+    if path is None:
+        path = "/"
+
+    s = ""
+    # Add whitelisted parameters
+    for key, value in path_params.items():
+        if key in whitelist_url_args and value:
+            s = s + "&" + key + "=" + quote_value(value)
+    if len(s) > 0:
+        s = "?" + s[1:]
+
+    result = args.addonurl + path + s
     return result
 
 
