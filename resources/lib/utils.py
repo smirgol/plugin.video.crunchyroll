@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import json
 import re
 from json import dumps
 
@@ -22,6 +22,7 @@ import requests
 import xbmc
 import xbmcgui
 from requests import Response
+from requests.exceptions import HTTPError
 
 try:
     from urlparse import parse_qs
@@ -34,7 +35,7 @@ import time
 from typing import Dict, Optional, Union
 
 from . import view
-from .model import Object, EpisodeData, SeriesData, MovieData, Args, LoginError, CrunchyrollError
+from .model import EpisodeData, SeriesData, MovieData, Args, LoginError, CrunchyrollError
 
 
 def parse(argv) -> Args:
@@ -82,7 +83,12 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
 
     # no content - possibly POST/DELETE request?
     if not r or not r.text:
-        return None
+        try:
+            r.raise_for_status()
+            return None
+        except HTTPError as e:
+            # r.text is empty when status code cause raise
+            r = e.response
 
     # handle text/plain response (e.g. fetch subtitle)
     if response_type == "text/plain":
@@ -108,7 +114,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
     elif "message" in r_json and "code" in r_json:
         message = r_json.get("message")
         raise CrunchyrollError(f"[{code}] Error occurred: {message}")
-    if code != 200:
+    if not r.ok:
         raise CrunchyrollError(f"[{code}] {r.text}")
 
     return r_json
@@ -163,7 +169,7 @@ def add_items_to_view(items: list, args, api):
             series_obj = None
             if entry.series_id:
                 series_obj = series_data.get(entry.series_id)
-                
+
             media_info = create_media_info_from_objects_data(entry, series_obj)
             view.add_item(
                 args,
@@ -175,7 +181,7 @@ def add_items_to_view(items: list, args, api):
             log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
 
 
-def get_data_from_object_ids(args, ids: list, api) -> Object:
+def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
     req = api.make_request(
         method="GET",
         url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
@@ -187,10 +193,10 @@ def get_data_from_object_ids(args, ids: list, api) -> Object:
     if not req or "error" in req:
         return {}
 
-    return {item.get("id") : get_object_data_from_dict(item) for item in req.get("data")}
+    return {item.get("id"): get_object_data_from_dict(item) for item in req.get("data")}
 
 
-def get_raw_panel_from_dict(item: dict) -> Object:
+def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
     if not item:
         return None
 
@@ -200,7 +206,7 @@ def get_raw_panel_from_dict(item: dict) -> Object:
     return result
 
 
-def get_object_data_from_dict(raw_data: dict) -> Object:
+def get_object_data_from_dict(raw_data: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
     if not raw_data or not raw_data.get('type'):
         return None
 
@@ -211,12 +217,12 @@ def get_object_data_from_dict(raw_data: dict) -> Object:
     elif raw_data.get("type") == "movie":
         return MovieData(raw_data)
     else:
-        crunchy_log(args, "unhandled index for metadata. %s" % (json.dumps(raw_data, indent=4)),
-                            xbmc.LOGERROR)
+        crunchy_log(None, "unhandled index for metadata. %s" % (json.dumps(raw_data, indent=4)),
+                    xbmc.LOGERROR)
         return None
 
 
-def create_media_info_from_objects_data(entry: Object, series_obj: SeriesData) -> dict:
+def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, EpisodeData], series_obj: SeriesData) -> Optional[Dict]:
     if not entry:
         return
 
@@ -289,7 +295,7 @@ def log_error_with_trace(args, message, show_notification: bool = True) -> None:
 
     if show_notification:
         xbmcgui.Dialog().notification(
-            '%s Error' % args.addonname,
+            '%s Error' % addon_name,
             'Please check logs for details',
             xbmcgui.NOTIFICATION_ERROR,
             5

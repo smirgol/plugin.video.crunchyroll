@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+import re
 
 try:
     from urllib import unquote_plus
@@ -25,6 +26,8 @@ except ImportError:
 from json import dumps
 
 import xbmcaddon
+
+from . import router
 
 
 class Args(object):
@@ -41,7 +44,8 @@ class Args(object):
         self.mode = None
         self.PY2 = sys.version_info[0] == 2  #: True for Python 2
         self._argv = argv
-        self._addonid = self._argv[0][9:-1]
+        self._addonurl = re.sub(r"^(plugin://[^/]+)/.*$", r"\1", argv[0])
+        self._addonid = self._addonurl[9:]
         self._addon = xbmcaddon.Addon(id=self._addonid)
         self._addonname = self._addon.getAddonInfo("name")
         self._cj = None
@@ -53,6 +57,15 @@ class Args(object):
         self.stream_id = None
         self.episode_id = None
         self.duration = None
+
+        self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
+
+        route_params = router.extract_url_params(self._url)
+
+        if route_params is not None:
+            for key, value in route_params.items():
+                if value:
+                    setattr(self, key, unquote_plus(value))
 
         for key, value in kwargs.items():
             if value:
@@ -71,6 +84,10 @@ class Args(object):
         return self._addonid
 
     @property
+    def addonurl(self):
+        return self._addonurl
+
+    @property
     def argv(self):
         return self._argv
 
@@ -85,6 +102,10 @@ class Args(object):
     @property
     def subtitle_fallback(self):
         return self._subtitle_fallback
+
+    @property
+    def url(self):
+        return self._url
 
 
 class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
@@ -140,6 +161,8 @@ class AccountData(Object):
         self.username: str = data.get("username")
 
 
+
+# @todo: create common base class
 class MovieData(Object):
     def __init__(self, data: dict):
         from . import utils
@@ -191,6 +214,7 @@ class MovieData(Object):
 
 
 # dto
+# @todo: create common base class
 class EpisodeData(Object):
     def __init__(self, data: dict):
         from . import utils
@@ -240,6 +264,7 @@ class EpisodeData(Object):
 
 
 # dto
+# @todo: create common base class
 class SeriesData(Object):
     def __init__(self, data: dict):
         from . import utils

@@ -26,7 +26,7 @@ import xbmcgui
 from . import utils
 from . import view
 from .api import API
-from .model import EpisodeData, MovieData
+from .model import EpisodeData, MovieData, CrunchyrollError
 from .videoplayer import VideoPlayer
 
 
@@ -44,7 +44,7 @@ def show_queue(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -52,7 +52,9 @@ def show_queue(args, api: API):
     # @TODO: re-add filtering of non-available items / premium content
     # if not ("most_likely_media" in item and "series" in item and item["most_likely_media"]["available"] and item["most_likely_media"]["premium_available"]):
     #    continue
+
     utils.add_items_to_view(req.get("items"), args, api)
+
     # # potentially unsafe, it can possibly delete the whole playlist if something goes really wrong
     # callback=lambda li:
     #     li.addContextMenuItems([(args.addon.getLocalizedString(30068), 'RunPlugin(%s?mode=remove_from_queue&content_id=%s&session_restart=True)' % (sys.argv[0], entry.episode_id))])
@@ -90,7 +92,7 @@ def search_anime(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -159,7 +161,7 @@ def show_history(args, api: API):
     )
 
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -452,32 +454,6 @@ def list_filter(args, mode, api: API):
 
     view.end_of_directory(args, "tvshows")
 
-    # @TODO: update
-    #
-    # # test if filter is selected
-    # if hasattr(args, "search"):
-    #     return listSeries(args, "tag:" + args.search)
-    #
-    # # api request
-    # payload = {"media_type": args.genre}
-    # req = api.request(args, "categories", payload)
-    #
-    # # check for error
-    # if "error" in req:
-    #     view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
-    #     view.endofdirectory(args)
-    #     return False
-    #
-    # # display media
-    # for item in req["data"][mode]:
-    #     # add to view
-    #     view.add_item(args,
-    #                   {"title": item["label"],
-    #                    "search": item["tag"],
-    #                    "mode": args.mode},
-    #                   is_folder=True)
-    #
-    # view.endofdirectory(args)
     return True
 
 
@@ -569,8 +545,8 @@ def view_series(args, api: API):
                     "aired": None,  # item["created"][:10],
                     "premiered": None,  # item["created"][:10],
                     "status": u"Completed" if item["is_complete"] else u"Continuing",
-                    "thumb": args.thumb,
-                    "fanart": args.fanart,
+                    # "thumb": args.thumb,  # @todo: re-add
+                    # "fanart": args.fanart, # @todo: re-add
                     "mode": "episodes"
                 },
                 is_folder=True
@@ -596,11 +572,8 @@ def view_episodes(args, api: API):
         }
     )
 
-    # @TODO: collect all episodes ids and make a call to "playheads" api endpoint,
-    #        to find out if and which we haven't seen fully yet.
-
     # check for error
-    if "error" in req:
+    if not req or "error" in req:
         view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
         view.end_of_directory(args)
         return False
@@ -648,9 +621,9 @@ def view_episodes(args, api: API):
                     "plotoutline": item["description"],
                     "aired": item["episode_air_date"][:10],
                     "premiered": item["availability_starts"][:10],  # ???
-                    "poster": args.thumb,
+                    # "poster": args.thumb,  # @todo: re-add
                     "thumb": utils.get_image_from_struct(item, "thumbnail", 2),
-                    "fanart": args.fanart,
+                    # "fanart": args.fanart,  # @todo: re-add
                     "mode": "videoplay",
                     # note that for fetching streams we need a special guid, not the episode_id
                     "stream_id": stream_id,
@@ -680,34 +653,35 @@ def start_playback(args, api: API):
     utils.crunchy_log(args, "playback stopped", xbmc.LOGINFO)
 
 
+# @todo: the callback magic to add this to a list item somehow triggers an "Attempt to use invalid handle -1" warning
 def add_to_queue(args, api: API) -> bool:
     # api request
-    req = api.make_request(
-        method="POST",
-        url=API.WATCHLIST_ADD_ENDPOINT.format(api.account_data.account_id),
-        json={
-            "content_id": args.content_id
-        },
-        params={
-            "locale": args.subtitle,
-            "preferred_audio_language": api.account_data.default_audio_language
-        },
-        headers={
-            'Content-Type': 'application/json'
-        }
-    )
-
-    # check for error
-    if req and "error" in req:
-        view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
-        view.end_of_directory(args)
-        xbmcgui.Dialog().notification(
-            '%s Error' % args.addonname,
-            'Failed to add item to watchlist',
-            xbmcgui.NOTIFICATION_ERROR,
-            3
+    try:
+        api.make_request(
+            method="POST",
+            url=API.WATCHLIST_ADD_ENDPOINT.format(api.account_data.account_id),
+            json={
+                "content_id": args.content_id
+            },
+            params={
+                "locale": args.subtitle,
+                "preferred_audio_language": api.account_data.default_audio_language
+            },
+            headers={
+                'Content-Type': 'application/json'
+            }
         )
-        return False
+    except CrunchyrollError as e:
+        if 'content.add_watchlist_item_v2.item_already_exists' in str(e):
+            xbmcgui.Dialog().notification(
+                '%s Error' % args.addonname,
+                'Failed to add item to watchlist',
+                xbmcgui.NOTIFICATION_ERROR,
+                3
+            )
+            return False
+        else:
+            raise e
 
     xbmcgui.Dialog().notification(
         args.addonname,
