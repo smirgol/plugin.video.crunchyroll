@@ -454,32 +454,6 @@ def list_filter(args, mode, api: API):
 
     view.end_of_directory(args, "tvshows")
 
-    # @TODO: update
-    #
-    # # test if filter is selected
-    # if hasattr(args, "search"):
-    #     return listSeries(args, "tag:" + args.search)
-    #
-    # # api request
-    # payload = {"media_type": args.genre}
-    # req = api.request(args, "categories", payload)
-    #
-    # # check for error
-    # if "error" in req:
-    #     view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
-    #     view.endofdirectory(args)
-    #     return False
-    #
-    # # display media
-    # for item in req["data"][mode]:
-    #     # add to view
-    #     view.add_item(args,
-    #                   {"title": item["label"],
-    #                    "search": item["tag"],
-    #                    "mode": args.mode},
-    #                   is_folder=True)
-    #
-    # view.endofdirectory(args)
     return True
 
 
@@ -597,9 +571,6 @@ def view_episodes(args, api: API):
             "season_id": args.collection_id
         }
     )
-
-    # @TODO: collect all episodes ids and make a call to "playheads" api endpoint,
-    #        to find out if and which we haven't seen fully yet.
 
     # check for error
     if not req or "error" in req:
