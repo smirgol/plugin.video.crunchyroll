@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+import re
 
 try:
     from urllib import unquote_plus
@@ -25,6 +26,8 @@ except ImportError:
 from json import dumps
 
 import xbmcaddon
+
+from . import router
 
 
 class Args(object):
@@ -41,7 +44,8 @@ class Args(object):
         self.mode = None
         self.PY2 = sys.version_info[0] == 2  #: True for Python 2
         self._argv = argv
-        self._addonid = self._argv[0][9:-1]
+        self._addonurl = re.sub(r"^(plugin://[^/]+)/.*$", r"\1", argv[0])
+        self._addonid = self._addonurl[9:]
         self._addon = xbmcaddon.Addon(id=self._addonid)
         self._addonname = self._addon.getAddonInfo("name")
         self._cj = None
@@ -53,6 +57,15 @@ class Args(object):
         self.stream_id = None
         self.episode_id = None
         self.duration = None
+
+        self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
+
+        route_params = router.extract_url_params(self._url)
+        
+        if route_params is not None:
+            for key, value in route_params.items():
+                if value:
+                    setattr(self, key, unquote_plus(value))
 
         for key, value in kwargs.items():
             if value:
@@ -71,6 +84,10 @@ class Args(object):
         return self._addonid
 
     @property
+    def addonurl(self):
+        return self._addonurl
+
+    @property
     def argv(self):
         return self._argv
 
@@ -85,6 +102,10 @@ class Args(object):
     @property
     def subtitle_fallback(self):
         return self._subtitle_fallback
+
+    @property
+    def url(self):
+        return self._url
 
 
 class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
@@ -140,11 +161,13 @@ class AccountData(Object):
         self.username: str = data.get("username")
 
 
+
+# @todo: create common base class
 class MovieData(Object):
     def __init__(self, data: dict):
         from . import utils
 
-        meta = data.get("panel").get("movie_metadata")
+        meta = data.get("movie_metadata")
 
         self.title: str = meta.get("movie_listing_title", "")
         self.tvshowtitle: str = meta.get("movie_listing_title", "")
@@ -152,32 +175,32 @@ class MovieData(Object):
         self.playhead: int = data.get("playhead", 0)
         self.season: str = ""
         self.episode: str = "1"
-        self.episode_id: str | None = data.get("panel", {}).get("id")
+        self.episode_id: str | None = data.get("id")
         self.collection_id: str | None = None
         self.series_id: str | None = None
-        self.plot: str = data.get("panel", {}).get("description", "")
-        self.plotoutline: str = data.get("panel", {}).get("description", "")
+        self.plot: str = data.get("description", "")
+        self.plotoutline: str = data.get("description", "")
         self.year: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
         self.aired: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
         self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
+        self.thumb: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
+        self.fanart: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
         self.playcount: int = 0
         self.stream_id: str | None = None
 
         try:
             # note that for fetching streams we need a special guid, not the episode_id
             self.stream_id = utils.get_stream_id_from_url(
-                data.get("panel", {}).get("__links__", {}).get("streams", {}).get("href", "")
+                data.get("__links__", {}).get("streams", {}).get("href", "")
             )
 
             # history data has the stream_id at a different location
             if self.stream_id is None:
                 self.stream_id = utils.get_stream_id_from_url(
-                    data.get("panel", {}).get("streams_link")
+                    data.get("streams_link")
                 )
 
             if self.stream_id is None:
@@ -191,42 +214,43 @@ class MovieData(Object):
 
 
 # dto
+# @todo: create common base class
 class EpisodeData(Object):
     def __init__(self, data: dict):
         from . import utils
 
-        meta = data.get("panel").get("episode_metadata")
+        meta = data.get("episode_metadata")
 
         self.title: str = utils.format_long_episode_title(meta.get("season_title"), meta.get("episode_number"),
-                                                          data.get("panel").get("title"))
+                                                          data.get("title"))
         self.tvshowtitle: str = meta.get("series_title", "")
         self.duration: int = int(meta.get("duration_ms", 0) / 1000)
         self.playhead: int = data.get("playhead", 0)
         self.season: int = meta.get("season_number", "")
         self.episode: str = meta.get("episode", "")
-        self.episode_id: str | None = data.get("panel", {}).get("id")
+        self.episode_id: str | None = data.get("id")
         self.collection_id: str | None = meta.get("season_id")
         self.series_id: str | None = meta.get("series_id")
-        self.plot: str = data.get("panel", {}).get("description", "")
-        self.plotoutline: str = data.get("panel", {}).get("description", "")
+        self.plot: str = data.get("description", "")
+        self.plotoutline: str = data.get("description", "")
         self.year: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(data.get("panel"), "thumbnail", 2)
+        self.thumb: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
+        self.fanart: str | None = utils.get_image_from_struct(data, "thumbnail", 2)
         self.playcount: int = 0
         self.stream_id: str | None = None
 
         try:
             # note that for fetching streams we need a special guid, not the episode_id
             self.stream_id = utils.get_stream_id_from_url(
-                data.get("panel", {}).get("__links__", {}).get("streams", {}).get("href", "")
+                data.get("__links__", {}).get("streams", {}).get("href", "")
             )
 
             # history data has the stream_id at a different location
             if self.stream_id is None:
                 self.stream_id = utils.get_stream_id_from_url(
-                    data.get("panel", {}).get("streams_link")
+                    data.get("streams_link")
                 )
 
             if self.stream_id is None:
@@ -237,6 +261,24 @@ class EpisodeData(Object):
 
         if self.playhead is not None and self.duration is not None:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
+
+
+# dto
+# @todo: create common base class
+class SeriesData(Object):
+    def __init__(self, data: dict):
+        from . import utils
+
+        meta = data.get("series_metadata")
+
+        self.title: str = data.get("title")
+        self.tvshowtitle: str = data.get("title")
+        self.series_id: str = data.get("id")
+        self.plot: str = data.get("description")
+        self.plotoutline: str = data.get("description")
+        self.year: str = meta.get("series_launch_year")
+        self.poster: str = utils.get_image_from_struct(data, "poster_tall", 2)
+        self.fanart: str = utils.get_image_from_struct(data, "poster_wide", 2)
 
 
 class CrunchyrollError(Exception):

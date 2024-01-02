@@ -126,7 +126,7 @@ def check_mode(args, api: API):
 
     elif mode == "featured":  # https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
         controller.listSeries(args, "featured", api)
-    elif mode == "popular":  # DONE
+    elif mode == "popular":
         controller.list_filter(args, "popular", api)
     # elif mode == "simulcast":  # https://www.crunchyroll.com/de/simulcasts/seasons/fall-2023 ???
     #     controller.listSeries(args, "simulcast", api)
@@ -136,9 +136,9 @@ def check_mode(args, api: API):
         controller.list_filter(args, "newest", api)
     elif mode == "alpha":
         controller.list_filter(args, "alpha", api)
-    elif mode == "season":  # DONE
+    elif mode == "season":
         controller.list_seasons(args, "season", api)
-    elif mode == "genre":  # DONE
+    elif mode == "genre":
         controller.list_filter(args, "genre", api)
 
     elif mode == "series":

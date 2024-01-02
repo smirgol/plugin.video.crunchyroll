@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import json
 import re
 from json import dumps
 
@@ -34,7 +34,8 @@ from datetime import datetime
 import time
 from typing import Dict, Optional, Union
 
-from .model import Args, LoginError, CrunchyrollError
+from . import view
+from .model import EpisodeData, SeriesData, MovieData, Args, LoginError, CrunchyrollError
 
 
 def parse(argv) -> Args:
@@ -119,21 +120,6 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
     return r_json
 
 
-def get_series_data_from_series_ids(args, ids: list, api) -> dict:
-    req = api.make_request(
-        method="GET",
-        url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
-        params={
-            "locale": args.subtitle,
-            # "preferred_audio_language": ""
-        }
-    )
-    if not req or "error" in req:
-        return {}
-
-    return {item.get("id"): item for item in req.get("data")}
-
-
 def get_stream_id_from_url(url: str) -> Union[str, None]:
     stream_id = re.search('/videos/([^/]+)/streams', url)
     if stream_id is None:
@@ -163,6 +149,117 @@ def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[
             return src.get('source')
 
     return None
+
+
+def add_items_to_view(items: list, args, api):
+    series_ids = [
+        item.get("panel").get("episode_metadata").get("series_id")
+        if item.get("panel") and item.get("panel").get("episode_metadata") and item.get("panel").get(
+            "episode_metadata").get("series_id")
+        else "0"
+        for item in items
+    ]
+    series_data = get_data_from_object_ids(args, series_ids, api)
+
+    for item in items:
+        try:
+            entry = get_raw_panel_from_dict(item)
+            if not entry:
+                continue
+
+            series_obj = None
+            if entry.series_id:
+                series_obj = series_data.get(entry.series_id)
+                
+            media_info = create_media_info_from_objects_data(entry, series_obj)
+            view.add_item(
+                args,
+                media_info,
+                is_folder=False
+            )
+
+        except Exception:
+            log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
+
+
+def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
+    req = api.make_request(
+        method="GET",
+        url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
+        params={
+            "locale": args.subtitle,
+            # "preferred_audio_language": ""
+        }
+    )
+    if not req or "error" in req:
+        return {}
+
+    return {item.get("id"): get_object_data_from_dict(item) for item in req.get("data")}
+
+
+def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
+    if not item:
+        return None
+
+    result = get_object_data_from_dict(item.get("panel"))
+    if result:
+        result.playhead = item.get("playhead", 0)
+        if result.duration is not None:
+            result.playcount = 1 if (int(result.playhead / result.duration * 100)) > 90 else 0
+    return result
+
+
+def get_object_data_from_dict(raw_data: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
+    if not raw_data or not raw_data.get('type'):
+        return None
+
+    if raw_data.get("type") == "episode":
+        return EpisodeData(raw_data)
+    elif raw_data.get("type") == "series":
+        return SeriesData(raw_data)
+    elif raw_data.get("type") == "movie":
+        return MovieData(raw_data)
+    else:
+        crunchy_log(None, "unhandled index for metadata. %s" % (json.dumps(raw_data, indent=4)),
+                    xbmc.LOGERROR)
+        return None
+
+
+def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, EpisodeData], series_obj: SeriesData) -> \
+        Optional[Dict]:
+    if not entry:
+        return
+
+    poster = ""
+    fanart = ""
+    if series_obj:
+        poster = series_obj.poster
+        fanart = series_obj.fanart
+
+    # add to view
+    return {
+        "title": entry.title,
+        "tvshowtitle": entry.tvshowtitle,
+        "duration": entry.duration,
+        "playcount": entry.playcount,
+        "season": entry.season,
+        "episode": entry.episode,
+        "episode_id": entry.episode_id,
+        "collection_id": entry.collection_id,
+        "series_id": entry.series_id,
+        "plot": entry.plot,
+        "plotoutline": entry.plotoutline,
+        "genre": "",  # no longer available
+        "year": entry.year,
+        "aired": entry.aired,
+        "premiered": entry.premiered,
+        "thumb": entry.thumb,
+        "poster": poster,
+        "fanart": fanart,
+        "stream_id": entry.stream_id,
+        "playhead": entry.playhead,
+        "mode": "videoplay"
+    }
 
 
 def dump(data) -> None:
