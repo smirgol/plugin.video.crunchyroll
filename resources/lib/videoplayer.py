@@ -258,14 +258,11 @@ class VideoPlayer(Object):
                             json={
                                 "playhead": int(self._player.getTime()),
                                 "content_id": self._args.episode_id
-                            },
-                            headers={
-                                'Content-Type': 'application/json'
                             }
                         )
-                    except requests.exceptions.RequestException:
+                    except (CrunchyrollError, requests.exceptions.RequestException) as e:
                         # catch timeout or any other possible exception
-                        utils.crunchy_log(self._args, "Failed to update playhead to crunchyroll")
+                        utils.crunchy_log(self._args, "Failed to update playhead to crunchyroll: %s" % str(e))
                         pass
         except RuntimeError:
             utils.crunchy_log(self._args, "Playback aborted", xbmc.LOGINFO)
