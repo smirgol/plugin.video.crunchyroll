@@ -157,7 +157,7 @@ class VideoPlayer(Object):
             return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
 
         media_info = utils.create_media_info_from_objects_data(self._episode_data, self._series_data)
-        return view.create_xbmc_item(self._args, media_info)
+        return view.create_xbmc_item(self._args, media_info, False)
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
