@@ -197,6 +197,10 @@ def add_items_to_view(items: list, args, api):
             log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
 
 
+def get_data_from_object_id(args, id: str, api) -> Union[MovieData, SeriesData, EpisodeData]:
+    return get_data_from_object_ids(args, [id], api).get(id)
+
+
 def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
     req = api.make_request(
         method="GET",
