@@ -134,19 +134,16 @@ class VideoPlayer(Object):
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
 
-        if self._args.addon.getSetting('sync_playtime') != 'true':
-            utils.crunchy_log(self._args, '_handle_resume: Sync playtime not enabled', xbmc.LOGINFO)
-            return
-
-        # fetch playhead info from api if not already available
-        if not self._args.get_arg('playhead'):
-            self._args.set_arg('playhead', 0)
-            utils.crunchy_log(self._args, '_handle_resume: fetching playhead info from api', xbmc.LOGINFO)
-            playheads = utils.get_playheads_from_api(self._args, self._api, self._args.get_arg('episode_id'))
-
-            if playheads and playheads.get('data'):
-                self._args.set_arg('playhead', int(playheads.get(self._args.get_arg('episode_id')).get('playhead')))
-                utils.crunchy_log(self._args, "_handle_resume: playhead is %d" % self._args.get_arg('playhead'))
+        # if self._args.addon.getSetting('sync_playtime') != 'true':
+        #     utils.crunchy_log(self._args, '_handle_resume: Sync playtime not enabled', xbmc.LOGINFO)
+        #     return
+        #
+        # # fetch playhead info from api if not already available
+        # if not self._args.get_arg('playhead'):
+        #     if self._stream_data.playheads_data:
+        #         playheads = self._stream_data.playheads_data.get(self._args.get_arg('episode_id')).get('playhead')
+        #         self._args.set_arg('playhead', int(playheads))
+        #         utils.crunchy_log(self._args, "_handle_resume: playhead is %d" % self._args.get_arg('playhead'))
 
         # wait for video to begin
         if not wait_for_playback(30):
