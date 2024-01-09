@@ -88,6 +88,8 @@ class VideoStream(Object):
         """ gather data asynchronously and return them as a dictionary """
 
         # create threads
+        # actually not sure if this works, as the requests lib is not async
+        # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
         t_stream_data = asyncio.create_task(self._get_stream_data_from_api())
         t_skip_events_data = asyncio.create_task(self._get_skip_events(self.args.get_arg('episode_id')))
         t_playheads = asyncio.create_task(get_playheads_from_api(self.args, self.api, self.args.get_arg('episode_id')))

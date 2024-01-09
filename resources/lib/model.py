@@ -257,9 +257,9 @@ class SeriesData(ListableItem):
         self.episode: int = meta.get('episode_count')
         self.season: int = meta.get('season_count')
 
-        self.thumb: str | None = utils.get_image_from_struct(panel, "poster_tall", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "poster_wide", 2)
-        self.poster: str | None = utils.get_image_from_struct(panel, "poster_tall", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
+        self.poster: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
         self.banner: str | None = None
         self.rating: int = 0
         self.playcount: int = 0
@@ -379,8 +379,8 @@ class EpisodeData(ListableItem):
         self.year: str = meta.get("episode_air_date")[:4] if meta.get("episode_air_date") is not None else ""
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
         self.rating: int = 0
@@ -450,8 +450,8 @@ class MovieData(ListableItem):
             "premium_available_date") is not None else ""
         self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
         self.rating: int = 0

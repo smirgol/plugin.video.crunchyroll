@@ -112,6 +112,9 @@ class VideoPlayer(Object):
             item.setProperty("inputstream", "inputstream.adaptive")
             item.setProperty("inputstream.adaptive.manifest_type", "hls")
 
+            # @todo: i think other meta data like description and images are still fetched from args.
+            #        we should call the objects endpoint and use this data to remove args dependency (besides id)
+
             # add soft subtitles url for configured language
             if self._stream_data.subtitle_urls:
                 item.setSubtitles(self._stream_data.subtitle_urls)

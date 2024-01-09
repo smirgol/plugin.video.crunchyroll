@@ -167,7 +167,7 @@ async def get_watchlist_status_from_api(args: Args, api: API, ids: list) -> list
     return [item.get('id') for item in req.get('data')]
 
 
-def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[str, None]:
+def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[str, None]:
     """ dive into API info structure and extract requested image from its struct """
 
     # @todo: add option to specify quality / max size

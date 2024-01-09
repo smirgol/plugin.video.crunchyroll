@@ -122,13 +122,15 @@ OPT_CTX_SEASONS = 4  # add context menu to jump to series
 OPT_CTX_EPISODES = 8  # add context menu to jump to episodes
 
 
+# actually not sure if this works, as the requests lib is not async
+# also not sure if this is thread safe in any way, what if session is timed-out when starting this?
 async def complement_listables(
         args: Args,
         api: API,
         listables: List[ListableItem]
 ) -> Dict[str, Dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
-    from .utils import get_playheads_from_api, get_objects_from_api, get_watchlist_status_from_api, get_image_from_struct
+    from .utils import get_playheads_from_api, get_objects_from_api, get_watchlist_status_from_api, get_img_from_struct
 
     # playheads
     ids_playhead = [listable.id for listable in listables if
@@ -189,18 +191,18 @@ async def complement_listables(
         # update images for SeasonData, as they come with none by default
         if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
             setattr(listable, 'thumb',
-                    get_image_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
             setattr(listable, 'fanart',
-                    get_image_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide", 2) or listable.fanart)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide", 2) or listable.fanart)
             setattr(listable, 'poster',
-                    get_image_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
             # for others, only set the thumb image to a nicer one
             setattr(listable, 'thumb',
-                    get_image_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
             setattr(listable, 'poster',
-                    get_image_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
             # setattr(listable, 'fanart',
             #         get_image_from_struct(result_obj.get('objects').get(listable.id), "poster_wide", 2) or listable.fanart)
 

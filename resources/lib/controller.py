@@ -377,8 +377,8 @@ def list_filter_without_category(args, api: API):
                     "title": category_item.get("localization", {}).get("title"),
                     "plot": category_item.get("localization", {}).get("description"),
                     "plotoutline": category_item.get("localization", {}).get("description"),
-                    "thumb": utils.get_image_from_struct(category_item, "low", 1),
-                    "fanart": utils.get_image_from_struct(category_item, "background", 1),
+                    "thumb": utils.get_img_from_struct(category_item, "low", 1),
+                    "fanart": utils.get_img_from_struct(category_item, "background", 1),
                     "category_filter": category_item.get("tenant_category", {}),
                     "mode": args.get_arg('mode')
                 },
