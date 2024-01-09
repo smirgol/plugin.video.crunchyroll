@@ -134,25 +134,23 @@ class VideoPlayer(Object):
             # start without inputstream adaptive
             utils.crunchy_log(self._args, "Inputstream Adaptive failed, trying directly with kodi", xbmc.LOGINFO)
             item.setProperty("inputstream", "")
-            xbmc.Player().play(self._stream_data.stream_url, item)
+            self._player.play(self._stream_data.stream_url, item)
 
     def _load_playing_item_data(self):
         """ Load episode and series data from API """
 
         try:
-            objects = utils.get_data_from_object_ids(self._args, [self._args.series_id, self._args.episode_id],
-                                                     self._api)
-            self._episode_data = objects.get(self._args.episode_id)
-            self._series_data = objects.get(self._args.series_id)
+            objects = utils.get_data_from_object_ids(self._args, [ self._args.get_arg("series_id"), self._args.get_arg("episode_id") ], self._api)
+            self._episode_data = objects.get(self._args.get_arg("episode_id"))
+            self._series_data = objects.get(self._args.get_arg("series_id"))
         except Exception:
-            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id,
-                              xbmc.LOGINFO)
+            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.get_arg("episode_id"), xbmc.LOGINFO)
 
     def _prepare_xbmc_list_item(self):
         """ Create XBMC list item from API metadata """
 
         if not self._episode_data:
-            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.episode_id,
+            utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.get_arg("episode_id"),
                               xbmc.LOGINFO)
             return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
 

@@ -26,7 +26,7 @@ try:
 except ImportError:
     from urllib.parse import parse_qs
 
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 
 from . import view
 from .model import Object, Args, CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
@@ -266,7 +266,7 @@ def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, Epis
         "season": entry.season,
         "episode": entry.episode,
         "episode_id": entry.episode_id,
-        "collection_id": entry.collection_id,
+        "season_id": entry.season_id,
         "series_id": entry.series_id,
         "plot": entry.plot,
         "plotoutline": entry.plotoutline,
