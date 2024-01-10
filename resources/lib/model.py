@@ -238,10 +238,10 @@ class ListableItem(Object):
         if hasattr(self, 'series_id') and getattr(self, 'series_id') is not None:
             if hasattr(self, 'season_id') and getattr(self, 'season_id') != getattr(self, 'id'):
                 cm.append((args.addon.getLocalizedString(30045),
-                           "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "seasons", u)))
+                        "Container.Update(%s)" % build_url(args, info, "series_view")))
         if hasattr(self, 'season_id') and getattr(self, 'season_id') is not None:  # and getattr(self, 'season_id') != getattr(self, 'id'):
             cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % re.sub(r"(?<=mode=)[^&]*", "episodes", u)))
+                       "Container.Update(%s)" % build_url(args, info, "season_view")))
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
