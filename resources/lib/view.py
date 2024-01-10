@@ -63,27 +63,6 @@ def add_item(
 
         This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
-    li = create_xbmc_item(args, info, is_folder, mediatype, callbacks)
-
-    # add item to list
-    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
-                                url=li.getPath(),
-                                listitem=li,
-                                isFolder=is_folder,
-                                totalItems=total_items)
-
-    return li
-
-
-def create_xbmc_item(
-        args,
-        info,
-        is_folder=True,
-        mediatype="video",
-        callbacks: Optional[List[Callable[[xbmcgui.ListItem], None]]] = None
-) -> xbmcgui.ListItem:
-    """Create XBMC item for directory listing.
-    """
 
     path_params = {}
     path_params.update(args.args)
@@ -117,6 +96,7 @@ def create_xbmc_item(
         if path_params.get("collection_id"):
             cm.append((args.addon.getLocalizedString(30046),
                        "Container.Update(%s)" % build_url(args, path_params, "season_view")))
+
         if len(cm) > 0:
             li.addContextMenuItems(cm)
 
@@ -131,7 +111,12 @@ def create_xbmc_item(
         for cb in callbacks:
             cb(li)
 
-    return li
+    # add item to list
+    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
+                                url=u,
+                                listitem=li,
+                                isFolder=is_folder,
+                                totalItems=total_items)
 
 
 def add_listables(
