@@ -128,9 +128,6 @@ class VideoStream(Object):
             xbmcplugin.setResolvedUrl(int(self.args.argv[1]), False, item)
             xbmcgui.Dialog().ok(self.args.addon_name, self.args.addon.getLocalizedString(30064))
             return None
-        except Exception as e:
-            xbmc.log("Unable to extract streams from %s" % api_data["streams"], xbmc.LOGERROR)
-            raise e
 
         return url
 
