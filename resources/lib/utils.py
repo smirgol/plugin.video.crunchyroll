@@ -26,10 +26,9 @@ try:
 except ImportError:
     from urllib.parse import parse_qs
 
-from typing import Dict, Union, List, Optional
+from typing import Dict, Union, List
 
-from . import view
-from .model import Object, Args, CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
+from .model import Args, CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
 from .api import API
 
 
@@ -45,7 +44,7 @@ def parse(argv) -> Args:
 # @todo we could change the return type and along with the listables return additional data that we preload
 #       like info what is on watchlist, artwork, playhead, ...
 #       for that we should use async requests (asyncio)
-def get_listables_from_response(args: Args, data: Dict) -> List[ListableItem]:
+def get_listables_from_response(args: Args, data: List[dict]) -> List[ListableItem]:
     """ takes an API response object, determines type of its contents and creates DTOs for further processing """
 
     listable_items = []
@@ -83,11 +82,7 @@ def get_listables_from_response(args: Args, data: Dict) -> List[ListableItem]:
     return listable_items
 
 
-def get_series_data_from_series_id(args, series_id: str, api) -> dict:
-    return get_series_data_from_series_ids(args, [series_id], api).get(series_id)
-
-
-def get_series_data_from_series_ids(args: Args, api: API, ids: list) -> dict:
+def get_cms_object_data_by_ids(args: Args, api: API, ids: list) -> dict:
     """ fetch info from api object endpoint for given ids. Useful to complement missing data """
 
     req = api.make_request(
@@ -166,121 +161,10 @@ def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[
     return None
 
 
-def add_items_to_view(items: list, args, api):
-    # collect series ids to fetch additional data from api, like poster and fanart
-    series_ids = [
-        item.get("panel").get("episode_metadata").get("series_id")
-        if item.get("panel") and item.get("panel").get("episode_metadata") and item.get("panel").get("episode_metadata").get("series_id")
-        else "0"
-        for item in items
-    ]
-    series_data = get_data_from_object_ids(args, series_ids, api)
-
-    for item in items:
-        try:
-            entry = get_raw_panel_from_dict(item)
-            if not entry:
-                continue
-
-            series_obj = None
-            if entry.series_id:
-                series_obj = series_data.get(entry.series_id)
-                
-            media_info = create_media_info_from_objects_data(entry, series_obj)
-            view.add_item(
-                args,
-                media_info,
-                is_folder=False
-            )
-
-        except Exception:
-            log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
-
-
-def get_data_from_object_id(args, id: str, api) -> Union[MovieData, SeriesData, EpisodeData]:
-    return get_data_from_object_ids(args, [id], api).get(id)
-
-
-def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
-    req = api.make_request(
-        method="GET",
-        url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
-        params={
-            "locale": args.subtitle,
-            # "preferred_audio_language": ""
-        }
-    )
-    if not req or "error" in req:
-        return {}
-
-    return {item.get("id"): get_object_data_from_dict(item) for item in req.get("data")}
-
-
-def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
-    if not item:
-        return None
-
-    # copy required metadata that is not part of playhead to playhead
-    # setting after creating class instance does not work, as the constructor is calculating "playcount" based on this
-    copy = item
-    copy.get('panel').update({
-        'playhead': item.get('playhead', 0)
-    })
-
-    return get_object_data_from_dict(copy.get("panel"))
-
-
-def get_object_data_from_dict(raw_data: dict) -> Object:
-    if not raw_data or not raw_data.get('type'):
-        return None
-
-    if raw_data.get("type") == "episode":
-        return EpisodeData(raw_data)
-    elif raw_data.get("type") == "series":
-        return SeriesData(raw_data)
-    elif raw_data.get("type") == "movie":
-        return MovieData(raw_data)
-    else:
-        crunchy_log(args, "unhandled index for metadata. %s" % (json.dumps(raw_data, indent=4)),
-                            xbmc.LOGERROR)
-        return None
-
-
-def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, EpisodeData], series_obj: SeriesData) -> \
-        Optional[Dict]:
-    if not entry:
-        return
-
-    poster = ""
-    fanart = ""
-    if series_obj:
-        poster = series_obj.poster
-        fanart = series_obj.fanart
-
-    # add to view
-    return {
-        "title": entry.title,
-        "tvshowtitle": entry.tvshowtitle,
-        "duration": entry.duration,
-        "playcount": entry.playcount,
-        "season": entry.season,
-        "episode": entry.episode,
-        "episode_id": entry.episode_id,
-        "season_id": entry.season_id,
-        "series_id": entry.series_id,
-        "plot": entry.plot,
-        "plotoutline": entry.plotoutline,
-        "genre": "",  # no longer available
-        "year": entry.year,
-        "aired": entry.aired,
-        "premiered": entry.premiered,
-        "thumb": entry.thumb,
-        "poster": poster,
-        "fanart": fanart,
-        "stream_id": entry.stream_id,
-        "playhead": entry.playhead,
-        "mode": "videoplay"
-    }
+def get_listable_items_by_ids(args, ids: list, api) -> Dict[str, ListableItem]:
+    data_by_id = get_cms_object_data_by_ids(args, api, ids)
+    listables = get_listables_from_response(args, list(data_by_id.values()))
+    return {item.id: item for item in listables}
 
 
 def dump(data) -> None:

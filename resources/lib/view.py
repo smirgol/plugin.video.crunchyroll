@@ -142,7 +142,7 @@ def add_listables(
         callbacks: Optional[List[Callable[[xbmcgui.ListItem, ListableItem], None]]] = None
 ):
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
-    from .utils import get_playheads_from_api, get_series_data_from_series_ids, get_image_from_struct
+    from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_image_from_struct
     ids = [listable.id for listable in listables if
            isinstance(listable, (EpisodeData, MovieData)) and listable.playhead == 0]
     playheads = get_playheads_from_api(args, api, ids) if ids else {}
@@ -150,7 +150,7 @@ def add_listables(
     # seasons contain no images at all, fetch at least the series main image and add it to them
     ids = [listable.series_id for listable in listables if isinstance(listable, SeasonData)]
     # ids now contains the same id multiple times, we just need it once, hence [ids[0]]
-    series_images = get_series_data_from_series_ids(args, api, [ids[0]]) if ids else {}
+    series_images = get_cms_object_data_by_ids(args, api, [ids[0]]) if ids else {}
 
     # add listable items to kodi
     for listable in listables:

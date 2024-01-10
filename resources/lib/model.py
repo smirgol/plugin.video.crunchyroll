@@ -19,7 +19,6 @@ import sys
 from abc import abstractmethod
 from typing import Any, Dict, Union
 
-import xbmc
 import xbmcgui
 import xbmcvfs
 
@@ -64,8 +63,6 @@ class Args(object):
         self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
 
         route_params = router.extract_url_params(self._url)
-
-        xbmc.log("ROUTER url: %s, route_params: %s" % (self._url, route_params), xbmc.LOGINFO)
         
         if route_params is not None:
             for key, value in route_params.items():

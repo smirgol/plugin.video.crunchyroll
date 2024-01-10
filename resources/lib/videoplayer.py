@@ -140,7 +140,7 @@ class VideoPlayer(Object):
         """ Load episode and series data from API """
 
         try:
-            objects = utils.get_data_from_object_ids(self._args, [ self._args.get_arg("series_id"), self._args.get_arg("episode_id") ], self._api)
+            objects = utils.get_listable_items_by_ids(self._args, [ self._args.get_arg("series_id"), self._args.get_arg("episode_id") ], self._api)
             self._episode_data = objects.get(self._args.get_arg("episode_id"))
             self._series_data = objects.get(self._args.get_arg("series_id"))
         except Exception:
@@ -154,8 +154,7 @@ class VideoPlayer(Object):
                               xbmc.LOGINFO)
             return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
 
-        media_info = utils.create_media_info_from_objects_data(self._episode_data, self._series_data)
-        return view.create_xbmc_item(self._args, media_info, False)
+        return self._episode_data.to_item(self._args)
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
