@@ -113,13 +113,24 @@ class VideoStream(Object):
                     url = url[""]["url"]
             else:
                 # multitrack_adaptive_hls_v2 includes soft subtitles in the stream
-                url = api_data["streams"]["multitrack_adaptive_hls_v2"][""]["url"]
+                if "" in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][""]["url"]
+                # But sometimes, their is no default stream
+                elif self.args.subtitle in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][self.args.subtitle]["url"]
+                elif self.args.subtitle_fallback in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][self.args.subtitle_fallback]["url"]
+                else:
+                    raise CrunchyrollError("No stream URL found")
 
         except IndexError:
             item = xbmcgui.ListItem(self.args.get_arg('title', 'Title not provided'))
             xbmcplugin.setResolvedUrl(int(self.args.argv[1]), False, item)
             xbmcgui.Dialog().ok(self.args.addon_name, self.args.addon.getLocalizedString(30064))
             return None
+        except Exception as e:
+            xbmc.log("Unable to extract streams from %s" % api_data["streams"], xbmc.LOGERROR)
+            raise e
 
         return url
 

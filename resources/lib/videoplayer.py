@@ -27,7 +27,7 @@ import xbmcplugin
 from resources.lib import utils, view
 from resources.lib.api import API
 from resources.lib.gui import SkipModalDialog, _show_modal_dialog
-from resources.lib.model import Object, Args, CrunchyrollError, EpisodeData, SeriesData
+from resources.lib.model import Object, Args, CrunchyrollError, EpisodeData, MovieData, SeriesData
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
 
@@ -43,7 +43,7 @@ class VideoPlayer(Object):
 
         self._stream_data: VideoPlayerStreamData | None = None
         # @todo: what about movies and other future content types?
-        self._episode_data: EpisodeData | None = None
+        self._playable_item_data: EpisodeData | MovieData | None = None
         self._series_data: SeriesData | None = None
         self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
 
@@ -141,7 +141,7 @@ class VideoPlayer(Object):
 
         try:
             objects = utils.get_listable_items_by_ids(self._args, [ self._args.get_arg("series_id"), self._args.get_arg("episode_id") ], self._api)
-            self._episode_data = objects.get(self._args.get_arg("episode_id"))
+            self._playable_item_data = objects.get(self._args.get_arg("episode_id"))
             self._series_data = objects.get(self._args.get_arg("series_id"))
         except Exception:
             utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.get_arg("episode_id"), xbmc.LOGINFO)
@@ -149,12 +149,12 @@ class VideoPlayer(Object):
     def _prepare_xbmc_list_item(self):
         """ Create XBMC list item from API metadata """
 
-        if not self._episode_data:
+        if not self._playable_item_data:
             utils.crunchy_log(self._args, "Unable to find video metadata from episode %s" % self._args.get_arg("episode_id"),
                               xbmc.LOGINFO)
             return xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
 
-        return self._episode_data.to_item(self._args)
+        return self._playable_item_data.to_item(self._args)
 
     def _handle_resume(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
