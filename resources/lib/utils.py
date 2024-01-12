@@ -18,24 +18,18 @@ import json
 import re
 from json import dumps
 
-import requests
 import xbmc
 import xbmcgui
-from requests import Response
-from requests.exceptions import HTTPError
 
 try:
     from urlparse import parse_qs
-    from urllib import unquote_plus
 except ImportError:
-    from urllib.parse import parse_qs, unquote_plus
+    from urllib.parse import parse_qs
 
-from datetime import datetime
-import time
-from typing import Dict, Optional, Union
+from typing import Dict, Union, List
 
-from . import view
-from .model import EpisodeData, SeriesData, MovieData, Args, LoginError, CrunchyrollError
+from .model import Args, CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
+from .api import API
 
 
 def parse(argv) -> Args:
@@ -47,97 +41,113 @@ def parse(argv) -> Args:
         return Args(argv, {})
 
 
-def headers() -> Dict:
-    return {
-        "User-Agent": "Crunchyroll/3.10.0 Android/6.0 okhttp/4.9.1",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
+# @todo we could change the return type and along with the listables return additional data that we preload
+#       like info what is on watchlist, artwork, playhead, ...
+#       for that we should use async requests (asyncio)
+def get_listables_from_response(args: Args, data: List[dict]) -> List[ListableItem]:
+    """ takes an API response object, determines type of its contents and creates DTOs for further processing """
+
+    listable_items = []
+
+    for item in data:
+        # fetch type, which is always somewhere else, depending on api endpoint *sighs*
+        item_type = item.get('panel', {}).get('type') or item.get('type') or item.get('__class__')
+        if not item_type:
+            crunchy_log(
+                None,
+                "get_listables_from_response | failed to determine type for response item %s" % (json.dumps(item, indent=4)),
+                xbmc.LOGERROR
+            )
+            continue
+
+        if item_type == 'series':
+            listable_items.append(SeriesData(item))
+        elif item_type == 'season':
+            # filter series items based on language settings
+            if not filter_seasons(args, item):
+                continue
+            listable_items.append(SeasonData(item))
+        elif item_type == 'episode':
+            listable_items.append(EpisodeData(item))
+        elif item_type == 'movie':
+            listable_items.append(MovieData(item))
+        else:
+            crunchy_log(
+                None,
+                "get_listables_from_response | unhandled index for metadata. %s" % (json.dumps(item, indent=4)),
+                xbmc.LOGERROR
+            )
+            continue
+
+    return listable_items
 
 
-def get_date() -> datetime:
-    return datetime.utcnow()
+def get_cms_object_data_by_ids(args: Args, api: API, ids: list) -> dict:
+    """ fetch info from api object endpoint for given ids. Useful to complement missing data """
 
-
-def date_to_str(date: datetime) -> str:
-    return "{}-{}-{}T{}:{}:{}Z".format(
-        date.year, date.month,
-        date.day, date.hour,
-        date.minute, date.second
+    req = api.make_request(
+        method="GET",
+        url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
+        params={
+            "locale": args.subtitle,
+            # "preferred_audio_language": ""
+        }
     )
+    if not req or "error" in req:
+        return {}
+
+    return {item.get("id"): item for item in req.get("data")}
 
 
-def str_to_date(string: str) -> datetime:
-    time_format = "%Y-%m-%dT%H:%M:%SZ"
+def get_stream_id_from_item(item: Dict) -> Union[str, None]:
+    """ takes a URL string and extracts the stream ID from it """
 
-    try:
-        res = datetime.strptime(string, time_format)
-    except TypeError:
-        res = datetime(*(time.strptime(string, time_format)[0:6]))
+    pattern = '/videos/([^/]+)/streams'
+    stream_id = re.search(pattern, item.get('__links__', {}).get('streams', {}).get('href', ''))
+    # history data has the stream_id at a different location
+    if not stream_id:
+        stream_id = re.search(pattern, item.get('streams_link', ''))
 
-    return res
-
-
-def get_json_from_response(r: Response) -> Optional[Dict]:
-    code: int = r.status_code
-    response_type: str = r.headers.get("Content-Type")
-
-    # no content - possibly POST/DELETE request?
-    if not r or not r.text:
-        try:
-            r.raise_for_status()
-            return None
-        except HTTPError as e:
-            # r.text is empty when status code cause raise
-            r = e.response
-
-    # handle text/plain response (e.g. fetch subtitle)
-    if response_type == "text/plain":
-        # if encoding is not provided in the response, Requests will make an educated guess and very likely fail
-        # messing encoding up - which did cost me hours. We will always receive utf-8 from crunchy, so enforce that
-        r.encoding = "utf-8"
-        d = dict()
-        d.update({
-            'data': r.text
-        })
-        return d
-
-    try:
-        r_json: Dict = r.json()
-    except requests.exceptions.JSONDecodeError:
-        log_error_with_trace(None, "Failed to parse response data")
-        return None
-
-    if "error" in r_json:
-        error_code = r_json.get("error")
-        if error_code == "invalid_grant":
-            raise LoginError(f"[{code}] Invalid login credentials.")
-    elif "message" in r_json and "code" in r_json:
-        message = r_json.get("message")
-        raise CrunchyrollError(f"[{code}] Error occurred: {message}")
-    if not r.ok:
-        raise CrunchyrollError(f"[{code}] {r.text}")
-
-    return r_json
-
-
-def get_stream_id_from_url(url: str) -> Union[str, None]:
-    stream_id = re.search('/videos/([^/]+)/streams', url)
-    if stream_id is None:
-        return None
+    if not stream_id:
+        raise CrunchyrollError('Failed to get stream id')
 
     return stream_id[1]
 
 
-def get_watched_status_from_playheads_data(playheads_data, episode_id) -> int:
-    if playheads_data and playheads_data["data"]:
-        for info in playheads_data["data"]:
-            if info["content_id"] == episode_id:
-                return 1 if (info["fully_watched"] is True) else 0
+def get_playheads_from_api(args: Args, api: API, episode_ids: Union[str, list]) -> Dict:
+    """ Retrieve playhead data from API for given episode / movie ids """
 
-    return 0
+    if isinstance(episode_ids, str):
+        episode_ids = [episode_ids]
+
+    response = api.make_request(
+        method='GET',
+        url=api.PLAYHEADS_ENDPOINT.format(api.account_data.account_id),
+        params={
+            'locale': args.subtitle,
+            'content_ids': ','.join(episode_ids)
+        }
+    )
+
+    out = {}
+
+    if not response:
+        return out
+
+    # prepare by id
+    for item in response.get('data'):
+        out[item.get('content_id')] = {
+            'playhead': item.get('playhead'),
+            'fully_watched': item.get('fully_watched')
+        }
+
+    return out
 
 
 def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[str, None]:
+    """ dive into API info structure and extract requested image from its struct """
+
+    # @todo: add option to specify quality / max size
     if item.get("images") and item.get("images").get(image_type):
         src = item.get("images").get(image_type)
         for i in range(0, depth):
@@ -151,116 +161,10 @@ def get_image_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[
     return None
 
 
-def add_items_to_view(items: list, args, api):
-    # collect series ids to fetch additional data from api, like poster and fanart
-    series_ids = [
-        item.get("panel").get("episode_metadata").get("series_id")
-        if item.get("panel") and item.get("panel").get("episode_metadata") and item.get("panel").get("episode_metadata").get("series_id")
-        else "0"
-        for item in items
-    ]
-    series_data = get_data_from_object_ids(args, series_ids, api)
-
-    for item in items:
-        try:
-            entry = get_raw_panel_from_dict(item)
-            if not entry:
-                continue
-
-            series_obj = None
-            if entry.series_id:
-                series_obj = series_data.get(entry.series_id)
-
-            media_info = create_media_info_from_objects_data(entry, series_obj)
-            view.add_item(
-                args,
-                media_info,
-                is_folder=False
-            )
-
-        except Exception:
-            log_error_with_trace(args, "Failed to add item to view: %s" % (json.dumps(item, indent=4)))
-
-
-def get_data_from_object_ids(args, ids: list, api) -> Dict[str, Union[MovieData, SeriesData, EpisodeData]]:
-    req = api.make_request(
-        method="GET",
-        url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(','.join(ids)),
-        params={
-            "locale": args.subtitle,
-            # "preferred_audio_language": ""
-        }
-    )
-    if not req or "error" in req:
-        return {}
-
-    return {item.get("id"): get_object_data_from_dict(item) for item in req.get("data")}
-
-
-def get_raw_panel_from_dict(item: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
-    if not item:
-        return None
-
-    # copy required metadata that is not part of playhead to playhead
-    # setting after creating class instance does not work, as the constructor is calculating "playcount" based on this
-    copy = item
-    copy.get('panel').update({
-        'playhead': item.get('playhead', 0)
-    })
-
-    return get_object_data_from_dict(copy.get("panel"))
-
-
-def get_object_data_from_dict(raw_data: dict) -> Union[MovieData, SeriesData, EpisodeData, None]:
-    if not raw_data or not raw_data.get('type'):
-        return None
-
-    if raw_data.get("type") == "episode":
-        return EpisodeData(raw_data)
-    elif raw_data.get("type") == "series":
-        return SeriesData(raw_data)
-    elif raw_data.get("type") == "movie":
-        return MovieData(raw_data)
-    else:
-        crunchy_log(None, "unhandled index for metadata. %s" % (json.dumps(raw_data, indent=4)),
-                    xbmc.LOGERROR)
-        return None
-
-
-def create_media_info_from_objects_data(entry: Union[MovieData, SeriesData, EpisodeData], series_obj: SeriesData) -> Optional[Dict]:
-    if not entry:
-        return
-
-    poster = ""
-    fanart = ""
-    if series_obj:
-        poster = series_obj.poster
-        fanart = series_obj.fanart
-
-    # add to view
-    return {
-        "title": entry.title,
-        "tvshowtitle": entry.tvshowtitle,
-        "duration": entry.duration,
-        "playcount": entry.playcount,
-        "season": entry.season,
-        "episode": entry.episode,
-        "episode_id": entry.episode_id,
-        "collection_id": entry.collection_id,
-        "series_id": entry.series_id,
-        "plot": entry.plot,
-        "plotoutline": entry.plotoutline,
-        "genre": "",  # no longer available
-        "year": entry.year,
-        "aired": entry.aired,
-        "premiered": entry.premiered,
-        "thumb": entry.thumb,
-        "poster": poster,
-        "fanart": fanart,
-        "stream_id": entry.stream_id,
-        "playhead": entry.playhead,
-        "mode": "videoplay"
-    }
+def get_listable_items_by_ids(args, ids: list, api) -> Dict[str, ListableItem]:
+    data_by_id = get_cms_object_data_by_ids(args, api, ids)
+    listables = get_listables_from_response(args, list(data_by_id.values()))
+    return {item.id: item for item in listables}
 
 
 def dump(data) -> None:
@@ -363,7 +267,9 @@ def convert_language_iso_to_string(args: Args, language_iso: str) -> str:
         return language_iso
 
 
-def filter_series(args: Args, item: Dict) -> bool:
+def filter_seasons(args: Args, item: Dict) -> bool:
+    """ takes an API info struct and returns if it matches user language settings """
+
     # is it a dub in my main language?
     if args.subtitle == item.get('audio_locale', ""):
         return True
@@ -401,3 +307,33 @@ def two_digits(n):
     if n < 10:
         return "0" + str(n)
     return str(n)
+
+
+def get_in_queue(args: Args, api: API, ids: list) -> list:
+    """ retrieve watchlist status for given media ids """
+
+    req = api.make_request(
+        method="GET",
+        url=api.WATCHLIST_V2_ENDPOINT.format(api.account_data.account_id),
+        params={
+            "content_ids": ','.join(ids),
+            "locale": args.subtitle
+        }
+    )
+
+    if not req or req.get("error") is not None:
+        crunchy_log(args, "get_in_queue: Failed to retrieve data", xbmc.LOGERROR)
+        return []
+
+    if not req.get('data'):
+        return []
+
+    return [item.get('id') for item in req.get('data')]
+
+
+def highlight_list_item_title(list_item: xbmcgui.ListItem):
+    """ Highlight title
+
+        Used to highlight that item is already on watchlist
+    """
+    list_item.setInfo('video', {'title': '[COLOR orange]' + list_item.getLabel() + '[/COLOR]'})

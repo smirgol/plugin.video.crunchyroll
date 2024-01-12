@@ -44,16 +44,20 @@ plugin_routes: dict = {
     "season_submenu_with_offset": {
         "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}"
     },
+    "crunchylist_view": {
+        "url": "/crunchylist/{crunchylists_item_id}",
+        "mode": "crunchylists_item"
+    },
     "series_view": {
         "url": "/series/{series_id}",
-        "mode": "series"
+        "mode": "seasons"
     },
-    "collection_view": {
-        "url": "/series/{series_id}/{collection_id}",
+    "season_view": {
+        "url": "/series/{series_id}/{season_id}",
         "mode": "episodes"
     },
-    "collection_view_with_offset": {
-        "url": "/series/{series_id}/{collection_id}/offset/{offset}",
+    "season_view_with_offset": {
+        "url": "/series/{series_id}/{season_id}/offset/{offset}",
         "mode": "episodes"
     },
     "video_episode_play": {

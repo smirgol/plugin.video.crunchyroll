@@ -17,6 +17,7 @@
 
 import datetime
 import os
+import sys
 from typing import Union, Dict, Optional
 
 import requests
@@ -40,8 +41,7 @@ class VideoPlayerStreamData(Object):
 
 
 class VideoStream(Object):
-    """
-    Build a VideoPlayerStream DTO using args.steam_id
+    """ Build a VideoPlayerStreamData DTO using args.stream_id
 
     Will download stream details from cr api and store the appropriate stream url
 
@@ -49,6 +49,8 @@ class VideoStream(Object):
     are then renamed to make kodi label them in a readable way - this is because kodi uses the filename of the subtitles
     to identify the language and the cr files have cryptic filenames, which will render gibberish to the user on kodi
     instead of a proper label
+
+    Finally, it will download any existing skip info, which can be used to skip intros / credits / summaries
     """
 
     def __init__(self, args: Args, api: API):
@@ -61,7 +63,7 @@ class VideoStream(Object):
     def get_player_stream_data(self) -> Optional[VideoPlayerStreamData]:
         """ retrieve a VideoPlayerStreamData containing stream url + subtitle urls for playback """
 
-        if not hasattr(self.args, 'stream_id') or not self.args.stream_id:
+        if not self.args.get_arg('stream_id'):
             return None
 
         video_player_stream_data = VideoPlayerStreamData()
@@ -72,7 +74,7 @@ class VideoStream(Object):
 
         video_player_stream_data.stream_url = self._get_stream_url_from_api_data(api_stream_data)
         video_player_stream_data.subtitle_urls = self._get_subtitles_from_api_data(api_stream_data)
-        video_player_stream_data.skip_events_data = self._get_skip_events(self.args.episode_id)
+        video_player_stream_data.skip_events_data = self._get_skip_events(self.args.get_arg('episode_id'))
 
         return video_player_stream_data
 
@@ -82,7 +84,7 @@ class VideoStream(Object):
         # api request streams
         req = self.api.make_request(
             method="GET",
-            url=self.api.STREAMS_ENDPOINT.format(self.api.account_data.cms.bucket, self.args.stream_id),
+            url=self.api.STREAMS_ENDPOINT.format(self.api.account_data.cms.bucket, self.args.get_arg('stream_id')),
             params={
                 "locale": self.args.subtitle
             }
@@ -90,9 +92,9 @@ class VideoStream(Object):
 
         # check for error
         if "error" in req or req is None:
-            item = xbmcgui.ListItem(getattr(self.args, "title", "Title not provided"))
+            item = xbmcgui.ListItem(self.args.get_arg('title', 'Title not provided'))
             xbmcplugin.setResolvedUrl(int(self.args.argv[1]), False, item)
-            xbmcgui.Dialog().ok(self.args.addonname, self.args.addon.getLocalizedString(30064))
+            xbmcgui.Dialog().ok(self.args.addon_name, self.args.addon.getLocalizedString(30064))
             return False
 
         return req
@@ -111,12 +113,20 @@ class VideoStream(Object):
                     url = url[""]["url"]
             else:
                 # multitrack_adaptive_hls_v2 includes soft subtitles in the stream
-                url = api_data["streams"]["multitrack_adaptive_hls_v2"][""]["url"]
+                if "" in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][""]["url"]
+                # But sometimes, their is no default stream
+                elif self.args.subtitle in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][self.args.subtitle]["url"]
+                elif self.args.subtitle_fallback in api_data["streams"]["multitrack_adaptive_hls_v2"]:
+                    url = api_data["streams"]["multitrack_adaptive_hls_v2"][self.args.subtitle_fallback]["url"]
+                else:
+                    raise CrunchyrollError("No stream URL found")
 
         except IndexError:
-            item = xbmcgui.ListItem(getattr(self.args, "title", "Title not provided"))
+            item = xbmcgui.ListItem(self.args.get_arg('title', 'Title not provided'))
             xbmcplugin.setResolvedUrl(int(self.args.argv[1]), False, item)
-            xbmcgui.Dialog().ok(self.args.addonname, self.args.addon.getLocalizedString(30064))
+            xbmcgui.Dialog().ok(self.args.addon_name, self.args.addon.getLocalizedString(30064))
             return None
 
         return url
@@ -172,7 +182,7 @@ class VideoStream(Object):
             # error
             raise CrunchyrollError("Returned data is not text")
 
-        cache_target = xbmcvfs.translatePath(self.get_cache_path() + self.args.stream_id + '/')
+        cache_target = xbmcvfs.translatePath(self.get_cache_path() + self.args.get_arg('stream_id') + '/')
         xbmcvfs.mkdirs(cache_target)
 
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
@@ -198,7 +208,7 @@ class VideoStream(Object):
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
 
         # build full path to cached file
-        cache_target = xbmcvfs.translatePath(self.get_cache_path() + self.args.stream_id + '/') + cache_file
+        cache_target = xbmcvfs.translatePath(self.get_cache_path() + self.args.get_arg('stream_id') + '/') + cache_file
 
         # check if cached file exists
         if not xbmcvfs.exists(cache_target):
@@ -209,7 +219,7 @@ class VideoStream(Object):
                 return None
 
         cache_file_url = ('special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/' +
-                          self.args.stream_id +
+                          self.args.get_arg('stream_id') +
                           '/' + cache_file)
 
         return cache_file_url
@@ -254,7 +264,9 @@ class VideoStream(Object):
         if filename.endswith('/'):
             filename = filename[:-1]
 
-        return filename
+        # have to use filesystemencoding since filename contains non ascii characters in some language (such as french)
+        # and kodi file system encoding can be set to ASCII
+        return filename.encode(sys.getfilesystemencoding(), "ignore").decode(sys.getfilesystemencoding())
 
     def _get_skip_events(self, episode_id) -> Optional[Dict]:
         """ fetch skip events data from api and return a prepared object for supported skip types if data is valid """
@@ -272,9 +284,25 @@ class VideoStream(Object):
                 method="GET",
                 url=self.api.SKIP_EVENTS_ENDPOINT.format(episode_id)
             )
-        except requests.exceptions.RequestException:
-            log_error_with_trace(self.args, "_get_skip_events: error in requesting skip events data from api")
-            return None
+        except (requests.exceptions.RequestException, CrunchyrollError):
+            try:
+                # Some streams raise a 403 on SKIP_EVENTS endpoint but skip data are available in INTRO_V2 endpoint
+                intro_req = self.api.make_unauthenticated_request(
+                    method="GET",
+                    url=self.api.INTRO_V2_ENDPOINT.format(episode_id)
+                )
+                req = {"intro": {
+                    "start": intro_req.get("startTime"),
+                    "end": intro_req.get("endTime"),
+                }}
+            except (requests.exceptions.RequestException, CrunchyrollError):
+                # can be okay for e.g. movies, thus only log error with trace, but don't show notification
+                log_error_with_trace(
+                    self.args,
+                    "_get_skip_events: error in requesting skip events data from api",
+                    False
+                )
+                return None
 
         if not req or "error" in req:
             crunchy_log(self.args, "_get_skip_events: error in requesting skip events data from api (2)")

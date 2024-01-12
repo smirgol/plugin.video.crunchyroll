@@ -15,17 +15,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from resources.lib.api import API
+from resources.lib.model import ListableItem, EpisodeData, MovieData, Args, SeasonData
+
 try:
     from urllib import quote_plus
 except ImportError:
     from urllib.parse import quote_plus
 
-from typing import Callable
-
 import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
+from typing import Callable, Optional, List
 from . import router
 
 # keys allowed in setInfo
@@ -55,34 +57,15 @@ def add_item(
         is_folder=True,
         total_items=0,
         mediatype="video",
-        callback: Callable[[xbmcgui.ListItem], None] = None
+        callbacks: Optional[List[Callable[[xbmcgui.ListItem], None]]] = None
 ):
-    """Add item to directory listing.
-    """
-    li = create_xbmc_item(args, info, is_folder, mediatype, callback)
+    """ Add item to directory listing.
 
-    # add item to list
-    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
-                                url=li.getPath(),
-                                listitem=li,
-                                isFolder=is_folder,
-                                totalItems=total_items)
-
-    return li
-
-
-def create_xbmc_item(
-        args,
-        info,
-        is_folder=True,
-        mediatype="video",
-        callback: Callable[[xbmcgui.ListItem], None] = None
-) -> xbmcgui.ListItem:
-    """Create XBMC item for directory listing.
+        This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
 
     path_params = {}
-    path_params.update(args.__dict__)
+    path_params.update(args.args)
     path_params.update(info)
 
     # get url
@@ -104,14 +87,16 @@ def create_xbmc_item(
         li.setInfo(mediatype, info_labels)
         li.setProperty("IsPlayable", "true")
 
-        # add context menu
+        # add context menu to jump to seasons xor episodes
+        # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
         if path_params.get("series_id"):
             cm.append((args.addon.getLocalizedString(30045),
                        "Container.Update(%s)" % build_url(args, path_params, "series_view")))
         if path_params.get("collection_id"):
             cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % build_url(args, path_params, "collection_view")))
+                       "Container.Update(%s)" % build_url(args, path_params, "season_view")))
+
         if len(cm) > 0:
             li.addContextMenuItems(cm)
 
@@ -122,10 +107,66 @@ def create_xbmc_item(
                "fanart": info.get("fanart", xbmcvfs.translatePath(args.addon.getAddonInfo("fanart"))),
                "icon": info.get("thumb", "DefaultFolder.png")})
 
-    if callback:
-        callback(li)
+    if callbacks:
+        for cb in callbacks:
+            cb(li)
 
-    return li
+    # add item to list
+    xbmcplugin.addDirectoryItem(handle=int(args.argv[1]),
+                                url=u,
+                                listitem=li,
+                                isFolder=is_folder,
+                                totalItems=total_items)
+
+
+def add_listables(
+        args: Args,
+        api: API,
+        listables: List[ListableItem],
+        is_folder=True,
+        callbacks: Optional[List[Callable[[xbmcgui.ListItem, ListableItem], None]]] = None
+):
+    # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
+    from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_image_from_struct
+    ids = [listable.id for listable in listables if
+           isinstance(listable, (EpisodeData, MovieData)) and listable.playhead == 0]
+    playheads = get_playheads_from_api(args, api, ids) if ids else {}
+
+    # seasons contain no images at all, fetch at least the series main image and add it to them
+    ids = [listable.series_id for listable in listables if isinstance(listable, SeasonData)]
+    # ids now contains the same id multiple times, we just need it once, hence [ids[0]]
+    series_images = get_cms_object_data_by_ids(args, api, [ids[0]]) if ids else {}
+
+    # add listable items to kodi
+    for listable in listables:
+        # update playcount data, which might be missing
+        if listable.id in playheads:
+            listable.update_playcount_from_playhead(playheads.get(listable.id))
+
+        # update images for SeasonData, as they come with none by default
+        if isinstance(listable, SeasonData) and listable.series_id in series_images:
+            setattr(listable, 'thumb', get_image_from_struct(series_images.get(listable.series_id), "poster_tall", 2))
+            setattr(listable, 'fanart', get_image_from_struct(series_images.get(listable.series_id), "poster_wide", 2))
+            setattr(listable, 'poster', get_image_from_struct(series_images.get(listable.series_id), "poster_tall", 2))
+
+        # get url
+        u = build_url(args, listable.get_info(args))
+
+        # get xbmc list item
+        list_item = listable.to_item(args)
+
+        # call any callbacks
+        if callbacks:
+            for cb in callbacks:
+                cb(list_item, listable)
+
+        # add item to list
+        xbmcplugin.addDirectoryItem(
+            handle=int(args.argv[1]),
+            url=u,
+            listitem=list_item,
+            isFolder=is_folder
+        )
 
 
 def quote_value(value) -> str:
@@ -135,12 +176,10 @@ def quote_value(value) -> str:
         value = str(value)
     return quote_plus(value)
 
-
 # Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
-whitelist_url_args = ["duration", "playhead"]
+whitelist_url_args = [ "duration", "playhead" ]
 
-
-def build_url(args, path_params: dict, route_name: str = None) -> str:
+def build_url(args, path_params: dict, route_name: str=None) -> str:
     """Create url
     """
 
@@ -174,7 +213,7 @@ def make_info_label(args, info) -> dict:
             info_labels[key] = value
 
     # step 2 copy old information from args, but don't overwrite
-    for key, value in list(args.__dict__.items()):
+    for key, value in list(args.args.items()):
         if value and key in types and key not in info_labels:
             info_labels[key] = value
 
