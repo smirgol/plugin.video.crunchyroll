@@ -63,7 +63,7 @@ class Args(object):
         self._url = re.sub(r"plugin://[^/]+/", "/", argv[0])
 
         route_params = router.extract_url_params(self._url)
-        
+
         if route_params is not None:
             for key, value in route_params.items():
                 if value:
@@ -187,6 +187,8 @@ class ListableItem(Object):
         super().__init__()
         # just a very few that all child classes have in common, so I can spare myself of using hasattr() and getattr()
         self.id: str | None = None
+        self.series_id: str | None = None
+        self.season_id: str | None = None
         self.title: str | None = None
         self.thumb: str | None = None
         self.fanart: str | None = None
@@ -202,7 +204,7 @@ class ListableItem(Object):
     def to_item(self, args: Args) -> xbmcgui.ListItem:
         """ Convert ourselves to a Kodi ListItem"""
 
-        from resources.lib.view import build_url, types
+        from resources.lib.view import types
 
         info = self.get_info(args)
         # filter out items not known to kodi
@@ -230,21 +232,6 @@ class ListableItem(Object):
             'fanart': self.fanart or xbmcvfs.translatePath(args.addon.getAddonInfo('fanart')),
             'icon': self.thumb or 'DefaultFolder.png'
         })
-
-        # add context menu
-        # @todo: this only makes sense in some very specific places, we need a way to handle these better.
-        u = build_url(args, info)
-        cm = []
-        if hasattr(self, 'series_id') and getattr(self, 'series_id') is not None:
-            if hasattr(self, 'season_id') and getattr(self, 'season_id') != getattr(self, 'id'):
-                cm.append((args.addon.getLocalizedString(30045),
-                        "Container.Update(%s)" % build_url(args, info, "series_view")))
-        if hasattr(self, 'season_id') and getattr(self, 'season_id') is not None:  # and getattr(self, 'season_id') != getattr(self, 'id'):
-            cm.append((args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % build_url(args, info, "season_view")))
-
-        if len(cm) > 0:
-            li.addContextMenuItems(cm)
 
         return li
 
@@ -290,10 +277,11 @@ class SeriesData(ListableItem):
         self.episode: int = meta.get('episode_count')
         self.season: int = meta.get('season_count')
 
-        self.thumb: str | None = utils.get_image_from_struct(panel, "poster_tall", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "poster_wide", 2)
-        self.poster: str | None = utils.get_image_from_struct(panel, "poster_tall", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
+        self.poster: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
         self.banner: str | None = None
+        self.rating: int = 0
         self.playcount: int = 0
 
     def recalc_playcount(self):
@@ -317,6 +305,8 @@ class SeriesData(ListableItem):
             'year': self.year,
             'aired': self.aired,
             'premiered': self.premiered,
+
+            'rating': self.rating,
 
             'mediatype': 'season',
 
@@ -347,6 +337,7 @@ class SeasonData(ListableItem):
         self.fanart: str | None = None
         self.poster: str | None = None
         self.banner: str | None = None
+        self.rating: int = 0
         self.playcount: int = 1 if data.get('is_complete') == 'true' else 0
 
         self.recalc_playcount()
@@ -371,6 +362,8 @@ class SeasonData(ListableItem):
             # 'year': self.year,
             # 'aired': self.aired,
             # 'premiered': self.premiered,
+
+            'rating': self.rating,
 
             'mediatype': 'season',
 
@@ -406,10 +399,11 @@ class EpisodeData(ListableItem):
         self.year: str = meta.get("episode_air_date")[:4] if meta.get("episode_air_date") is not None else ""
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
+        self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
 
@@ -420,10 +414,6 @@ class EpisodeData(ListableItem):
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
 
     def get_info(self, args: Args) -> Dict:
-        # update from args
-        self.playhead = self.playhead  # args.get_arg('playhead') if args.get_arg('playhead') is not None else self.playhead
-        self.recalc_playcount()
-
         return {
             'title': self.title,
             'tvshowtitle': self.tvshowtitle,
@@ -444,6 +434,8 @@ class EpisodeData(ListableItem):
             'year': self.year,
             'aired': self.aired,
             'premiered': self.premiered,
+
+            'rating': self.rating,
 
             'mediatype': 'episode',
 
@@ -478,10 +470,11 @@ class MovieData(ListableItem):
             "premium_available_date") is not None else ""
         self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
-        self.thumb: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_image_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
+        self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
 
@@ -492,10 +485,6 @@ class MovieData(ListableItem):
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
 
     def get_info(self, args: Args) -> Dict:
-        # update from args
-        self.playhead = args.get_arg('playhead') if args.get_arg('playhead') is not None else self.playhead
-        self.recalc_playcount()
-
         return {
             'title': self.title,
             'tvshowtitle': self.tvshowtitle,
@@ -516,6 +505,8 @@ class MovieData(ListableItem):
             'year': self.year,
             'aired': self.aired,
             'premiered': self.premiered,
+
+            'rating': self.rating,
 
             'mediatype': 'movie',
 
