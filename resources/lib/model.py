@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Crunchyroll
-# Copyright (C) 2018 MrKrabat
+# Copyright (C) 2023 smirgol
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,7 @@ class Args(object):
         """
         # addon specific data
         self.PY2 = sys.version_info[0] == 2  #: True for Python 2
-        self._argv = argv
+        self._argv: list = argv
         self._addonurl = re.sub(r"^(plugin://[^/]+)/.*$", r"\1", argv[0])
         self._addonid = self._addonurl[9:]
         self._addon = xbmcaddon.Addon(id=self._addonid)
@@ -55,7 +55,6 @@ class Args(object):
         self._cj = None
         self._device_id = None
         self._args: dict = {}  # holds all parameters provided via URL
-
         # data from settings
         self._subtitle = None
         self._subtitle_fallback = None
@@ -187,8 +186,8 @@ class ListableItem(Object):
         super().__init__()
         # just a very few that all child classes have in common, so I can spare myself of using hasattr() and getattr()
         self.id: str | None = None
-        self.series_id: str | None = None
-        self.season_id: str | None = None
+        self.series_id: str | None = None  # @todo: this is not present in all subclasses, move that
+        self.season_id: str | None = None  # @todo: this is not present in all subclasses, move that
         self.title: str | None = None
         self.thumb: str | None = None
         self.fanart: str | None = None
@@ -244,6 +243,22 @@ class ListableItem(Object):
             setattr(self, 'playcount', 1)
         else:
             self.recalc_playcount()
+
+
+class PlayableItem(ListableItem):
+    """ Intermediate base class for playable items """
+
+    def __init__(self):
+        super().__init__()
+        self.playhead: int = 0
+        self.duration: int = 0
+        self.playcount: int = 0
+
+    @abstractmethod
+    def get_info(self, args: Args) -> Dict:
+        """ return a dict with info to set on the kodi ListItem (filtered) and access some data """
+
+        pass
 
 
 """Naming convention for reference:
@@ -373,7 +388,7 @@ class SeasonData(ListableItem):
 
 
 # dto
-class EpisodeData(ListableItem):
+class EpisodeData(PlayableItem):
     """ A single Episode of a Season of a Series """
 
     def __init__(self, data: dict):
@@ -444,7 +459,7 @@ class EpisodeData(ListableItem):
         }
 
 
-class MovieData(ListableItem):
+class MovieData(PlayableItem):
     def __init__(self, data: dict):
         super().__init__()
         from . import utils

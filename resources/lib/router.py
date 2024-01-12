@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Crunchyroll
+# Copyright (C) 2023 lumiru
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -76,6 +77,7 @@ def extract_url_params(url: str) -> Optional[dict]:
     The router logic itself.
     It iterates over routes and return params for the first found matching pattern (which should be the only one).
     """
+
     for route_name, route_conf in plugin_routes.items():
         pattern = route_conf.get("url")
         if pattern[0] == "/":
@@ -98,6 +100,7 @@ def build_path(args: dict) -> Optional[str]:
     It will use the route configuration designated by "route" arg.
     If "route" arg was not set, it will try to find a URL matching the "mode" arg and other available args.
     """
+
     route_name = args.get("route")
     if not route_name:
         route_name = find_route_matching_args(args)
@@ -110,6 +113,7 @@ def find_route_matching_args(args: dict) -> Optional[str]:
     """
     Try to get the best matching route to given "mode" arg and plugin list item args.
     """
+
     # Get all routes matching mode
     routes_matching_mode = filter_routes_by_mode(args.get("mode"))
     # Extract parameter list for each route
@@ -139,6 +143,7 @@ def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
     """
     Build URL from a route name and plugin list item args.
     """
+
     # Retrieve pattern
     route = plugin_routes.get(route_name)
     if not route:
@@ -156,17 +161,18 @@ def filter_routes_by_mode(searching_mode: str) -> dict:
     Filter routes by mode.
     If no route was found for requested mode, return all routes without mode set.
     """
-    PARAMETER_ROUTE_MODE = "__no_mode_set"
+
+    __PARAMETER_ROUTE_MODE__ = "__no_mode_set"
     # TODO: Cache it
     routes_by_mode = {}
     for route_name, route_conf in plugin_routes.items():
-        mode = route_conf.get("mode", PARAMETER_ROUTE_MODE)
+        mode = route_conf.get("mode", __PARAMETER_ROUTE_MODE__)
         if not routes_by_mode.get(mode):
             routes_by_mode[mode] = {}
         routes_by_mode.get(mode)[route_name] = route_conf
 
     if not routes_by_mode.get(searching_mode):
-        return routes_by_mode.get(PARAMETER_ROUTE_MODE)
+        return routes_by_mode.get(__PARAMETER_ROUTE_MODE__)
 
     return routes_by_mode.get(searching_mode)
 

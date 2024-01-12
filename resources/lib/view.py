@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
+# Copyright (C) 2023 smirgol
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,7 +19,7 @@ import asyncio
 import re
 
 from resources.lib.api import API
-from resources.lib.model import ListableItem, EpisodeData, MovieData, Args, SeasonData, SeriesData
+from resources.lib.model import ListableItem, EpisodeData, Args, SeasonData, SeriesData, PlayableItem
 
 try:
     from urllib import quote_plus
@@ -135,15 +136,17 @@ async def complement_listables(
         listables: List[ListableItem]
 ) -> Dict[str, Dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
-    from .utils import get_playheads_from_api, get_objects_from_api, get_watchlist_status_from_api, get_img_from_struct
+    from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_watchlist_status_from_api, \
+        get_img_from_struct
 
     # playheads
     ids_playhead = [listable.id for listable in listables if
-                    isinstance(listable, (EpisodeData, MovieData)) and listable.playhead == 0]
+                    isinstance(listable, PlayableItem) and listable.playhead == 0]
 
     # object data for e.g. poster images
     # for now we use the objects to fetch the series data only, to fetch its images and its rating
-    ids_objects_seasons = [listable.series_id for listable in listables if isinstance(listable, (SeasonData, EpisodeData, SeriesData))]
+    ids_objects_seasons = [listable.series_id for listable in listables if
+                           isinstance(listable, (SeasonData, EpisodeData, SeriesData))]
     # ids_objects_other = [listable.id for listable in listables if
     #                      isinstance(listable, (EpisodeData, MovieData, SeriesData))]
     # ids_objects = ids_objects_seasons + ids_objects_other
@@ -162,7 +165,7 @@ async def complement_listables(
     #        but the sole reason for calling it are the additional images...
     #        for now we use the objects to fetch the series data only, to fetch its images and its rating
     if ids_objects:
-        tasks.append(asyncio.create_task(get_objects_from_api(args, api, ids_objects)))
+        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(args, api, ids_objects)))
         tasks_added.append('objects')
     if ids_watchlist:
         tasks.append(asyncio.create_task(get_watchlist_status_from_api(args, api, ids_watchlist)))
@@ -196,25 +199,32 @@ async def complement_listables(
         # update images for SeasonData, as they come with none by default
         if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
             setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
+                                        2) or listable.thumb)
             setattr(listable, 'fanart',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide", 2) or listable.fanart)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide",
+                                        2) or listable.fanart)
             setattr(listable, 'poster',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
+                                        2) or listable.poster)
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
             # for others, only set the thumb image to a nicer one
             setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.thumb)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
+                                        2) or listable.thumb)
             setattr(listable, 'poster',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall", 2) or listable.poster)
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
+                                        2) or listable.poster)
             # setattr(listable, 'fanart',
             #         get_image_from_struct(result_obj.get('objects').get(listable.id), "poster_wide", 2) or listable.fanart)
 
-        if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get('rating') and hasattr(listable, 'rating'):
+        if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get(
+                'rating') and hasattr(listable, 'rating'):
             if result_obj.get('objects').get(listable.id).get('rating').get('average'):
                 listable.rating = float(result_obj.get('objects').get(listable.id).get('rating').get('average')) * 2.0
-            elif result_obj.get('objects').get(listable.id).get('rating').get('up') and result_obj.get('objects').get(listable.id).get('rating').get('down'):
+            elif result_obj.get('objects').get(listable.id).get('rating').get('up') and result_obj.get('objects').get(
+                    listable.id).get('rating').get('down'):
                 # these are user ratings and they are pretty weird (overly positive)
                 ups_obj = result_obj.get('objects').get(listable.id).get('rating').get('up')
                 downs_obj = result_obj.get('objects').get(listable.id).get('rating').get('down')
@@ -253,7 +263,6 @@ def add_listables(
 
     # add listable items to kodi
     for listable in listables:
-        # @todo: check b/c router
         # get url
         u = build_url(args, listable.get_info(args))
 
@@ -308,10 +317,13 @@ def quote_value(value) -> str:
         value = str(value)
     return quote_plus(value)
 
-# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
-whitelist_url_args = [ "duration", "playhead" ]
 
-def build_url(args, path_params: dict, route_name: str=None) -> str:
+# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
+# @todo: in theory it is no longer needed, test that
+whitelist_url_args = ["duration", "playhead"]
+
+
+def build_url(args, path_params: dict, route_name: str = None) -> str:
     """Create url
     """
 
@@ -332,6 +344,7 @@ def build_url(args, path_params: dict, route_name: str=None) -> str:
         s = "?" + s[1:]
 
     result = args.addonurl + path + s
+
     return result
 
 
