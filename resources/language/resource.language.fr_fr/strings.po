@@ -72,12 +72,10 @@ msgid "Subtitle Language"
 msgstr "Language des sous titres"
 
 msgctxt "#30021"
-msgid "English (US)"
-msgstr "Anglais (US)"
+msgid "English"
+msgstr "Anglais"
 
-msgctxt "#30022"
-msgid "English (UK)"
-msgstr "Anglais (UK)"
+# 30022 free
 
 msgctxt "#30023"
 msgid "Spanish"
@@ -115,6 +113,19 @@ msgctxt "#30031"
 msgid "Russian"
 msgstr "Russe"
 
+msgctxt "#30032"
+msgid "Hindi"
+msgstr ""
+
+msgctxt "#30038"
+msgid "Filter available dubs"
+msgstr "Filtrer les langues audio disponibles"
+
+msgctxt "#30039"
+msgid "In an anime seasons view, only display dubs in either Japanese, your CR language or any of your configured subtitle languages."
+msgstr "Dans une vue de saisons d'anime, n'affichez que les langues audio en japonais, votre langue Crunchyroll ou l'une des langues de sous-titres que vous avez configurées."
+
+
 # Crunchyroll Menue
 msgctxt "#30040"
 msgid "Queue"
@@ -147,6 +158,12 @@ msgstr "Aller à saisons"
 msgctxt "#30047"
 msgid "Resume"
 msgstr "Reprendre"
+
+# 30048 free
+
+msgctxt "#30049"
+msgid "Crunchylists"
+msgstr ""
 
 msgctxt "#30050"
 msgid "Anime"

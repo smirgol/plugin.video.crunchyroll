@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Crunchyroll
-# Copyright (C) 2018 MrKrabat
+# Copyright (C) 2023 smirgol
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,7 @@ import threading
 import time
 from typing import Optional
 
-import inputstreamhelper
+import inputstreamhelper  # noqa
 import requests
 import xbmc
 import xbmcgui
@@ -40,9 +40,9 @@ class VideoPlayer(Object):
     def __init__(self, args: Args, api: API):
         self._args = args
         self._api = api
-        self._stream_data: VideoPlayerStreamData | None = None
-        self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
 
+        self._stream_data: VideoPlayerStreamData | None = None  # @todo: maybe rename prop and class?
+        self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
         self._skip_modal_duration_max = 10
 
     def start_playback(self):
@@ -57,7 +57,7 @@ class VideoPlayer(Object):
 
         self._prepare_and_start_playback()
 
-        self._handle_resume()
+        self._handle_update_playhead()
         self._handle_skipping()
 
     def is_playing(self) -> bool:
@@ -78,21 +78,21 @@ class VideoPlayer(Object):
         """ Fetch all required stream data using VideoStream object """
 
         video_stream_helper = VideoStream(self._args, self._api)
-        item = xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"))
+        item = xbmcgui.ListItem(self._args.get_arg('title', 'Title not provided'))
 
         try:
             self._stream_data = video_stream_helper.get_player_stream_data()
             if not self._stream_data or not self._stream_data.stream_url:
                 utils.crunchy_log(self._args, "Failed to load stream info for playback", xbmc.LOGERROR)
                 xbmcplugin.setResolvedUrl(int(self._args.argv[1]), False, item)
-                xbmcgui.Dialog().ok(self._args.addonname, self._args.addon.getLocalizedString(30064))
+                xbmcgui.Dialog().ok(self._args.addon_name, self._args.addon.getLocalizedString(30064))
                 return False
 
         except (CrunchyrollError, requests.exceptions.RequestException):
-            utils.log_error_with_trace(self._args, "Failed to prepare stream info data")
+            utils.log_error_with_trace(self._args, "Failed to prepare stream info data", False)
             xbmcplugin.setResolvedUrl(int(self._args.argv[1]), False, item)
-            xbmcgui.Dialog().ok(self._args.addonname,
-                                self._args.addon.getLocalizedString(30064))  # @todo: this is doubled?
+            xbmcgui.Dialog().ok(self._args.addon_name,
+                                self._args.addon.getLocalizedString(30064))
             return False
 
         return True
@@ -101,7 +101,23 @@ class VideoPlayer(Object):
         """ Sets up the playback"""
 
         # prepare playback
-        item = xbmcgui.ListItem(getattr(self._args, "title", "Title not provided"), path=self._stream_data.stream_url)
+        # note: when setting only a couple of values to the item, kodi will fetch the remaining from the url args
+        #       since we do a full overwrite of the item with data from the cms object, which does not contain all
+        #       wanted data - like playhead - we need to copy over that information to the PlayableItem before
+        #        converting it to a kodi item. be aware of this.
+
+        # copy playhead to PlayableItem (if resume is true on argv[3]) - this is required for resume capability
+        if (
+                self._stream_data.playable_item.playhead == 0
+                and self._stream_data.playheads_data.get(self._args.get_arg('episode_id'), {})
+                and self._args.argv[3] == 'resume:true'
+        ):
+            self._stream_data.playable_item.update_playcount_from_playhead(
+                self._stream_data.playheads_data.get(self._args.get_arg('episode_id'))
+            )
+
+        item = self._stream_data.playable_item.to_item(self._args)
+        item.setPath(self._stream_data.stream_url)
         item.setMimeType("application/vnd.apple.mpegurl")
         item.setContentLookup(False)
 
@@ -111,6 +127,9 @@ class VideoPlayer(Object):
             item.setProperty("inputstream", "inputstream.adaptive")
             item.setProperty("inputstream.adaptive.manifest_type", "hls")
 
+            # @todo: i think other meta data like description and images are still fetched from args.
+            #        we should call the objects endpoint and use this data to remove args dependency (besides id)
+
             # add soft subtitles url for configured language
             if self._stream_data.subtitle_urls:
                 item.setSubtitles(self._stream_data.subtitle_urls)
@@ -119,63 +138,30 @@ class VideoPlayer(Object):
             xbmcplugin.setResolvedUrl(int(self._args.argv[1]), True, item)
 
             # wait for playback
-            if self._wait_for_playback(10):
-                # if successful wait more
-                xbmc.sleep(3000)
-
-        # @TODO: fallbacks not tested
+            # if wait_for_playback(10):
+            #     # if successful wait more (why?)
+            #     xbmc.sleep(3000)
 
         # start fallback
-        if not self._wait_for_playback(2):
+        if not wait_for_playback(10):
             # start without inputstream adaptive
             utils.crunchy_log(self._args, "Inputstream Adaptive failed, trying directly with kodi", xbmc.LOGINFO)
             item.setProperty("inputstream", "")
-            xbmc.Player().play(self._stream_data.stream_url, item)
+            self._player.play(self._stream_data.stream_url, item)
 
-    def _handle_resume(self):
+    def _handle_update_playhead(self):
         """ Handles resuming and updating playhead info back to crunchyroll """
 
+        # if disabled in settings, no need to start thread
         if self._args.addon.getSetting("sync_playtime") != "true":
-            utils.crunchy_log(self._args, "_handle_resume: Sync playtime not enabled", xbmc.LOGINFO)
             return
-
-        # fetch playhead info from api if not already available
-        if hasattr(self._args, 'playhead') is False or self._args.playhead is None:
-            self._args.playhead = 0
-            utils.crunchy_log(self._args, "_handle_resume: fetching playheads info from api", xbmc.LOGINFO)
-            req_episode_data = self._api.make_request(
-                method="GET",
-                url=self._api.PLAYHEADS_ENDPOINT.format(self._api.account_data.account_id),
-                params={
-                    "locale": self._args.subtitle,
-                    "content_ids": self._args.episode_id
-                }
-            )
-
-            if req_episode_data and req_episode_data["data"]:
-                self._args.playhead = int(req_episode_data["data"][0]["playhead"])
-                utils.crunchy_log(self._args, "_handle_resume: playheads is %d" % self._args.playhead, xbmc.LOGINFO)
 
         # wait for video to begin
-        if not self._wait_for_playback(30):
-            utils.crunchy_log(self._args, "Timeout reached, video did not start in 30 seconds", xbmc.LOGERROR)
+        if not wait_for_playback(30):
+            utils.crunchy_log(self._args, 'Timeout reached, video did not start in 30 seconds', xbmc.LOGERROR)
             return
 
-        # ask if user want to continue playback
-        if self._args.playhead and self._args.duration:
-            resume = int(int(self._args.playhead) / float(self._args.duration) * 100)
-            if 5 <= resume <= 90:
-                self._player.pause()
-                xbmc.sleep(1000)
-                if xbmcgui.Dialog().yesno(self._args.addonname,
-                                          self._args.addon.getLocalizedString(30065) % int(resume)):
-                    self._player.seekTime(float(self._args.playhead) - 5)
-                    xbmc.sleep(1000)
-                self._player.pause()
-        else:
-            utils.crunchy_log(self._args, "Missing data for resume - playhead: %d" % self._args.playhead, xbmc.LOGINFO)
-
-            # update playtime at crunchyroll in a background thread
+        # update playtime at crunchyroll in a background thread
         utils.crunchy_log(self._args, "_handle_resume: starting sync thread", xbmc.LOGINFO)
         threading.Thread(target=self.thread_update_playhead).start()
 
@@ -184,24 +170,12 @@ class VideoPlayer(Object):
 
         # check whether we have the required data to enable this
         if not self._check_and_filter_skip_data():
-            utils.crunchy_log(self._args, "_handle_skipping: Nothing to skip", xbmc.LOGINFO)
+            utils.crunchy_log(self._args, "_handle_skipping: required data for skipping is empty", xbmc.LOGINFO)
             return
 
         # run thread in background to check when whe reach a section where we can skip
         utils.crunchy_log(self._args, "_handle_skipping: starting thread", xbmc.LOGINFO)
         threading.Thread(target=self.thread_check_skipping).start()
-
-    def _wait_for_playback(self, timeout: int = 30):
-        """ function that waits for playback """
-
-        timer = time.time() + timeout
-        while not xbmc.getCondVisibility("Player.HasMedia"):
-            xbmc.sleep(50)
-            # timeout to prevent infinite loop
-            if time.time() > timer:
-                return False
-
-        return True
 
     def thread_update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
@@ -217,37 +191,28 @@ class VideoPlayer(Object):
                 xbmc.sleep(10000)
 
                 if (
-                    last_updated_playtime < self._player.getTime() and
-                    self._player.isPlaying() and
-                    self._stream_data.stream_url == self._player.getPlayingFile()
+                        last_updated_playtime < self._player.getTime() and
+                        self._player.isPlaying() and
+                        self._stream_data.stream_url == self._player.getPlayingFile()
                 ):
                     last_updated_playtime = self._player.getTime()
                     # api request
-                    try:
-                        self._api.make_request(
-                            method="POST",
-                            url=self._api.PLAYHEADS_ENDPOINT.format(self._api.account_data.account_id),
-                            json={
-                                "playhead": int(self._player.getTime()),
-                                "content_id": self._args.episode_id
-                            },
-                            headers={
-                                'Content-Type': 'application/json'
-                            }
-                        )
-                    except requests.exceptions.RequestException:
-                        # catch timeout exception
-                        utils.crunchy_log(self._args, "Failed to update playhead to crunchyroll")
-                        pass
-        except RuntimeError:
-            utils.crunchy_log(self._args, "Playback aborted", xbmc.LOGINFO)
+                    update_playhead(
+                        self._args,
+                        self._api,
+                        self._args.get_arg('episode_id'),
+                        int(self._player.getTime())
+                    )
 
-        utils.crunchy_log(self._args, "thread_update_playhead() has finished", xbmc.LOGINFO)
+        except RuntimeError:
+            utils.crunchy_log(self._args, 'Playback aborted', xbmc.LOGINFO)
+
+        utils.crunchy_log(self._args, 'thread_update_playhead() has finished', xbmc.LOGINFO)
 
     def thread_check_skipping(self):
         """ background thread to check and handle skipping intro/credits/... """
 
-        utils.crunchy_log(self._args, "thread_check_skipping() started", xbmc.LOGINFO)
+        utils.crunchy_log(self._args, 'thread_check_skipping() started', xbmc.LOGINFO)
 
         while self._player.isPlaying() and self._stream_data.stream_url == self._player.getPlayingFile():
             # do we still have skip data left?
@@ -267,7 +232,7 @@ class VideoPlayer(Object):
 
             xbmc.sleep(1000)
 
-        utils.crunchy_log(self._args, "thread_check_skipping() has finished", xbmc.LOGINFO)
+        utils.crunchy_log(self._args, 'thread_check_skipping() has finished', xbmc.LOGINFO)
 
     def _check_and_filter_skip_data(self) -> bool:
         """ check if data for skipping is present and valid for usage """
@@ -307,6 +272,52 @@ class VideoPlayer(Object):
                 'seconds': dialog_duration,
                 'seek_time': self._stream_data.skip_events_data.get(section).get('end'),
                 'label': self._args.addon.getLocalizedString(30015),
-                'addon_path': self._args.addon.getAddonInfo("path")
+                'addon_path': self._args.addon.getAddonInfo("path"),
+                'args': self._args,
+                'api': self._api,
+                'content_id': self._args.get_arg('episode_id'),
             }
         ).start()
+
+
+def update_playhead(args: Args, api: API, content_id: str, playhead: int):
+    """ Update playtime to Crunchyroll """
+
+    # if sync_playtime is disabled in settings, do nothing
+    if args.addon.getSetting("sync_playtime") != "true":
+        return
+
+    try:
+        api.make_request(
+            method="POST",
+            url=api.PLAYHEADS_ENDPOINT.format(api.account_data.account_id),
+            json_data={
+                'playhead': playhead,
+                'content_id': content_id
+            },
+            headers={
+                'Content-Type': 'application/json'
+            }
+        )
+    except (CrunchyrollError, requests.exceptions.RequestException) as e:
+        # catch timeout or any other possible exception
+        utils.crunchy_log(
+            None,
+            "Failed to update playhead to crunchyroll: %s for %s" % (
+                str(e), content_id
+            )
+        )
+        pass
+
+
+def wait_for_playback(timeout: int = 30):
+    """ function that waits for playback """
+
+    timer = time.time() + timeout
+    while not xbmc.getCondVisibility("Player.HasMedia"):
+        xbmc.sleep(50)
+        # timeout to prevent infinite loop
+        if time.time() > timer:
+            return False
+
+    return True

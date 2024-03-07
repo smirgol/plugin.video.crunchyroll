@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
+# Copyright (C) 2023 smirgol
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -16,8 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import random
+import re
 
-import inputstreamhelper
+import inputstreamhelper  # noqa
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -27,6 +29,7 @@ from . import controller
 from . import utils
 from . import view
 from .api import API
+from .model import CrunchyrollError, LoginError
 
 
 def main(argv):
@@ -35,7 +38,7 @@ def main(argv):
     args = utils.parse(argv)
 
     # inputstream adaptive settings
-    if hasattr(args, "mode") and args.mode == "hls":
+    if args.get_arg('mode') == "hls":
         is_helper = inputstreamhelper.Helper("hls")
         if is_helper.check_inputstream():
             xbmcaddon.Addon(id="inputstream.adaptive").openSettings()
@@ -59,9 +62,18 @@ def main(argv):
         args.addon.setSetting("device_id", args.device_id)
 
     # get subtitle language
-    args._subtitle = utils.convert_subtitle_index_to_string(args.addon.getSetting("subtitle_language"))
-    args._subtitle_fallback = utils.convert_subtitle_index_to_string(
-        args.addon.getSetting("subtitle_language_fallback"))
+    args._subtitle = args.addon.getSetting("subtitle_language")
+    args._subtitle_fallback = args.addon.getSetting("subtitle_language_fallback")  # @todo: test with empty
+
+    # temporary dialog to notify about subtitle settings change
+    # @todo: remove eventually
+    if args.subtitle is int or args.subtitle_fallback is int or re.match("^([0-9]+)$", args.subtitle):
+        xbmcgui.Dialog().notification(
+            '%s INFO' % args.addon_name,
+            'Language settings have changed. Please adjust settings.',
+            xbmcgui.NOTIFICATION_INFO,
+            10
+        )
 
     api = API(
         args=args,
@@ -76,32 +88,37 @@ def main(argv):
         return False
     else:
         # login
-        if api.start():
-            # list menu
-            xbmcplugin.setContent(int(args.argv[1]), "tvshows")
-            return check_mode(args, api)
-        else:
+        try:
+            success = api.start()
+            if success:
+                # list menu
+                xbmcplugin.setContent(int(args.argv[1]), "tvshows")
+                return check_mode(args, api)
+        except (LoginError, CrunchyrollError):
+            success = False
+
+        if not success:
             # login failed
             utils.crunchy_log(args, "Login failed", xbmc.LOGERROR)
             view.add_item(args, {"title": args.addon.getLocalizedString(30060)})
             view.end_of_directory(args)
-            xbmcgui.Dialog().ok(args.addonname, args.addon.getLocalizedString(30060))
+            xbmcgui.Dialog().ok(args.addon_name, args.addon.getLocalizedString(30060))
             return False
 
 
 def check_mode(args, api: API):
     """Run mode-specific functions
     """
-    if hasattr(args, "mode"):
-        mode = args.mode
-    elif hasattr(args, "id"):
+    if args.get_arg('mode'):
+        mode = args.get_arg('mode')
+    elif args.get_arg('id'):
         # call from other plugin
         mode = "videoplay"
-        args.url = "/media-" + args.id
-    elif hasattr(args, "url"):
+        args.set_arg('url', "/media-" + args.get_arg('id'))
+    elif args.get_arg('url'):
         # call from other plugin
         mode = "videoplay"
-        args.url = args.url[26:]
+        args.set_arg('url', args.get_arg('url')[26:])  # @todo: does this actually work? truncated?
     else:
         mode = None
 
@@ -124,37 +141,41 @@ def check_mode(args, api: API):
     elif mode == "drama":
         show_main_category(args, "drama")
 
-    elif mode == "featured":  # https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
-        controller.listSeries(args, "featured", api)
+    # elif mode == "featured":  # https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
+    #     controller.list_series(args, "featured", api)
     elif mode == "popular":  # DONE
-        controller.list_filter(args, "popular", api)
+        controller.list_filter(args, api)
     # elif mode == "simulcast":  # https://www.crunchyroll.com/de/simulcasts/seasons/fall-2023 ???
     #     controller.listSeries(args, "simulcast", api)
     # elif mode == "updated":
     #    controller.listSeries(args, "updated", api)
     elif mode == "newest":
-        controller.list_filter(args, "newest", api)
+        controller.list_filter(args, api)
     elif mode == "alpha":
-        controller.list_filter(args, "alpha", api)
+        controller.list_filter(args, api)
     elif mode == "season":  # DONE
-        controller.list_seasons(args, "season", api)
+        controller.list_anime_seasons(args, api)
     elif mode == "genre":  # DONE
-        controller.list_filter(args, "genre", api)
+        controller.list_filter(args, api)
 
-    elif mode == "series":
-        controller.view_series(args, api)
+    elif mode == "seasons":
+        controller.view_season(args, api)
     elif mode == "episodes":
         controller.view_episodes(args, api)
     elif mode == "videoplay":
         controller.start_playback(args, api)
     elif mode == "add_to_queue":
         controller.add_to_queue(args, api)
-    elif mode == "remove_from_queue":
-        controller.remove_from_queue(args, api)
+    # elif mode == "remove_from_queue":
+    #     controller.remove_from_queue(args, api)
+    elif mode == "crunchylists_lists":
+        controller.crunchylists_lists(args, api)
+    elif mode == 'crunchylists_item':
+        controller.crunchylists_item(args, api)
     else:
         # unknown mode
         utils.crunchy_log(args, "Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
-        xbmcgui.Dialog().notification(args.addonname, args.addon.getLocalizedString(30061), xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification(args.addon_name, args.addon.getLocalizedString(30061), xbmcgui.NOTIFICATION_ERROR)
         show_main_menu(args)
 
 
@@ -179,6 +200,9 @@ def show_main_menu(args):
     view.add_item(args,
                   {"title": args.addon.getLocalizedString(30050),
                    "mode": "anime"})
+    view.add_item(args,
+                  {"title": args.addon.getLocalizedString(30049),
+                   "mode": "crunchylists_lists"})
     # @TODO: i think there are no longer dramas. should we add music videos and movies?
     # view.add_item(args,
     #              {"title": args.addon.getLocalizedString(30051),
