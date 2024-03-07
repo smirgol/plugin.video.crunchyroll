@@ -215,13 +215,16 @@ class ListableItem(Object):
         # if is a playable item, set some things
         if hasattr(self, 'duration'):
             li.setProperty("IsPlayable", "true")
-            li.setProperty('TotalTime', str(float(getattr(self, 'duration'))))
+            li_info = li.getVideoInfoTag()
+            # li.setProperty('TotalTime', str(float(getattr(self, 'duration'))))
+            li_info.setDuration(int(getattr(self, 'duration')))
             # set resume if not fully watched and playhead > x
             if hasattr(self, 'playcount') and getattr(self, 'playcount') == 0:
                 if hasattr(self, 'playhead') and getattr(self, 'playhead') > 0:
                     resume = int(getattr(self, 'playhead') / getattr(self, 'duration') * 100)
                     if 5 <= resume <= 90:
-                        li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
+                        # li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
+                        li_info.setResumePoint(float(getattr(self, 'playhead')), float(getattr(self, 'duration')))
 
         li.setInfo('video', list_info)
         li.setArt({
@@ -337,7 +340,7 @@ class SeasonData(ListableItem):
         super().__init__()
 
         self.id = data.get("id")
-        self.title: str = data.get("title")
+        self.title: str = '[' + data.get("audio_locale") + '] ' + data.get("title")
         self.tvshowtitle: str = data.get("title")
         self.series_id: str | None = data.get("series_id")
         self.season_id: str | None = data.get("id")
