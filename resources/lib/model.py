@@ -216,30 +216,28 @@ class ListableItem(Object):
         # if is a playable item, set some things
         if hasattr(self, 'duration'):
             li.setProperty("IsPlayable", "true")
-            # li.setProperty('TotalTime', str(float(getattr(self, 'duration'))))
             li_info.setDuration(int(getattr(self, 'duration')))
             # set resume if not fully watched and playhead > x
             if hasattr(self, 'playcount') and getattr(self, 'playcount') == 0:
                 if hasattr(self, 'playhead') and getattr(self, 'playhead') > 0:
                     resume = int(getattr(self, 'playhead') / getattr(self, 'duration') * 100)
                     if 5 <= resume <= 90:
-                        # li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
                         li_info.setResumePoint(float(getattr(self, 'playhead')), float(getattr(self, 'duration')))
 
 
-        # new setters with InfoTagVideo instead of li.setInfo()
-        # li.setInfo('video', list_info)
         li_info.setTitle(list_info.get('title'))
         li_info.setTvShowTitle(list_info.get('tvshowtitle'))
         li_info.setSeason(int(list_info.get('season')))
-        # sometimes no explicit episode number is given: ['', 'OVA', 'SP']
-        # sometimes it's a plain number, sometimes it's text
+        """ sometimes no explicit episode number is given: ['', 'OVA', 'SP']
+            sometimes it's a plain number, sometimes it's text
+        """
         if str(list_info.get('episode')).isnumeric():
             li_info.setEpisode(int(list_info.get('episode')))
         else:
             li_info.setEpisode(0)
-        li_info.setPlot(list_info.get('plot'))
-        li_info.setPlotOutline(list_info.get('plotoutline'))
+        if list_info.get('plot'): # seasons don't have plots
+            li_info.setPlot(list_info.get('plot'))
+            li_info.setPlotOutline(list_info.get('plotoutline'))
 
         # playhead -> see setResumePoint above
         # duration -> see setDuration above

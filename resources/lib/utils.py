@@ -293,7 +293,5 @@ def highlight_list_item_title(list_item: xbmcgui.ListItem):
 
         Used to highlight that item is already on watchlist
     """
-    # new setter with InfoTagVideo instead of li.setInfo()
-    # list_item.setInfo('video', {'title': '[COLOR orange]' + list_item.getLabel() + '[/COLOR]'})
     li_info = list_item.getVideoInfoTag()
     li_info.setTitle('[COLOR orange]' + list_item.getLabel() + '[/COLOR]')

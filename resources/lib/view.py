@@ -89,18 +89,12 @@ def add_item(
 
     if is_folder:
         # directory
-        # new setters with InfoTagVideo instead of li.setInfo()
-        # info_labels["mediatype"] = "tvshow"
-        # li.setInfo(mediatype, info_labels)
         li_info.setTitle(info_labels.get('title'))
         if info_labels.get('genre'):
             li_info.setGenres([info_labels.get('genre')])
         li_info.setMediaType('tvshow')
     else:
         # playable video
-        # new setters with InfoTagVideo instead of li.setInfo()
-        # info_labels["mediatype"] = "episode"
-        # li.setInfo(mediatype, info_labels)
         li.setProperty("IsPlayable", "true")
         li_info.setTitle(info_labels.get('title'))
         if info_labels.get('genre'):
