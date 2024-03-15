@@ -82,19 +82,30 @@ def add_item(
 
     # create list item
     li = xbmcgui.ListItem(label=info["title"], path=u)
+    li_info = li.getVideoInfoTag()
 
     # get infoLabels
     info_labels = make_info_label(args, info)
 
     if is_folder:
         # directory
-        info_labels["mediatype"] = "tvshow"
-        li.setInfo(mediatype, info_labels)
+        # new setters with InfoTagVideo instead of li.setInfo()
+        # info_labels["mediatype"] = "tvshow"
+        # li.setInfo(mediatype, info_labels)
+        li_info.setTitle(info_labels.get('title'))
+        if info_labels.get('genre'):
+            li_info.setGenres([info_labels.get('genre')])
+        li_info.setMediaType('tvshow')
     else:
         # playable video
-        info_labels["mediatype"] = "episode"
-        li.setInfo(mediatype, info_labels)
+        # new setters with InfoTagVideo instead of li.setInfo()
+        # info_labels["mediatype"] = "episode"
+        # li.setInfo(mediatype, info_labels)
         li.setProperty("IsPlayable", "true")
+        li_info.setTitle(info_labels.get('title'))
+        if info_labels.get('genre'):
+            li_info.setGenres([info_labels.get('genre')])
+        li_info.setMediaType('episode')
 
         # add context menu to jump to seasons xor episodes
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.

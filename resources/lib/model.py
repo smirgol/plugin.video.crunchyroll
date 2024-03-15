@@ -211,11 +211,11 @@ class ListableItem(Object):
 
         li = xbmcgui.ListItem()
         li.setLabel(self.title)
+        li_info = li.getVideoInfoTag()
 
         # if is a playable item, set some things
         if hasattr(self, 'duration'):
             li.setProperty("IsPlayable", "true")
-            li_info = li.getVideoInfoTag()
             # li.setProperty('TotalTime', str(float(getattr(self, 'duration'))))
             li_info.setDuration(int(getattr(self, 'duration')))
             # set resume if not fully watched and playhead > x
@@ -226,7 +226,39 @@ class ListableItem(Object):
                         # li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
                         li_info.setResumePoint(float(getattr(self, 'playhead')), float(getattr(self, 'duration')))
 
-        li.setInfo('video', list_info)
+
+        # new setters with InfoTagVideo instead of li.setInfo()
+        # li.setInfo('video', list_info)
+        li_info.setTitle(list_info.get('title'))
+        li_info.setTvShowTitle(list_info.get('tvshowtitle'))
+        li_info.setSeason(int(list_info.get('season')))
+        # sometimes no explicit episode number is given: ['', 'OVA', 'SP']
+        # sometimes it's a plain number, sometimes it's text
+        if str(list_info.get('episode')).isnumeric():
+            li_info.setEpisode(int(list_info.get('episode')))
+        else:
+            li_info.setEpisode(0)
+        li_info.setPlot(list_info.get('plot'))
+        li_info.setPlotOutline(list_info.get('plotoutline'))
+
+        # playhead -> see setResumePoint above
+        # duration -> see setDuration above
+        li_info.setPlaycount(int(list_info.get('playcount')))
+
+        # season_id -> not part of InfoTagVideo
+        # series_id -> not part of InfoTagVideo
+        # episode_id -> not part of InfoTagVideo
+        # stream_id -> not part of InfoTagVideo
+
+        if list_info.get('year'): # it's unlikely the other dates are given if year is missing
+            li_info.setYear(int(list_info.get('year')[0:3])) # only use first 4 digits in case of date
+            li_info.setFirstAired(list_info.get('aired'))
+            li_info.setPremiered(list_info.get('premiered'))
+
+        li_info.setRating(float(list_info.get('rating')))
+
+        li_info.setMediaType(list_info.get('mediatype'))
+
         li.setArt({
             "thumb": self.thumb or 'DefaultFolder.png',
             'poster': self.poster or self.thumb or 'DefaultFolder.png',
@@ -268,7 +300,7 @@ class PlayableItem(ListableItem):
     Crunchyroll           XBMC
     series                collection
     season                season
-    episode               episode   
+    episode               episode
 """
 
 
