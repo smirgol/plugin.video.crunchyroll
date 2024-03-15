@@ -126,6 +126,14 @@ msgctxt "#30039"
 msgid "In an anime seasons view, only display dubs in either Japanese, your CR language or any of your configured subtitle languages."
 msgstr "In an anime seasons view, only display dubs in either Japanese, your CR language or any of your configured subtitle languages."
 
+msgctxt "#30036"
+msgid "Show dub language in Season View"
+msgstr "Show dub language in Season View"
+
+msgctxt "#30037"
+msgid "In an anime seasons view, display a dub tag in front of the season name."
+msgstr "In an anime seasons view, display a dub tag in front of the season name."
+
 
 # Crunchyroll Menue
 

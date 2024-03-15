@@ -370,7 +370,11 @@ class SeasonData(ListableItem):
         super().__init__()
 
         self.id = data.get("id")
-        self.title: str = '[' + data.get("audio_locale") + '] ' + data.get("title")
+        settings = xbmcaddon.Addon(id=re.sub(r"^plugin://([^/]+)/.*$", r"\1", sys.argv[0])).getSettings()
+        if settings.getBool("show_lang_in_seasons"):
+            self.title: str = '[' + data.get("audio_locale") + '] ' + data.get("title")
+        else:
+            self.title: str = data.get("title")
         self.tvshowtitle: str = data.get("title")
         self.series_id: str | None = data.get("series_id")
         self.season_id: str | None = data.get("id")
