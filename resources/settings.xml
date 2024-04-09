@@ -123,6 +123,11 @@
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
+				<setting id="enable_short_title" type="boolean" label="30018" help="">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
             </group>
         </category>
     </section>

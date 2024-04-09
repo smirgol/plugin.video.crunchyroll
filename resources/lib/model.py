@@ -388,6 +388,7 @@ class SeasonData(ListableItem):
 
 
 # dto
+    
 class EpisodeData(PlayableItem):
     """ A single Episode of a Season of a Series """
 
@@ -395,12 +396,19 @@ class EpisodeData(PlayableItem):
         super().__init__()
         from . import utils
 
+        args = utils.parse(sys.argv)
         panel = data.get('panel') or data
         meta = panel.get("episode_metadata") or panel
 
         self.id = panel.get("id")
-        self.title: str = utils.format_long_episode_title(meta.get("season_title"), meta.get("episode_number"),
+        
+        if args.addon.getSetting("enable_short_title") == "true":
+            self.title: str = utils.format_short_episode_title(meta.get("episode_number"),
                                                           panel.get("title"))
+        else:
+            self.title: str = utils.format_long_episode_title(meta.get("season_title"), meta.get("episode_number"),
+                                                          panel.get("title"))
+        
         self.tvshowtitle: str = meta.get("series_title", "")
         self.duration: int = int(meta.get("duration_ms", 0) / 1000)
         self.playhead: int = data.get("playhead", 0)

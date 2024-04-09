@@ -68,6 +68,10 @@ msgctxt "#30015"
 msgid "Skip"
 msgstr "Überspringen"
 
+msgctxt "#30018"
+msgid "Use short titles"
+msgstr ""
+
 msgctxt "#30020"
 msgid "Subtitle Language"
 msgstr "Untertitel Sprache"
