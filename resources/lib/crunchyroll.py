@@ -123,7 +123,7 @@ def check_mode(args, api: API):
         mode = None
 
     if not mode:
-        show_main_menu(args)
+        show_main_menu(args, api)
 
     elif mode == "queue":
         controller.show_queue(args, api)
@@ -180,10 +180,10 @@ def check_mode(args, api: API):
         # unknown mode
         utils.crunchy_log(args, "Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
         xbmcgui.Dialog().notification(args.addon_name, args.addon.getLocalizedString(30061), xbmcgui.NOTIFICATION_ERROR)
-        show_main_menu(args)
+        show_main_menu(args, api)
 
 
-def show_main_menu(args):
+def show_main_menu(args, api):
     """Show main menu
     """
     view.add_item(args,
@@ -208,8 +208,8 @@ def show_main_menu(args):
                   {"title": args.addon.getLocalizedString(30049),
                    "mode": "crunchylists_lists"})
     view.add_item(args,
-                  {"title": args.addon.getLocalizedString(30072),
-                   "mode": "profiles_list"})
+                  {"title": args.addon.getLocalizedString(30072) % str(api.account_data.username),
+                   "mode": "profiles_list", "thumb": utils.get_img_from_static(api.account_data.avatar)})
     # @TODO: i think there are no longer dramas. should we add music videos and movies?
     # view.add_item(args,
     #              {"title": args.addon.getLocalizedString(30051),

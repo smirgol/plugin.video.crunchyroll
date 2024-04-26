@@ -143,7 +143,6 @@ class API:
                 "device_type": 'MediaCenter'
             }
         elif type == "refresh_profile":
-            print("Je suis bien au bon endroit")
             data = {
                 "device_id": self.args.device_id,
                 "device_type": "MediaCenter",
@@ -208,6 +207,12 @@ class API:
             url=API.PROFILE_ENDPOINT
         )
         account_data.update(r)
+
+        r = self.make_request(
+            method="GET",
+            url=self.PROFILES_LIST_ENDPOINT,
+        )
+        account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
 
         account_data["expires"] = date_to_str(
             get_date() + timedelta(seconds=float(account_data["expires_in"])))
