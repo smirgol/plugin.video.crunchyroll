@@ -78,6 +78,10 @@ class API:
     AUTHORIZATION = "Basic bm12anNoZmtueW14eGtnN2ZiaDk6WllJVnJCV1VQYmNYRHRiRDIyVlNMYTZiNFdRb3Mzelg="
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
+    PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
+    STATIC_IMG_PROFILE = "https://static.crunchyroll.com/assets/avatar/170x170/"
+    STATIC_WALLPAPER_PROFILE = "https://static.crunchyroll.com/assets/wallpaper/720x180/"
+
     def __init__(
             self,
             args: Args = None,
@@ -111,7 +115,7 @@ class API:
 
         return True
 
-    def create_session(self, refresh=False) -> None:
+    def create_session(self, type = "access", profile_id = None) -> None:
         # get login information
         username = self.args.addon.getSetting("crunchyroll_username")
         password = self.args.addon.getSetting("crunchyroll_password")
@@ -119,7 +123,7 @@ class API:
         headers = {"Authorization": API.AUTHORIZATION}
         data = {}
 
-        if not refresh:
+        if type == "access":
             data = {
                 "username": username,
                 "password": password,
@@ -129,7 +133,7 @@ class API:
                 "device_name": 'Kodi',
                 "device_type": 'MediaCenter'
             }
-        elif refresh:
+        elif type == "refresh":
             data = {
                 "refresh_token": self.account_data.refresh_token,
                 "grant_type": "refresh_token",
@@ -138,6 +142,16 @@ class API:
                 "device_name": 'Kodi',
                 "device_type": 'MediaCenter'
             }
+        elif type == "refresh_profile":
+            print("Je suis bien au bon endroit")
+            data = {
+                "device_id": self.args.device_id,
+                "device_type": "MediaCenter",
+                "grant_type": "refresh_token_profile_id",
+                "profile_id": profile_id,
+                "refresh_token": self.account_data.refresh_token
+            }
+
 
         r = self.http.request(
             method="POST",
@@ -230,7 +244,7 @@ class API:
             if expiration := self.account_data.expires:
                 current_time = get_date()
                 if current_time > str_to_date(expiration):
-                    self.create_session(refresh=True)
+                    self.create_session(type="refresh")
             params.update({
                 "Policy": self.account_data.cms.policy,
                 "Signature": self.account_data.cms.signature,

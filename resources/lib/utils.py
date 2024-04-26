@@ -29,7 +29,7 @@ except ImportError:
 
 from typing import Dict, Union, List
 
-from .model import Args, CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
+from .model import Args, CrunchyrollError, ListableItem, ProfileData, EpisodeData, MovieData, SeriesData, SeasonData
 from .api import API
 
 
@@ -40,7 +40,6 @@ def parse(argv) -> Args:
         return Args(argv, parse_qs(argv[2][1:]))
     else:
         return Args(argv, {})
-
 
 # @todo we could change the return type and along with the listables return additional data that we preload
 #       like info what is on watchlist, artwork, playhead, ...
@@ -73,6 +72,8 @@ def get_listables_from_response(args: Args, data: List[dict]) -> List[ListableIt
             listable_items.append(EpisodeData(item))
         elif item_type == 'movie':
             listable_items.append(MovieData(item))
+        elif item_type == "profile":
+            listable_items.append(ProfileData(item))
         else:
             crunchy_log(
                 None,
@@ -178,6 +179,14 @@ async def get_watchlist_status_from_api(args: Args, api: API, ids: list) -> list
 
     return [item.get('id') for item in req.get('data')]
 
+
+def get_img_from_static(image, type='normal'):
+    path = API.STATIC_IMG_PROFILE
+
+    if type == "wallpaper":
+        path = API.STATIC_WALLPAPER_PROFILE
+
+    return path+image
 
 def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[str, None]:
     """ dive into API info structure and extract requested image from its struct """

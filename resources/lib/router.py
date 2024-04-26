@@ -68,6 +68,14 @@ plugin_routes: dict = {
     "video_movie_play": {
         "url": "/video/{episode_id}/{stream_id}",
         "mode": "videoplay"
+    },
+    "profiles_view": {
+        "url": "/profiles/{mode}",
+        "mode": "profiles_list"
+    },
+    "profiles_view_with_id": {
+        "url": "/profiles/{mode}/{profile_id}",
+        "mode": "profiles_list_with_id"
     }
 }
 

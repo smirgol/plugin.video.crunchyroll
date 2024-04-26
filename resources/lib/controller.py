@@ -31,6 +31,41 @@ from .model import CrunchyrollError
 from .utils import get_listables_from_response
 from .videoplayer import VideoPlayer
 
+def show_profiles_id(args, api: API):
+    api.create_session(type="refresh_profile", profile_id=args.get_arg("profile_id"))
+    return True
+
+def show_profiles(args, api: API):
+    # api request
+    req = api.make_request(
+        method="GET",
+        url=api.PROFILES_LIST_ENDPOINT.format(api.account_data.account_id),
+        params={
+            "n": 1024,
+            "locale": args.subtitle
+        }
+    )
+
+    # check for error
+    if not req or "error" in req:
+        view.add_item(args, {"title": args.addon.getLocalizedString(30061)})
+        view.end_of_directory(args)
+        return False
+    
+    profiles = req.get("profiles")
+
+    for profile in profiles:
+        profile["type"] = "profile"
+
+    view.add_listables(
+        args=args,
+        api=api,
+        listables=get_listables_from_response(args, req.get('profiles')),
+        is_folder=False
+    )
+
+    view.end_of_directory(args, "files")
+    return True
 
 def show_queue(args, api: API):
     """ shows anime queue/playlist

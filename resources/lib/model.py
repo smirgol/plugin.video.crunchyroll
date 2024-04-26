@@ -177,6 +177,7 @@ class AccountData(Object):
         self.default_subtitles_language: str = data.get("preferred_content_subtitle_language")
         self.default_audio_language: str = data.get("preferred_content_audio_language")
         self.username: str = data.get("username")
+        self.profile_id = data.get("profile_id")
 
 
 class ListableItem(Object):
@@ -329,6 +330,27 @@ class SeriesData(ListableItem):
             "mode": "seasons"
         }
 
+
+class ProfileData(ListableItem):
+    def __init__(self, data: dict):
+        super().__init__
+        from . import utils
+
+
+        self.id = data.get("profile_id")
+        self.title = data.get("profile_name")
+        self.username = data.get("username")
+        self.thumb = utils.get_img_from_static(data.get("avatar"))
+        self.fanart = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+        self.poster = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+        self.banner = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+
+    def get_info(self, args: Args) -> Dict:
+        return {
+            'profile_id': self.id,
+            'title': self.title,
+            "mode": "profiles_list_with_id",
+        }
 
 class SeasonData(ListableItem):
     """ A Season/Arc of a Series containing Episodes """

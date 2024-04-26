@@ -172,6 +172,10 @@ def check_mode(args, api: API):
         controller.crunchylists_lists(args, api)
     elif mode == 'crunchylists_item':
         controller.crunchylists_item(args, api)
+    elif mode == 'profiles_list':
+        controller.show_profiles(args, api)    
+    elif mode == 'profiles_list_with_id':
+        controller.show_profiles_id(args, api)
     else:
         # unknown mode
         utils.crunchy_log(args, "Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
@@ -203,6 +207,9 @@ def show_main_menu(args):
     view.add_item(args,
                   {"title": args.addon.getLocalizedString(30049),
                    "mode": "crunchylists_lists"})
+    view.add_item(args,
+                  {"title": "Changer le profil",
+                   "mode": "profiles_list"})
     # @TODO: i think there are no longer dramas. should we add music videos and movies?
     # view.add_item(args,
     #              {"title": args.addon.getLocalizedString(30051),
