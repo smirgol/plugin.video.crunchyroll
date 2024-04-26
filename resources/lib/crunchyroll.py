@@ -208,7 +208,7 @@ def show_main_menu(args):
                   {"title": args.addon.getLocalizedString(30049),
                    "mode": "crunchylists_lists"})
     view.add_item(args,
-                  {"title": "Changer le profil",
+                  {"title": args.addon.getLocalizedString(30072),
                    "mode": "profiles_list"})
     # @TODO: i think there are no longer dramas. should we add music videos and movies?
     # view.add_item(args,
