@@ -99,6 +99,12 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+
+                <setting id="show_lang_in_seasons" type="boolean" label="30036" help="30037">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
             </group>
         </category>
         <category id="playback_options" label="30220" help="">
