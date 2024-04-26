@@ -260,7 +260,7 @@ msgstr "Added to queue"
 
 msgctxt "#30072"
 msgid "[COLOR orange]%s[/COLOR] (change profile)"
-msgstr "[COLOR orange]%s[/COLOR] (change profile)"
+msgstr ""
 
 msgctxt "#30080"
 msgid "There are to many active streams. Please try again later."

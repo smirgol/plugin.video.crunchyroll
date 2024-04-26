@@ -256,6 +256,10 @@ msgctxt "#30071"
 msgid "Added to queue"
 msgstr "Zur Playlist hinzugefügt"
 
+msgctxt "#30072"
+msgid "[COLOR orange]%s[/COLOR] (change profile)"
+msgstr "[COLOR orange]%s[/COLOR] (Profil wechseln)"
+
 msgctxt "#30080"
 msgid "There are to many active streams. Please try again later."
 msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."
