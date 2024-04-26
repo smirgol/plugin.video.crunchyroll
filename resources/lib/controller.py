@@ -39,11 +39,7 @@ def show_profiles(args, api: API):
     # api request
     req = api.make_request(
         method="GET",
-        url=api.PROFILES_LIST_ENDPOINT.format(api.account_data.account_id),
-        params={
-            "n": 1024,
-            "locale": args.subtitle
-        }
+        url=api.PROFILES_LIST_ENDPOINT
     )
 
     # check for error

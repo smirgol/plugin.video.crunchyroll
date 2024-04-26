@@ -111,7 +111,7 @@ class API:
                 return True
 
         # session management
-        self.create_session(session_restart)
+        self.create_session("refresh")
 
         return True
 
@@ -212,7 +212,15 @@ class API:
             method="GET",
             url=self.PROFILES_LIST_ENDPOINT,
         )
-        account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
+
+        if type == "refresh_profile":
+            account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
+        else:
+            local_storage = self.load_from_storage()
+            if bool(local_storage):
+                profile_id_from_local_storage = local_storage.get("profile_id")
+                if bool(profile_id_from_local_storage):
+                    account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == profile_id_from_local_storage))
 
         account_data["expires"] = date_to_str(
             get_date() + timedelta(seconds=float(account_data["expires_in"])))
