@@ -73,10 +73,6 @@ plugin_routes: dict = {
         "url": "/profiles/{mode}",
         "mode": "profiles_list"
     },
-    "profiles_view_with_id": {
-        "url": "/profiles/{mode}/{profile_id}",
-        "mode": "profiles_list_with_id"
-    }
 }
 
 

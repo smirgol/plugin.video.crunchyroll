@@ -303,3 +303,8 @@ def highlight_list_item_title(list_item: xbmcgui.ListItem):
         Used to highlight that item is already on watchlist
     """
     list_item.setInfo('video', {'title': '[COLOR orange]' + list_item.getLabel() + '[/COLOR]'})
+
+def profile_to_item(profile):
+    profile_item = xbmcgui.ListItem(label=profile.get("profile_name"), label2=profile.get("username"))
+    profile_item.setArt({'thumb': get_img_from_static(profile.get("avatar"))})
+    return profile_item

@@ -31,11 +31,8 @@ from .model import CrunchyrollError
 from .utils import get_listables_from_response
 from .videoplayer import VideoPlayer
 
-def show_profiles_id(args, api: API):
-    api.create_session(type="refresh_profile", profile_id=args.get_arg("profile_id"))
-    return True
-
 def show_profiles(args, api: API):
+
     # api request
     req = api.make_request(
         method="GET",
@@ -49,19 +46,18 @@ def show_profiles(args, api: API):
         return False
     
     profiles = req.get("profiles")
+    item_profile = list(map(utils.profile_to_item, profiles))
+    current_profile = 0
 
-    for profile in profiles:
-        profile["type"] = "profile"
+    if bool(api.account_data.profile_id):
+        current_profile = [i for i in range(len(profiles)) if profiles[i].get("profile_id") == api.account_data.profile_id][0]
+    selected = xbmcgui.Dialog().select(args.addon.getLocalizedString(30073), item_profile, preselect=current_profile, useDetails=True)
 
-    view.add_listables(
-        args=args,
-        api=api,
-        listables=get_listables_from_response(args, req.get('profiles')),
-        is_folder=False
-    )
-
-    view.end_of_directory(args, "files")
-    return True
+    if selected == -1:
+        return True
+    else:
+        api.create_session(type="refresh_profile", profile_id=profiles[selected].get("profile_id"))
+        return True
 
 def show_queue(args, api: API):
     """ shows anime queue/playlist

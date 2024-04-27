@@ -174,8 +174,6 @@ def check_mode(args, api: API):
         controller.crunchylists_item(args, api)
     elif mode == 'profiles_list':
         controller.show_profiles(args, api)    
-    elif mode == 'profiles_list_with_id':
-        controller.show_profiles_id(args, api)
     else:
         # unknown mode
         utils.crunchy_log(args, "Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
