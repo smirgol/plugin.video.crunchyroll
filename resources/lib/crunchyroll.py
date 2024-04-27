@@ -214,7 +214,8 @@ def show_main_menu(args, api):
     # view.add_item(args,
     #              {"title": args.addon.getLocalizedString(30051),
     #               "mode":  "drama"})
-    view.end_of_directory(args)
+
+    view.end_of_directory(args, update_listing=True, cache_to_disc=False)
 
 
 def show_main_category(args, genre):

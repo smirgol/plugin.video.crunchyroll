@@ -94,7 +94,7 @@ class API:
         self.args = args
         self.retry_counter = 0
 
-    def start(self) -> bool:
+    def start(self) -> int:
         session_restart = self.args.get_arg('session_restart', False)
         # 1 = Success, 0 = Failure, 2 = Success, first login
         returned = 1
@@ -115,11 +115,11 @@ class API:
             returned = 2
 
         # session management
-        self.create_session(type = "refresh" if session_restart else "access")
+        self.create_session(action="refresh" if session_restart else "access")
 
         return returned
 
-    def create_session(self, type = "access", profile_id = None) -> None:
+    def create_session(self, action: str = "login", profile_id: Optional[str] = None) -> None:
         # get login information
         username = self.args.addon.getSetting("crunchyroll_username")
         password = self.args.addon.getSetting("crunchyroll_password")
@@ -127,7 +127,7 @@ class API:
         headers = {"Authorization": API.AUTHORIZATION}
         data = {}
 
-        if type == "access":
+        if action == "login":
             data = {
                 "username": username,
                 "password": password,
@@ -137,7 +137,7 @@ class API:
                 "device_name": 'Kodi',
                 "device_type": 'MediaCenter'
             }
-        elif type == "refresh":
+        elif action == "refresh":
             data = {
                 "refresh_token": self.account_data.refresh_token,
                 "grant_type": "refresh_token",
@@ -146,15 +146,15 @@ class API:
                 "device_name": 'Kodi',
                 "device_type": 'MediaCenter'
             }
-        elif type == "refresh_profile":
+        elif action == "refresh_profile":
             data = {
                 "device_id": self.args.device_id,
+                "device_name": 'Kodi',
                 "device_type": "MediaCenter",
                 "grant_type": "refresh_token_profile_id",
                 "profile_id": profile_id,
                 "refresh_token": self.account_data.refresh_token
             }
-
 
         r = self.http.request(
             method="POST",
@@ -212,19 +212,22 @@ class API:
         )
         account_data.update(r)
 
+        # @todo: this will call the profiles frequently, we should cache that
         r = self.make_request(
             method="GET",
             url=self.PROFILES_LIST_ENDPOINT,
         )
 
-        if type == "refresh_profile":
-            account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
+        if action == "refresh_profile":
+            account_data.update(
+                next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
         else:
             local_storage = self.load_from_storage()
             if bool(local_storage):
                 profile_id_from_local_storage = local_storage.get("profile_id")
                 if bool(profile_id_from_local_storage):
-                    account_data.update(next(profile for profile in r.get("profiles") if profile["profile_id"] == profile_id_from_local_storage))
+                    account_data.update(next(profile for profile in r.get("profiles") if
+                                             profile["profile_id"] == profile_id_from_local_storage))
 
         account_data["expires"] = date_to_str(
             get_date() + timedelta(seconds=float(account_data["expires_in"])))
@@ -261,7 +264,7 @@ class API:
             if expiration := self.account_data.expires:
                 current_time = get_date()
                 if current_time > str_to_date(expiration):
-                    self.create_session(type="refresh")
+                    self.create_session(action="refresh")
             params.update({
                 "Policy": self.account_data.cms.policy,
                 "Signature": self.account_data.cms.signature,

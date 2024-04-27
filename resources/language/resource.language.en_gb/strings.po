@@ -267,5 +267,5 @@ msgid "Choose your profile"
 msgstr ""
 
 msgctxt "#30080"
-msgid "There are to many active streams. Please try again later."
+msgid "There are too many active streams. Please try again later."
 msgstr ""

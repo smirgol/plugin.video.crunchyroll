@@ -331,27 +331,6 @@ class SeriesData(ListableItem):
         }
 
 
-class ProfileData(ListableItem):
-    def __init__(self, data: dict):
-        super().__init__
-        from . import utils
-
-
-        self.id = data.get("profile_id")
-        self.title = data.get("profile_name")
-        self.username = data.get("username")
-        self.thumb = utils.get_img_from_static(data.get("avatar"))
-        self.fanart = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
-        self.poster = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
-        self.banner = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
-
-    def get_info(self, args: Args) -> Dict:
-        return {
-            'profile_id': self.id,
-            'title': self.title,
-            "mode": "profiles_list_with_id",
-        }
-
 class SeasonData(ListableItem):
     """ A Season/Arc of a Series containing Episodes """
 
@@ -550,6 +529,40 @@ class MovieData(PlayableItem):
             # internally used for routing
             "mode": "videoplay"
         }
+
+
+class ProfileData(ListableItem):
+
+    def __init__(self, data: dict):
+        super().__init__()
+        from . import utils
+
+        self.id = data.get("profile_id")
+        self.title = data.get("profile_name")
+        self.username = data.get("username")
+        self.thumb = utils.get_img_from_static(data.get("avatar"))
+        self.fanart = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+        self.poster = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+        self.banner = utils.get_img_from_static(data.get("wallpaper"), "wallpaper")
+
+    def get_info(self, args: Args) -> Dict:
+        return {
+            'profile_id': self.id,
+            'title': self.title,
+            "mode": "profiles_list_with_id",
+        }
+
+    def to_item(self, args: Args) -> xbmcgui.ListItem:
+        """ Convert ourselves to a Kodi ListItem"""
+
+        li = xbmcgui.ListItem(label=self.title, label2=self.username)
+        li.setArt({
+            'thumb': self.thumb,
+            'fanart': self.fanart,
+            'poster': self.poster
+         })
+
+        return li
 
 
 class CrunchyrollError(Exception):
