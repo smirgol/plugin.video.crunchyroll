@@ -96,6 +96,7 @@ class API:
 
     def start(self) -> bool:
         session_restart = self.args.get_arg('session_restart', False)
+        returned = "True"
 
         # restore account data from file
         session_data = self.load_from_storage()
@@ -108,12 +109,14 @@ class API:
             if get_date() > str_to_date(self.account_data.expires):
                 session_restart = True
             else:
-                return True
+                return "True"
+        else:
+            returned = "First_Login"
 
         # session management
-        self.create_session("refresh" if session_restart else "access")
+        self.create_session(type = "refresh" if session_restart else "access")
 
-        return True
+        return returned
 
     def create_session(self, type = "access", profile_id = None) -> None:
         # get login information
