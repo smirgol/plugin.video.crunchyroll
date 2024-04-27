@@ -91,7 +91,7 @@ def main(argv):
         try:
             success = api.start()
             if bool(success):
-                if success == "First_Login":
+                if success == 2:
                     controller.show_profiles(args, api)
                 # list menu
                 xbmcplugin.setContent(int(args.argv[1]), "tvshows")
