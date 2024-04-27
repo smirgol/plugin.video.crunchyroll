@@ -111,7 +111,7 @@ class API:
                 return True
 
         # session management
-        self.create_session("refresh")
+        self.create_session("refresh" if session_restart else "access")
 
         return True
 
