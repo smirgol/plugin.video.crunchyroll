@@ -46,12 +46,12 @@ def show_profiles(args, api: API):
         return False
 
     profiles = req.get("profiles")
-    profile_list_items = list(map(lambda profile: ProfileData(profile).to_item(args), profiles))
+    profile_list_items = list(map(lambda profile: ProfileData(profile, args).to_item(args), profiles))
     current_profile = 0
 
-    if bool(api.account_data.profile_id):
+    if bool(api.profile_data.profile_id):
         current_profile = \
-            [i for i in range(len(profiles)) if profiles[i].get("profile_id") == api.account_data.profile_id][0]
+            [i for i in range(len(profiles)) if profiles[i].get("profile_id") == api.profile_data.profile_id][0]
 
     selected = xbmcgui.Dialog().select(
         args.addon.getLocalizedString(30073),

@@ -89,22 +89,23 @@ def main(argv):
     else:
         # login
         try:
-            success = api.start()
-            if bool(success):
-                if success == 2:
-                    controller.show_profiles(args, api)
-                # list menu
-                xbmcplugin.setContent(int(args.argv[1]), "tvshows")
-                return check_mode(args, api)
-        except (LoginError, CrunchyrollError):
-            success = False
+            api.start()
 
-        if not success:
+            # request to select profile if not set already
+            if api.profile_data.profile_id is None:
+                controller.show_profiles(args, api)
+
+            # list menu
+            xbmcplugin.setContent(int(args.argv[1]), "tvshows")
+
+            return check_mode(args, api)
+        except (LoginError, CrunchyrollError):
             # login failed
             utils.crunchy_log(args, "Login failed", xbmc.LOGERROR)
             view.add_item(args, {"title": args.addon.getLocalizedString(30060)})
             view.end_of_directory(args)
             xbmcgui.Dialog().ok(args.addon_name, args.addon.getLocalizedString(30060))
+
             return False
 
 
@@ -208,8 +209,8 @@ def show_main_menu(args, api):
                   {"title": args.addon.getLocalizedString(30049),
                    "mode": "crunchylists_lists"})
     view.add_item(args,
-                  {"title": args.addon.getLocalizedString(30072) % str(api.account_data.username),
-                   "mode": "profiles_list", "thumb": utils.get_img_from_static(api.account_data.avatar)})
+                  {"title": args.addon.getLocalizedString(30072) % str(api.profile_data.username),
+                   "mode": "profiles_list", "thumb": utils.get_img_from_static(api.profile_data.avatar)})
     # @TODO: i think there are no longer dramas. should we add music videos and movies?
     # view.add_item(args,
     #              {"title": args.addon.getLocalizedString(30051),

@@ -17,18 +17,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import time
 from datetime import timedelta, datetime
 from typing import Optional, Dict
 
 import requests
 import xbmc
-import xbmcvfs
 from requests import HTTPError, Response
 
 from . import utils
-from .model import AccountData, Args, LoginError
+from .model import AccountData, Args, LoginError, ProfileData
 from ..modules import cloudscraper
 
 
@@ -89,20 +87,25 @@ class API:
     ) -> None:
         self.http = requests.Session()
         self.locale: str = locale
-        self.account_data: AccountData = AccountData(dict())
+        self.account_data: AccountData = AccountData(dict(), args)
+        self.profile_data: ProfileData = ProfileData(dict(), args)
         self.api_headers: Dict = default_request_headers()
         self.args = args
         self.retry_counter = 0
 
-    def start(self) -> int:
+    def start(self) -> None:
         session_restart = self.args.get_arg('session_restart', False)
         # 1 = Success, 0 = Failure, 2 = Success, first login
         returned = 1
 
-        # restore account data from file
-        session_data = self.load_from_storage()
-        if session_data and not session_restart:
-            self.account_data = AccountData(session_data)
+        # restore account data from file (if any)
+        account_data = self.account_data.load_from_storage()
+
+        # restore profile data from file (if any)
+        self.profile_data = ProfileData(self.profile_data.load_from_storage(), self.args)
+
+        if account_data and not session_restart:
+            self.account_data = AccountData(account_data, self.args)
             account_auth = {"Authorization": f"{self.account_data.token_type} {self.account_data.access_token}"}
             self.api_headers.update(account_auth)
 
@@ -110,14 +113,10 @@ class API:
             if get_date() > str_to_date(self.account_data.expires):
                 session_restart = True
             else:
-                return returned
-        else:
-            returned = 2
+                return
 
         # session management
         self.create_session(action="refresh" if session_restart else "access")
-
-        return returned
 
     def create_session(self, action: str = "login", profile_id: Optional[str] = None) -> None:
         # get login information
@@ -168,7 +167,7 @@ class API:
         if r.status_code == 400:
             utils.crunchy_log(self.args, "Invalid/Expired credentials, restarting session from scratch")
             self.retry_counter = self.retry_counter + 1
-            self.delete_storage()
+            self.account_data.delete_storage()
             if self.retry_counter > 2:
                 utils.crunchy_log(self.args, "Max retries exceeded. Aborting!", xbmc.LOGERROR)
                 raise LoginError("Failed to authenticate twice")
@@ -189,7 +188,7 @@ class API:
         r_json = get_json_from_response(r)
 
         self.api_headers.clear()
-        self.account_data = AccountData({})
+        self.account_data = AccountData({}, self.args)
 
         access_token = r_json["access_token"]
         token_type = r_json["token_type"]
@@ -197,7 +196,7 @@ class API:
 
         account_data = dict()
         account_data.update(r_json)
-        self.account_data = AccountData({})
+        self.account_data = AccountData({}, self.args)
         self.api_headers.update(account_auth)
 
         r = self.make_request(
@@ -210,30 +209,36 @@ class API:
             method="GET",
             url=API.PROFILE_ENDPOINT
         )
+
         account_data.update(r)
 
-        # @todo: this will call the profiles frequently, we should cache that
-        r = self.make_request(
-            method="GET",
-            url=self.PROFILES_LIST_ENDPOINT,
-        )
-
         if action == "refresh_profile":
-            account_data.update(
-                next(profile for profile in r.get("profiles") if profile["profile_id"] == account_data["profile_id"]))
-        else:
-            local_storage = self.load_from_storage()
-            if bool(local_storage):
-                profile_id_from_local_storage = local_storage.get("profile_id")
-                if bool(profile_id_from_local_storage):
-                    account_data.update(next(profile for profile in r.get("profiles") if
-                                             profile["profile_id"] == profile_id_from_local_storage))
+            # fetch all profiles from API
+            r = self.make_request(
+                method="GET",
+                url=self.PROFILES_LIST_ENDPOINT,
+            )
+
+            # Extract current profile data as dict from ProfileData obj
+            profile_data = vars(self.profile_data)
+
+            # Update extracted profile data with fresh data from API for requested profile_id
+            profile_data.update(
+                next(profile for profile in r.get("profiles") if profile["profile_id"] == profile_id)
+            )
+
+            # update our ProfileData obj with updated data
+            self.profile_data = ProfileData(profile_data, self.args)
+
+            # cache to file
+            self.profile_data.write_to_storage()
 
         account_data["expires"] = date_to_str(
             get_date() + timedelta(seconds=float(account_data["expires_in"])))
-        self.account_data = AccountData(account_data)
 
-        self.write_to_storage(self.account_data)
+        self.account_data = AccountData(account_data, self.args)
+        self.account_data.write_to_storage()
+
         self.retry_counter = 0
 
     def close(self) -> None:
@@ -244,7 +249,8 @@ class API:
     def destroy(self) -> None:
         """Destroys session
         """
-        self.delete_storage()
+        self.account_data.delete_storage()
+        self.profile_data.delete_storage()
 
     def make_request(
             self,
@@ -311,46 +317,6 @@ class API:
         r = self.http.send(prepped)
 
         return get_json_from_response(r)
-
-    def get_storage_path(self) -> str:
-        """Get cookie file path
-        """
-        profile_path = xbmcvfs.translatePath(self.args.addon.getAddonInfo("profile"))
-
-        return profile_path
-
-    def load_from_storage(self) -> Optional[Dict]:
-        storage_file = self.get_storage_path() + "session_data.json"
-
-        if not xbmcvfs.exists(storage_file):
-            return None
-
-        with xbmcvfs.File(storage_file) as file:
-            data = json.load(file)
-
-        d = dict()
-        d.update(data)
-
-        return d
-
-    def delete_storage(self) -> None:
-        storage_file = self.get_storage_path() + "session_data.json"
-
-        if not xbmcvfs.exists(storage_file):
-            return None
-
-        xbmcvfs.delete(storage_file)
-
-    def write_to_storage(self, account: AccountData) -> bool:
-        storage_file = self.get_storage_path() + "session_data.json"
-
-        # serialize (Object has a to_str serializer)
-        json_string = str(account)
-
-        with xbmcvfs.File(storage_file, 'w') as file:
-            result = file.write(json_string)
-
-        return result
 
 
 def default_request_headers() -> Dict:
