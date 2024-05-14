@@ -247,7 +247,7 @@ class VideoPlayer(Object):
         except Exception:
             utils.crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
 
-    def _compute_when_episode_ends(self) -> int:
+    def _compute_when_episode_ends(self) -> Optional[int]:
         upnext_mode = G.args.addon.getSetting("upnext_mode")
         if upnext_mode == "disabled":
             return None
