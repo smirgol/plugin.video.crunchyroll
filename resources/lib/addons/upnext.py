@@ -16,29 +16,39 @@
 
 from base64 import b64encode
 from json import dumps
+from typing import Optional
 
 from resources.lib.model import Args, PlayableItem, SeriesData
 
 from . import utils
 
-def send_next_info(args: Args, current_episode: PlayableItem, next_episode: PlayableItem, play_url: str, notification_offset: int | None = None, series: SeriesData | None = None):
+
+def send_next_info(
+        args: Args,
+        current_episode: PlayableItem,
+        next_episode: PlayableItem,
+        play_url: str,
+        notification_offset: Optional[int] = None,
+        series: Optional[SeriesData] = None
+):
     """
     Notify next episode info to upnext.
     See https://github.com/im85288/service.upnext/wiki/Integration#sending-data-to-up-next for implementation details.
     """
-    current = UpnextEpisode(current_episode, series)
-    next = UpnextEpisode(next_episode, series)
+    current_upnext_episode = UpnextEpisode(current_episode, series)
+    next_upnext_episode = UpnextEpisode(next_episode, series)
     next_info = {
-        "current_episode": current.__dict__,
-        "next_episode": next.__dict__,
+        "current_episode": current_upnext_episode.__dict__,
+        "next_episode": next_upnext_episode.__dict__,
         "play_url": play_url,
     }
     if notification_offset is not None:
         next_info["notification_offset"] = notification_offset
     upnext_signal(args.addon_id, next_info)
 
+
 class UpnextEpisode:
-    def __init__(self, dto: PlayableItem, series_dto: SeriesData | None):
+    def __init__(self, dto: PlayableItem, series_dto: Optional[SeriesData]):
         self.episodeid: str | None = dto.episode_id
         self.tvshowid: str | None = dto.series_id
         self.title: str = dto.title_unformatted
@@ -61,6 +71,7 @@ class UpnextEpisode:
         # self.rating: str = dto.rating
         self.firstaired: str = dto.year
         self.runtime: int = dto.duration
+
 
 def upnext_signal(sender, next_info):
     """Send upnext_data to Kodi using JSON RPC"""

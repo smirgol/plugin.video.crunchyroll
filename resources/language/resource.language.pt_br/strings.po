@@ -31,6 +31,10 @@ msgctxt "#30230"
 msgid "Other"
 msgstr "Outros"
 
+msgctxt "#30240"
+msgid "Addons"
+msgstr ""
+
 msgctxt "#30001"
 msgid "Username"
 msgstr "E-mail"
@@ -266,3 +270,27 @@ msgstr ""
 msgctxt "#30080"
 msgid "There are too many active streams. Please try again later."
 msgstr "Muitas streams ativas. Por favor, tente mais tarde"
+
+msgctxt "#30089"
+msgid "UpNext fixed or unavailable end detection duration"
+msgstr ""
+
+msgctxt "#30090"
+msgid "UpNext integration"
+msgstr ""
+
+msgctxt "#30091"
+msgid "At credits start, if nothing after"
+msgstr ""
+
+msgctxt "#30092"
+msgid "At preview start"
+msgstr ""
+
+msgctxt "#30093"
+msgid "Fixed"
+msgstr ""
+
+msgctxt "#30094"
+msgid "Disabled"
+msgstr ""
