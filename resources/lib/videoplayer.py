@@ -226,10 +226,10 @@ class VideoPlayer(Object):
                 },
                 "video_episode_play"
             )
-            show_next_at_seconds = self._compute_when_episode_ends()
+            show_next_at_seconds = self._stream_data.end_timecode
             if show_next_at_seconds is not None:
-                # Needs to wait 1s, otherwise, upnext will show next dialog at episode start...
-                xbmc.sleep(1000)
+                # Needs to wait 10s, otherwise, upnext will show next dialog at episode start...
+                xbmc.sleep(10000)
                 utils.crunchy_log("_handle_upnext: Next URL (shown at %ds / %ds): %s" % (
                     show_next_at_seconds,
                     self._stream_data.playable_item.duration,
@@ -246,37 +246,6 @@ class VideoPlayer(Object):
                 )
         except Exception:
             utils.crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
-
-    def _compute_when_episode_ends(self) -> Optional[int]:
-        upnext_mode = G.args.addon.getSetting("upnext_mode")
-        if upnext_mode == "disabled":
-            return None
-
-        video_end = self._stream_data.playable_item.duration
-        fixed_duration = int(G.args.addon.getSetting("upnext_fixed_duration"), 10)
-        result = video_end - fixed_duration
-
-        skip_events_data = self._stream_data.unmodified_skip_events_data
-        if upnext_mode == "fixed" or not skip_events_data or (not skip_events_data.get("credits") and not skip_events_data.get("preview")):
-            return result
-
-        credits_start = skip_events_data.get("credits", {}).get("start")
-        credits_end = skip_events_data.get("credits", {}).get("end")
-        preview_start = skip_events_data.get("preview", {}).get("start")
-        preview_end = skip_events_data.get("preview", {}).get("end")
-        # If there are outro and preview
-        # and if the outro ends when the preview start
-        if upnext_mode == "best" and credits_start and credits_end and preview_start and credits_end + 3 > preview_start:
-            result = credits_start
-        # If there is a preview
-        elif preview_start:
-            result = preview_start
-        # If there is outro without preview
-        # and if the outro ends in the last 20 seconds video
-        elif upnext_mode == "best" and credits_start and credits_end and video_end <= credits_end + 20:
-            result = credits_start
-
-        return result
 
     def thread_update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
@@ -339,13 +308,17 @@ class VideoPlayer(Object):
         if not self._stream_data.skip_events_data:
             return False
 
+        # never skip preview (fetched for upnext)
+        if self._stream_data.skip_events_data.get('preview'):
+            self._stream_data.skip_events_data.pop('preview', None)
+
         # if not enabled in config, remove from our list
-        if G.args.addon.getSetting("enable_skip_intro") != "true" and self._stream_data.skip_events_data.get(
+        if G.args.addon.getSetting('enable_skip_intro') != 'true' and self._stream_data.skip_events_data.get(
                 'intro'):
             self._stream_data.skip_events_data.pop('intro', None)
 
-        if G.args.addon.getSetting("enable_skip_credits") != "true" and self._stream_data.skip_events_data.get(
-                'credits'):
+        if (G.args.addon.getSetting('enable_skip_credits') != 'true' or self._stream_data.end_marker == 'credits') and (
+                self._stream_data.skip_events_data.get('credits') ):
             self._stream_data.skip_events_data.pop('credits', None)
 
         return len(self._stream_data.skip_events_data) > 0

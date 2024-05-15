@@ -277,21 +277,21 @@ msgid "UpNext fixed or unavailable end detection duration"
 msgstr "Vorlaufzeit für UpNext wenn \"Statisch\" oder keine Credits/Vorschau"
 
 msgctxt "#30090"
-msgid "UpNext integration"
+msgid "Show UpNext dialog at"
 msgstr "UpNext Integration"
 
 msgctxt "#30091"
-msgid "At credits start, if nothing after"
+msgid "credits start"
 msgstr "Zu Beginn der Credits, wenn danach keine Vorschau kommt"
 
 msgctxt "#30092"
-msgid "At preview start"
+msgid "preview start"
 msgstr "Zu Beginn der Vorschau"
 
 msgctxt "#30093"
-msgid "Fixed"
+msgid "fixed time before the end"
 msgstr "Statisch"
 
 msgctxt "#30094"
-msgid "Disabled"
+msgid "never (disabled)"
 msgstr "Deaktiviert"

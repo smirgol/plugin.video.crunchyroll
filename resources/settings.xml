@@ -132,7 +132,7 @@
                     <default>disabled</default>
                     <constraints>
                         <options>
-                            <option label="30091">best</option>
+                            <option label="30091">credits</option>
                             <option label="30092">preview</option>
                             <option label="30093">fixed</option>
                             <option label="30094">disabled</option>
