@@ -57,10 +57,9 @@ class VideoPlayer(Object):
         self._prepare_and_start_playback()
 
         self._handle_update_playhead()
-        self._handle_skipping()
-
         if not self._wait_for_playback_started(10):
             utils.crunchy_log('Timeout reached, video did not start playback in 10 seconds', xbmc.LOGERROR)
+        self._handle_skipping()
 
         self._handle_upnext()
 

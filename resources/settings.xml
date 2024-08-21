@@ -99,6 +99,30 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="show_dubs_by_language" parent="filter_dubs_by_language" type="boolean" label="30138" help="30139">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                    <dependencies>
+                        <dependency type="enable" setting="filter_dubs_by_language">true</dependency>
+                    </dependencies>
+                </setting>
+                <setting id="show_dubs_by_language_fallback" parent="filter_dubs_by_language" type="boolean" label="30140" help="30141">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                    <dependencies>
+                        <dependency type="enable" setting="filter_dubs_by_language">true</dependency>
+                    </dependencies>
+                </setting>
+                <setting id="show_subs_by_language" parent="filter_dubs_by_language" type="boolean" label="30142" help="30143">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                    <dependencies>
+                        <dependency type="enable" setting="filter_dubs_by_language">true</dependency>
+                    </dependencies>
+                </setting>             
             </group>
         </category>
         <category id="playback_options" label="30220" help="">
@@ -127,26 +151,26 @@
         </category>
         <category id="addons_options" label="30240" help="">
             <group id="1" label="30240">
-                <setting id="upnext_mode" type="string" label="30090" help="">
+                <setting id="upnext_mode" type="string" label="30300" help="">
                     <level>0</level>
                     <default>disabled</default>
                     <constraints>
                         <options>
-                            <option label="30091">credits</option>
-                            <option label="30092">preview</option>
-                            <option label="30093">fixed</option>
-                            <option label="30094">disabled</option>
+                            <option label="30301">credits</option>
+                            <option label="30302">preview</option>
+                            <option label="30303">fixed</option>
+                            <option label="30304">disabled</option>
                         </options>
                     </constraints>
                     <control type="list" format="string">
-                        <heading>30090</heading>
+                        <heading>30300</heading>
                     </control>
                 </setting>
                 <setting id="upnext_fixed_duration" type="number" label="30089" help="">
                     <level>0</level>
                     <default>15</default>
                     <control type="edit" format="number">
-                        <heading>30089</heading>
+                        <heading>30319</heading>
                     </control>
                 </setting>
             </group>

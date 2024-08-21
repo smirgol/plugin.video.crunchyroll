@@ -127,8 +127,32 @@ msgid "Filter available dubs"
 msgstr "Filtrar los idiomas de audio disponibles"
 
 msgctxt "#30039"
-msgid "In an anime seasons view, only display dubs in either Japanese, your CR language or any of your configured subtitle languages."
-msgstr "En una vista de temporadas de anime, sólo se muestran los idiomas de audio en japonés, su idioma Crunchyroll o cualquiera de los idiomas de subtítulos configurados."
+msgid "In an anime seasons or series view, only display dubs in either Japanese, your CR language or any of your configured subtitle languages."
+msgstr "En una vista de temporada o serie de anime, sólo se muestran los idiomas de audio en japonés, su idioma Crunchyroll o cualquiera de los idiomas de subtítulos configurados."
+
+msgctxt "#30138"
+msgid "Show dubs in your language"
+msgstr ""
+
+msgctxt "#30139"
+msgid "In an anime seasons or series view, display dubs in your CR language"
+msgstr ""
+
+msgctxt "#30140"
+msgid "Show dubs in your alternative language"
+msgstr ""
+
+msgctxt "#30141"
+msgid "In an anime seasons or series view, display dubs in your configured alternative subtitle language."
+msgstr ""
+
+msgctxt "#30142"
+msgid "Show subtitled entries"
+msgstr ""
+
+msgctxt "#30143"
+msgid "In an anime seasons or series view, display dubs in Japanese with subtitles in your configured subtitle languages."
+msgstr ""
 
 
 # Crunchyroll Menue
@@ -274,26 +298,30 @@ msgctxt "#30080"
 msgid "There are too many active streams. Please try again later."
 msgstr ""
 
-msgctxt "#30089"
+msgctxt "#30090"
+msgid "No search results"
+msgstr ""
+
+msgctxt "#30319"
 msgid "UpNext fixed or unavailable end detection duration"
 msgstr ""
 
-msgctxt "#30090"
+msgctxt "#30300"
 msgid "Show UpNext dialog at"
 msgstr ""
 
-msgctxt "#30091"
+msgctxt "#30301"
 msgid "credits start"
 msgstr ""
 
-msgctxt "#30092"
+msgctxt "#30302"
 msgid "preview start"
 msgstr ""
 
-msgctxt "#30093"
+msgctxt "#30303"
 msgid "fixed time before the end"
 msgstr ""
 
-msgctxt "#30094"
+msgctxt "#30304"
 msgid "never (disabled)"
 msgstr ""

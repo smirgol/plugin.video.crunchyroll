@@ -89,7 +89,7 @@ def show_queue():
     view.add_listables(
         listables=get_listables_from_response(req.get('items')),
         is_folder=False,
-        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -128,6 +128,11 @@ def search_anime():
     # check for error
     if not req or "error" in req:
         view.add_item({"title": G.args.addon.getLocalizedString(30061)})
+        view.end_of_directory()
+        return False
+
+    if not req.get('items') or len(req.get('items')) == 0:
+        view.add_item({"title": G.args.addon.getLocalizedString(30090)})
         view.end_of_directory()
         return False
 
