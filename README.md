@@ -35,6 +35,7 @@ Git repo: https://github.com/MrKrabat/plugin.video.crunchyroll
 - [x] Optionally soft-subs only
 - [x] Configure up to two languages for subtitles / dubs
 - [x] Crunchylists support
+- [x] UpNext addon integration
 
 ***
 
