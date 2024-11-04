@@ -112,9 +112,13 @@ class VideoPlayer(Object):
             if 'TOO_MANY_ACTIVE_STREAMS' in str(e):
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30080))
+                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist.clear()
             else:
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30064))
+                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist.clear()
             return False
 
         return True
