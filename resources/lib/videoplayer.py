@@ -184,13 +184,6 @@ class VideoPlayer(Object):
             """ start playback"""
             xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
-        # start fallback
-        if not self._wait_for_playback_started(10):
-            # start without inputstream adaptive
-            utils.crunchy_log("Inputstream Adaptive failed, trying directly with kodi", xbmc.LOGINFO)
-            item.setProperty("inputstream", "")
-            self._player.play(self._stream_data.stream_url, item)
-
 
     def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
