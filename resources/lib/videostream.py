@@ -355,4 +355,9 @@ class VideoStream(Object):
             else:
                 crunchy_log("_get_skip_events: check for %s FAILED" % skip_type, xbmc.LOGINFO)
 
+        if G.args.addon.getSetting("enable_skip_intro") != "true" and prepared.get('intro'):
+            prepared.pop('intro', None)
+
+        if G.args.addon.getSetting("enable_skip_credits") != "true" and prepared.get('credits'):
+            prepared.pop('credits', None)
         return prepared if len(prepared) > 0 else None

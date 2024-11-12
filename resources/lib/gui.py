@@ -50,7 +50,7 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
             self.close()
 
 
-def _show_modal_dialog(dialog_class, xml_filename, **kwargs):
+def show_modal_dialog(dialog_class, xml_filename, **kwargs):
     dialog = dialog_class(xml_filename, kwargs.get('addon_path'), 'default', '1080i', **kwargs)
     minutes = kwargs.get('minutes', 0)
     seconds = kwargs.get('seconds', 0)
