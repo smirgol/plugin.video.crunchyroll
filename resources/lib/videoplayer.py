@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import threading
+
 import time
 from typing import Optional
 from urllib.parse import urlencode
@@ -26,7 +26,7 @@ import xbmcplugin
 
 from resources.lib import utils
 from resources.lib.globals import G
-from resources.lib.gui import SkipModalDialog, _show_modal_dialog
+from resources.lib.gui import SkipModalDialog, show_modal_dialog
 from resources.lib.model import Object, CrunchyrollError, LoginError
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
@@ -41,12 +41,16 @@ class VideoPlayer(Object):
         self._stream_data: VideoPlayerStreamData | None = None  # @todo: maybe rename prop and class?
         self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
         self._skip_modal_duration_max = 10
+        self.waitForStart = True
+        self.lastUpdatePlayhead = 0
+        self.clearedStream = False
+        self.createTime = time.time()
 
     def start_playback(self):
         """ Set up player and start playback """
 
         # already playing for whatever reason?
-        if self._player.isPlaying():
+        if self.isPlaying():
             utils.log("Skipping playback because already playing")
             return
 
@@ -55,23 +59,36 @@ class VideoPlayer(Object):
 
         self._prepare_and_start_playback()
 
-        # wait with starting the threads until playback has started for guarantee, otherwise they will immediately exit
-        self._handle_skipping()
-        self._handle_update_playhead()
+    def isPlaying(self) -> bool:
+        if not self._stream_data:
+            return False
+        if self._player.isPlaying() and self._stream_data.stream_url == self._player.getPlayingFile():
+                return True
+        else:
+            return False
 
-    def is_playing(self) -> bool:
+    def isStartingOrPlaying(self) -> bool:
         """ Returns true if playback is running. Note that it also returns true when paused. """
 
         if not self._stream_data:
             return False
 
-        if not self._player.isPlaying():
-            return False
+        if self.isPlaying():
+            self.waitForStart = False
+            return True
 
-        return self._stream_data.stream_url == self._player.getPlayingFile()
+        # Wait max 20 sec for start playing the stream
+        if (time.time() - self.createTime) > 20:
+            if self.waitForStart:
+                self.waitForStart = False
+                utils.crunchy_log("Timout start playing file")
+        return self.waitForStart
 
-    def stop_playback(self):
-        self._player.stop()
+    def finished(self, forced=False):
+        if not self.clearedStream or forced:
+            self.clearedStream = True
+            self.waitForStart = False
+            self.clear_active_stream()
 
     def _get_video_stream_data(self) -> bool:
         """ Fetch all required stream data using VideoStream object """
@@ -95,9 +112,13 @@ class VideoPlayer(Object):
             if 'TOO_MANY_ACTIVE_STREAMS' in str(e):
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30080))
+                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist.clear()
             else:
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30064))
+                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist.clear()
             return False
 
         return True
@@ -167,108 +188,42 @@ class VideoPlayer(Object):
             """ start playback"""
             xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
-        # start fallback
-        if not self._wait_for_playback_started(10):
-            # start without inputstream adaptive
-            utils.crunchy_log("Inputstream Adaptive failed, trying directly with kodi", xbmc.LOGINFO)
-            item.setProperty("inputstream", "")
-            self._player.play(self._stream_data.stream_url, item)
 
-    def _handle_update_playhead(self):
-        """ Handles resuming and updating playhead info back to crunchyroll """
-
-        # if disabled in settings, no need to start thread
-        if G.args.addon.getSetting("sync_playtime") != "true":
-            utils.crunchy_log('Sync playtime is disabled', xbmc.LOGINFO)
-            return
-
-        # update playtime at crunchyroll in a background thread
-        utils.crunchy_log("_handle_resume: starting sync thread", xbmc.LOGINFO)
-        threading.Thread(target=self.thread_update_playhead).start()
-
-    def _handle_skipping(self):
-        """ Handles skipping of video parts (intro, credits, ...) """
-
-        # check whether we have the required data to enable this
-        if not self._check_and_filter_skip_data():
-            utils.crunchy_log("_handle_skipping: required data for skipping is empty", xbmc.LOGINFO)
-            return
-
-        # run thread in background to check when whe reach a section where we can skip
-        utils.crunchy_log("_handle_skipping: starting thread", xbmc.LOGINFO)
-        threading.Thread(target=self.thread_check_skipping).start()
-
-    def thread_update_playhead(self):
+    def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
 
-        utils.crunchy_log("thread_update_playhead() started", xbmc.LOGINFO)
+        # store playtime of last update and compare before updating, so it won't update while e.g. pausing
+        if (self.isPlaying() and
+                (self._player.getTime() - self.lastUpdatePlayhead ) > 10
+        ):
+            self.lastUpdatePlayhead = self._player.getTime()
+            # api request
+            update_playhead(
+                G.args.get_arg('episode_id'),
+                int(self._player.getTime())
+            )
 
-        try:
-            # store playtime of last update and compare before updating, so it won't update while e.g. pausing
-            last_updated_playtime = 0
 
-            while self._player.isPlaying() and self._stream_data.stream_url == self._player.getPlayingFile():
-                # wait 10 seconds
-                xbmc.sleep(10000)
-
-                if (
-                        last_updated_playtime < self._player.getTime() and
-                        self._player.isPlaying() and
-                        self._stream_data.stream_url == self._player.getPlayingFile()
-                ):
-                    last_updated_playtime = self._player.getTime()
-                    # api request
-                    update_playhead(
-                        G.args.get_arg('episode_id'),
-                        int(self._player.getTime())
-                    )
-
-        except RuntimeError:
-            utils.crunchy_log('Playback aborted', xbmc.LOGINFO)
-
-        utils.crunchy_log('thread_update_playhead() has finished', xbmc.LOGINFO)
-
-    def thread_check_skipping(self):
+    def check_skipping(self):
         """ background thread to check and handle skipping intro/credits/... """
 
-        utils.crunchy_log('thread_check_skipping() started', xbmc.LOGINFO)
+        if len(self._stream_data.skip_events_data) == 0:
+            return
 
-        while self._player.isPlaying() and self._stream_data.stream_url == self._player.getPlayingFile():
-            # do we still have skip data left?
-            if len(self._stream_data.skip_events_data) == 0:
-                break
+        if not self.isPlaying():
+            return
 
-            for skip_type in list(self._stream_data.skip_events_data):
-                # are we within the skip event timeframe?
-                current_time = int(self._player.getTime())
-                skip_time_start = self._stream_data.skip_events_data.get(skip_type).get('start')
-                skip_time_end = self._stream_data.skip_events_data.get(skip_type).get('end')
+        for skip_type in list(self._stream_data.skip_events_data):
+            # are we within the skip event timeframe?
+            current_time = int(self._player.getTime())
+            skip_time_start = self._stream_data.skip_events_data.get(skip_type).get('start')
+            skip_time_end = self._stream_data.skip_events_data.get(skip_type).get('end')
 
-                if skip_time_start <= current_time <= skip_time_end:
-                    self._ask_to_skip(skip_type)
-                    # remove the skip_type key from the data, so it won't trigger again
-                    self._stream_data.skip_events_data.pop(skip_type, None)
+            if skip_time_start <= current_time <= skip_time_end:
+                self._ask_to_skip(skip_type)
+                # remove the skip_type key from the data, so it won't trigger again
+                self._stream_data.skip_events_data.pop(skip_type, None)
 
-            xbmc.sleep(1000)
-
-        utils.crunchy_log('thread_check_skipping() has finished', xbmc.LOGINFO)
-
-    def _check_and_filter_skip_data(self) -> bool:
-        """ check if data for skipping is present and valid for usage """
-
-        if not self._stream_data.skip_events_data:
-            return False
-
-        # if not enabled in config, remove from our list
-        if G.args.addon.getSetting("enable_skip_intro") != "true" and self._stream_data.skip_events_data.get(
-                'intro'):
-            self._stream_data.skip_events_data.pop('intro', None)
-
-        if G.args.addon.getSetting("enable_skip_credits") != "true" and self._stream_data.skip_events_data.get(
-                'credits'):
-            self._stream_data.skip_events_data.pop('credits', None)
-
-        return len(self._stream_data.skip_events_data) > 0
 
     def _ask_to_skip(self, section):
         """ Show skip modal """
@@ -281,20 +236,14 @@ class VideoPlayer(Object):
         # show only for the first X seconds
         dialog_duration = min(dialog_duration, self._skip_modal_duration_max)
 
-        threading.Thread(
-            target=_show_modal_dialog,
-            args=[
-                SkipModalDialog,
-                "plugin-video-crunchyroll-skip.xml"
-            ],
-            kwargs={
+
+        show_modal_dialog(SkipModalDialog, "plugin-video-crunchyroll-skip.xml",**{
                 'seconds': dialog_duration,
                 'seek_time': self._stream_data.skip_events_data.get(section).get('end'),
                 'label': G.args.addon.getLocalizedString(30015),
                 'addon_path': G.args.addon.getAddonInfo("path"),
                 'content_id': G.args.get_arg('episode_id'),
-            }
-        ).start()
+            })
 
     def clear_active_stream(self):
         """ Tell Crunchyroll that we no longer use the stream.
@@ -315,18 +264,6 @@ class VideoPlayer(Object):
             return
 
         utils.crunchy_log("Cleared active stream for episode: %s" % G.args.get_arg('episode_id'))
-
-    def _wait_for_playback_started(self, timeout: int = 30):
-        """ function that waits for the playback to start"""
-
-        timer = time.time() + timeout
-        while not xbmc.getCondVisibility("Player.HasMedia") and not self.is_playing():
-            xbmc.sleep(50)
-            # timeout to prevent infinite loop
-            if time.time() > timer:
-                return False
-
-        return True
 
 
 def update_playhead(content_id: str, playhead: int):
