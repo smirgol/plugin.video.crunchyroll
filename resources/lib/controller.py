@@ -508,12 +508,6 @@ def start_playback():
     del video_player
 
 
-
-
-
-
-
-
 def add_to_queue() -> bool:
     # api request
     try:
