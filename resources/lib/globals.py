@@ -20,6 +20,8 @@ try:
 except ImportError:
     from urllib.parse import parse_qs
 
+import xbmc
+
 
 class Globals:
     def __init__(self):
@@ -31,6 +33,8 @@ class Globals:
 
         self.args = self.parse(argv)
         self.api = API(G.args.subtitle)
+
+        self.monitor = xbmc.Monitor()
 
     @staticmethod
     def parse(argv):
