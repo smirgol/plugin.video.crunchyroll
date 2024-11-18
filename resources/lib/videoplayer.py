@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import json
 import time
 from typing import Optional
 from urllib.parse import urlencode
@@ -171,12 +171,17 @@ class VideoPlayer(Object):
                 'response_data': 'JBlicense'
             }
 
+            inputstream_config = {
+                'ssl_verify_peer': False
+            }
+
             item.setProperty("inputstream", "inputstream.adaptive")
             item.setProperty("inputstream.adaptive.manifest_type", "mpd")
             item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
             item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
             item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
             item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
+            item.setProperty('inputstream.adaptive.config', json.dumps(inputstream_config))
 
             # @todo: i think other meta data like description and images are still fetched from args.
             #        we should call the objects endpoint and use this data to remove args dependency (besides id)
