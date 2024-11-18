@@ -63,7 +63,7 @@ class VideoPlayer(Object):
         if not self._stream_data:
             return False
         if self._player.isPlaying() and self._stream_data.stream_url == self._player.getPlayingFile():
-                return True
+            return True
         else:
             return False
 
@@ -112,12 +112,12 @@ class VideoPlayer(Object):
             if 'TOO_MANY_ACTIVE_STREAMS' in str(e):
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30080))
-                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
                 playlist.clear()
             else:
                 xbmcgui.Dialog().ok(G.args.addon_name,
                                     G.args.addon.getLocalizedString(30064))
-                playlist=xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+                playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
                 playlist.clear()
             return False
 
@@ -188,13 +188,12 @@ class VideoPlayer(Object):
             """ start playback"""
             xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
-
     def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
 
         # store playtime of last update and compare before updating, so it won't update while e.g. pausing
         if (self.isPlaying() and
-                (self._player.getTime() - self.lastUpdatePlayhead ) > 10
+                (self._player.getTime() - self.lastUpdatePlayhead) > 10
         ):
             self.lastUpdatePlayhead = self._player.getTime()
             # api request
@@ -202,7 +201,6 @@ class VideoPlayer(Object):
                 G.args.get_arg('episode_id'),
                 int(self._player.getTime())
             )
-
 
     def check_skipping(self):
         """ background thread to check and handle skipping intro/credits/... """
@@ -224,7 +222,6 @@ class VideoPlayer(Object):
                 # remove the skip_type key from the data, so it won't trigger again
                 self._stream_data.skip_events_data.pop(skip_type, None)
 
-
     def _ask_to_skip(self, section):
         """ Show skip modal """
 
@@ -236,14 +233,13 @@ class VideoPlayer(Object):
         # show only for the first X seconds
         dialog_duration = min(dialog_duration, self._skip_modal_duration_max)
 
-
-        show_modal_dialog(SkipModalDialog, "plugin-video-crunchyroll-skip.xml",**{
-                'seconds': dialog_duration,
-                'seek_time': self._stream_data.skip_events_data.get(section).get('end'),
-                'label': G.args.addon.getLocalizedString(30015),
-                'addon_path': G.args.addon.getAddonInfo("path"),
-                'content_id': G.args.get_arg('episode_id'),
-            })
+        show_modal_dialog(SkipModalDialog, "plugin-video-crunchyroll-skip.xml", **{
+            'seconds': dialog_duration,
+            'seek_time': self._stream_data.skip_events_data.get(section).get('end'),
+            'label': G.args.addon.getLocalizedString(30015),
+            'addon_path': G.args.addon.getAddonInfo("path"),
+            'content_id': G.args.get_arg('episode_id'),
+        })
 
     def clear_active_stream(self):
         """ Tell Crunchyroll that we no longer use the stream.

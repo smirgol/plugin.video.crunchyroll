@@ -27,13 +27,13 @@ class Globals:
     def __init__(self):
         self.api = None  # we cannot type this, due to circular import in api.py
         self.args = None  # we cannot type this, due to circular import in model.py
+        self.monitor = None
 
     def init(self, argv) -> None:
         from resources.lib.api import API
 
         self.args = self.parse(argv)
         self.api = API(G.args.subtitle)
-
         self.monitor = xbmc.Monitor()
 
     @staticmethod
