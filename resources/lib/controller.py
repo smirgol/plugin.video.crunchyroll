@@ -499,12 +499,13 @@ def start_playback():
 
     utils.crunchy_log("Starting loop", xbmc.LOGINFO)
     # stay in this method while playing to not lose video_player, as backgrounds threads reference it
-    while video_player.is_playing():
-        time.sleep(1)
-
-    utils.crunchy_log("playback stopped", xbmc.LOGINFO)
-
-    video_player.clear_active_stream()
+    while (not G.monitor.abortRequested()) and video_player.isStartingOrPlaying():
+        video_player.check_skipping()
+        if G.args.addon.getSetting("sync_playtime") == "true":
+            video_player.update_playhead()
+        G.monitor.waitForAbort(1)
+    video_player.finished()
+    del video_player
 
 
 def add_to_queue() -> bool:
