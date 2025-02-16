@@ -173,6 +173,8 @@ def check_mode():
         controller.crunchylists_item()
     elif mode == 'profiles_list':
         controller.show_profiles()
+    elif mode ==  "add_library":
+        controller.add_series_library()
     else:
         # unknown mode
         utils.crunchy_log("Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)

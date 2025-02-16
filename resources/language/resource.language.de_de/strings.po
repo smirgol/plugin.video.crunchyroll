@@ -186,6 +186,10 @@ msgctxt "#30047"
 msgid "Resume"
 msgstr "Fortsetzen"
 
+msgctxt "#30048"
+msgid "Add to library"
+msgstr ""
+
 msgctxt "#30049"
 msgid "Crunchylists"
 msgstr "Crunchylists"

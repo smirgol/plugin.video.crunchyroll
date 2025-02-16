@@ -185,7 +185,9 @@ msgctxt "#30047"
 msgid "Resume"
 msgstr "Reanudar"
 
-# 30048 free
+msgctxt "#30048"
+msgid "Add to library"
+msgstr "Añadir a la libreria"
 
 msgctxt "#30049"
 msgid "Crunchylists"
