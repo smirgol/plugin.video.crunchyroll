@@ -27,6 +27,7 @@ import xbmcplugin
 from . import controller
 from . import utils
 from . import view
+from . import library
 from .globals import G
 from .model import CrunchyrollError, LoginError
 
@@ -174,7 +175,7 @@ def check_mode():
     elif mode == 'profiles_list':
         controller.show_profiles()
     elif mode ==  "add_library":
-        controller.add_series_library()
+        library.add_series_library()
     else:
         # unknown mode
         utils.crunchy_log("Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
