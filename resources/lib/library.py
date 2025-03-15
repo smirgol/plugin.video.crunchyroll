@@ -25,7 +25,13 @@ from .globals import G
 import xmltodict
 
 def get_info_series():
-    # api request
+    """
+    Fetches information about a specific series from the Crunchyroll API.
+
+    Returns:
+        dict: A dictionary containing series information if successful, None otherwise.
+    """
+    # API request to get series information
     req = G.api.make_request(
         method="GET",
         url=G.api.SERIES_ENDPOINT.format(G.args.get_arg('series_id')),
@@ -42,9 +48,13 @@ def get_info_series():
     
     return req
 def get_info_season():
-    """ get information all seasons/arcs of an anime
     """
-    # api request
+    Fetches information about all seasons of a specific anime series.
+
+    Returns:
+        dict: A dictionary containing season information if successful, None otherwise.
+    """
+    # API request to get season information
     req = G.api.make_request(
         method="GET",
         url=G.api.SEASONS_ENDPOINT.format(G.api.account_data.cms.bucket),
@@ -63,9 +73,16 @@ def get_info_season():
     return req
 
 def get_info_episodes(season_id):
-    """ get all episodes of season
     """
-    # api request
+    Fetches all episodes for a given season.
+
+    Args:
+        season_id (str): The ID of the season for which to fetch episodes.
+
+    Returns:
+        dict: A dictionary containing episode information if successful, None otherwise.
+    """
+    # API request to get episode information
     req = G.api.make_request(
         method="GET",
         url=G.api.EPISODES_ENDPOINT.format(G.api.account_data.cms.bucket),
@@ -82,6 +99,15 @@ def get_info_episodes(season_id):
     return req
 
 def add_series_library():
+    """
+    Adds a series and its episodes to the Kodi library.
+
+    This function retrieves series, season, and episode information from the Crunchyroll API,
+    creates necessary directories, and writes metadata files for the series and episodes.
+    
+    Returns:
+        bool: True if the series was successfully added, False otherwise.
+    """
     # Initialize progress dialog
     pDialog = xbmcgui.DialogProgress()
     pDialog.create("Processing...", "Getting information from the series")
