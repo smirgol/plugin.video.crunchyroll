@@ -149,5 +149,35 @@
                 </setting>
             </group>
         </category>
+        <category id="library_options" label="30022" help="">
+            <group id="1" label="30022">
+                <setting id="tv_shows_path" type="path" label="30144" help="">
+                    <level>0</level>
+                    <default>special://profile/addon_data/plugin.video.crunchyroll/video-library/crunchyroll-tv-shows/</default>
+                    <constraints>
+                        <sources>
+                            <source>videos</source>
+                        </sources>
+                        <allowempty>false</allowempty>
+                    </constraints>
+                    <control type="button" format="path">
+                        <heading>30144</heading>
+                    </control>
+                </setting>
+                <setting id="movies_path" type="path" label="30145" help="">
+                    <level>0</level>
+                    <default>special://profile/addon_data/plugin.video.crunchyroll/video-library/crunchyroll-movies/</default>
+                    <constraints>
+                        <sources>
+                            <source>videos</source>
+                        </sources>
+                        <allowempty>false</allowempty>
+                    </constraints>
+                    <control type="button" format="path">
+                        <heading>30145</heading>
+                    </control>
+                </setting>
+            </group>
+        </category>
     </section>
 </settings>

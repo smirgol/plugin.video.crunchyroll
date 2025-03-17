@@ -125,7 +125,7 @@ def add_series_library():
         return False
         
     # write file content    
-    file_path_tv_show = f"special://profile/addon_data/plugin.video.crunchyroll/video-library/crunchyroll-tv-shows/{series['data'][0]['slug_title']}"
+    file_path_tv_show = f"{G.args.addon.getSetting("tv_shows_path")}{series['data'][0]['slug_title']}"
     
     if not xbmcvfs.exists(file_path_tv_show):
         xbmcvfs.mkdir(file_path_tv_show)
@@ -187,7 +187,7 @@ def add_series_library():
             
             if item_type == 'movie' or e["episode_number"] == None:
                 # create folder movie    
-                file_path_movies = f"special://profile/addon_data/plugin.video.crunchyroll/video-library/crunchyroll-movies/{e['slug_title']}"
+                file_path_movies = f"{G.args.addon.getSetting("movies_path")}{e['slug_title']}"
                 
                 if not xbmcvfs.exists(file_path_movies):
                     xbmcvfs.mkdir(file_path_movies)
