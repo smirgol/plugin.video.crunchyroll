@@ -83,6 +83,8 @@ def main(argv):
         else:
             # login failed
             utils.crunchy_log(args, "Login failed", xbmc.LOGERROR)
+            utils.crunchy_log("If you have not changed your Crunchyroll login credentials, please download the latest app version.", xbmc.LOGINFO)
+            utils.crunchy_log("If the problem persists, please open an issue on github.", xbmc.LOGINFO)
             view.add_item(args, {"title": args.addon.getLocalizedString(30060)})
             view.end_of_directory(args)
             xbmcgui.Dialog().ok(args.addonname, args.addon.getLocalizedString(30060))
