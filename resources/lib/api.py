@@ -74,7 +74,7 @@ class API:
     CRUNCHYLISTS_LISTS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists"
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
-    AUTHORIZATION = "Basic ZG1yeWZlc2NkYm90dWJldW56NXo6NU45aThPV2cyVmtNcm1oekNfNUNXekRLOG55SXo0QU0="
+    AUTHORIZATION = "Basic cHVuaDRoa3FxYzkwMXV5aWlqejc6bE44MEx3T3pzNkxRcDd1RzNEUmNTaVFUR2RUU3dHbzQ="
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
     PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
