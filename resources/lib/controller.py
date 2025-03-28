@@ -18,8 +18,6 @@
 
 import json
 import math
-import time
-
 import xbmc
 import xbmcgui
 import xbmcvfs
