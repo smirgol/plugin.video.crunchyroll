@@ -41,7 +41,7 @@ class API:
     # DEVICE = "com.crunchyroll.windows.desktop"
     # TIMEOUT = 30
 
-    CRUNCHYROLL_UA = "Crunchyroll/3.78.2 Android/14 okhttp/4.12.0"
+    CRUNCHYROLL_UA = "Crunchyroll/3.78.3 Android/14 okhttp/4.12.0"
 
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
     PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
@@ -75,7 +75,7 @@ class API:
     CRUNCHYLISTS_LISTS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists"
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
-    AUTHORIZATION = "Basic cHVuaDRoa3FxYzkwMXV5aWlqejc6bE44MEx3T3pzNkxRcDd1RzNEUmNTaVFUR2RUU3dHbzQ="
+    AUTHORIZATION = "Basic bndkcWVocWRkb3hla25jNDQ1ZW86U3YwYXhOTTlOQnk0S3A4Tm8ySHpkUE4tMnlWOXZVaVo="
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
     PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
