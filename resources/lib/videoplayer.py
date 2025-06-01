@@ -222,10 +222,13 @@ class VideoPlayer(Object):
             skip_time_start = self._stream_data.skip_events_data.get(skip_type).get('start')
             skip_time_end = self._stream_data.skip_events_data.get(skip_type).get('end')
 
-            if skip_time_start <= current_time <= skip_time_end:
-                self._ask_to_skip(skip_type)
-                # remove the skip_type key from the data, so it won't trigger again
-                self._stream_data.skip_events_data.pop(skip_type, None)
+            if skip_time_start <= current_time < skip_time_end:
+                if G.args.addon.getSetting("ask_before_skipping") != "true":
+                    self._instaskip(skip_type)
+                else:
+                    self._ask_to_skip(skip_type)
+                    # remove the skip_type key from the data, so it won't trigger again
+                    self._stream_data.skip_events_data.pop(skip_type, None)
 
     def _ask_to_skip(self, section):
         """ Show skip modal """
@@ -245,6 +248,14 @@ class VideoPlayer(Object):
             'addon_path': G.args.addon.getAddonInfo("path"),
             'content_id': G.args.get_arg('episode_id'),
         })
+
+    def _instaskip(self, section):
+        """ Skip immediatly without asking """
+
+        utils.crunchy_log("_instaskip", xbmc.LOGINFO)
+
+        self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get('end', 0))
+        self.update_playhead()
 
     def clear_active_stream(self):
         """ Tell Crunchyroll that we no longer use the stream.
