@@ -147,6 +147,11 @@
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="ask_before_skipping" type="boolean" label="30013" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
             </group>
         </category>
     </section>
