@@ -67,6 +67,10 @@ msgctxt "#30012"
 msgid "Skip credits"
 msgstr "Passer les crédits"
 
+msgctxt "#30013"
+msgid "Ask before skipping"
+msgstr "Demander avant de passer"
+
 msgctxt "#30015"
 msgid "Skip"
 msgstr "Passer"
