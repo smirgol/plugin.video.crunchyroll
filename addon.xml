@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.crunchyroll" name="Crunchyroll" version="3.4.2" provider-name="smirgol">
+<addon id="plugin.video.crunchyroll" name="Crunchyroll" version="3.5.0" provider-name="smirgol">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.inputstreamhelper" version="0.3.3"/>
@@ -21,6 +21,7 @@
         <disclaimer lang="de_DE">HINWEIS: Du MUSST PREMIUM Mitglied sein um dieses Plugin zu benutzen</disclaimer>
         <disclaimer lang="es_ES">Atención: Necesitas ser miembro PREMIUM para utilizar este Plugin</disclaimer>
         <news>
+            v3.5.0 (2025.03.26) - add configurable auto skipping of intro/outro (thanks lumiru)
             v3.4.0 (2025.03.26) - streamline version numbers across kodi releases and adapt to MAJOR.MINOR.PATCH format
             v3.2.0.16 (2024.04.28) - add initial multi profile support
             v3.2.0.15 (2024.04.25) - update auth, playback of drm streams, cloudflare fix, free streams after watching, update playhead upon skip, support chinese animes, add hindi language support, filter seasons by language configurable
