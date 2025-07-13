@@ -47,8 +47,28 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 
 ### How to install
 
-Currently, there is no direct Kodi repository for this plugin.
-You would need to download the plugin and extract it into your plugin directory.
+You can either manually download the plugin, or use the repository.
+
+#### Repository (recommended)
+
+Download Repository: [Crunchyroll Repo](https://raw.githubusercontent.com/smirgol/crunchyroll_repo/refs/heads/main/repository.smirgol/repository.smirgol-1.0.1.zip)
+
+Installation:
+
+- Download ZIP file
+- Put ZIP file onto your KODI System
+- Go to Addon Settings and do a "Install from ZIP file"
+- Pick the downloaded file and install
+- Go back to the Addon Settings overview page
+- Go to "Install from repository"
+- Scroll down to "smirgols repository" and open it
+- Install the Crunchyroll app
+- If you have installed the addon manually before:
+  - Confirm the first warning with YES - this will overwrite the manual installation
+  - Confirm the second warning with NO - these will keep your settings
+- You should be ready to go, open the crunchyroll app as usual
+
+#### Manual installation
 
 There are two types for each kodi version:
 
