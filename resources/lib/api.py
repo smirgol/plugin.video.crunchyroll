@@ -40,7 +40,7 @@ class API:
     # DEVICE = "com.crunchyroll.windows.desktop"
     # TIMEOUT = 30
 
-    CRUNCHYROLL_UA = "Crunchyroll/3.86.3 Android/14 okhttp/4.12.0"
+    CRUNCHYROLL_UA = "Crunchyroll/3.90.0 Android/14 okhttp/4.12.0"
 
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
     PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
@@ -65,7 +65,7 @@ class API:
     SEASONAL_TAGS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/discover/seasonal_tags"
     CATEGORIES_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/tenant_categories"
 
-    AUTHORIZATION = "Basic Yndwcm1wZGNsMG9temo3dWNrc3k6QnJFMGlKdC02a2Z4TFlNTUdabVdOTXZuMW0tZDBnUG4="
+    AUTHORIZATION = "Basic YmY3MHg2aWhjYzhoZ3p3c2J2eGk6eDJjc3BQZXQzWno1d0pDdEpyVUNPSVM5Ynpad1JDcGM="
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
     def __init__(
