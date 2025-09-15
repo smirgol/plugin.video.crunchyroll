@@ -162,7 +162,6 @@ class API:
 
         r_json = utils.get_json_from_response(r)
 
-        self.api_headers.clear()
         self.account_data = AccountData({})
 
         access_token = r_json["access_token"]
