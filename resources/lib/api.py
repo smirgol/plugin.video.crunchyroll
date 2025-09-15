@@ -184,7 +184,7 @@ class API:
 
         r_json = get_json_from_response(r)
 
-        self.api_headers.clear()
+
         self.account_data = AccountData({})
 
         access_token = r_json["access_token"]
@@ -194,7 +194,10 @@ class API:
         account_data = dict()
         account_data.update(r_json)
         self.account_data = AccountData({})
+        self.api_headers = default_request_headers()
         self.api_headers.update(account_auth)
+        account_data["expires"] = date_to_str(
+            get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
         r = self.make_request(
             method="GET",
@@ -228,9 +231,6 @@ class API:
 
             # cache to file
             self.profile_data.write_to_storage()
-
-        account_data["expires"] = date_to_str(
-            get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
         self.account_data = AccountData(account_data)
         self.account_data.write_to_storage()
