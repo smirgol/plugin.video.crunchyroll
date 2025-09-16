@@ -41,7 +41,7 @@ class API:
     # DEVICE = "com.crunchyroll.windows.desktop"
     # TIMEOUT = 30
 
-    CRUNCHYROLL_UA = "Crunchyroll/3.81.8 Android/14 okhttp/4.12.0"
+    CRUNCHYROLL_UA = "Crunchyroll/3.90.0 Android/14 okhttp/4.12.0"
 
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
     PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
@@ -75,7 +75,7 @@ class API:
     CRUNCHYLISTS_LISTS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists"
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
-    AUTHORIZATION = "Basic cnA3OXJxdWM5bjFpeGIzd2RmMTA6bG1rQlZZcENna3loLXB0a0J5bWQ3Ymk2MlBtcWs2NEM="
+    AUTHORIZATION = "Basic YmY3MHg2aWhjYzhoZ3p3c2J2eGk6eDJjc3BQZXQzWno1d0pDdEpyVUNPSVM5Ynpad1JDcGM="
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
     PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
@@ -185,7 +185,7 @@ class API:
 
         r_json = get_json_from_response(r)
 
-        self.api_headers.clear()
+
         self.account_data = AccountData({})
 
         access_token = r_json["access_token"]
@@ -195,7 +195,10 @@ class API:
         account_data = dict()
         account_data.update(r_json)
         self.account_data = AccountData({})
+        self.api_headers = default_request_headers()
         self.api_headers.update(account_auth)
+        account_data["expires"] = date_to_str(
+            get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
         r = self.make_request(
             method="GET",
@@ -229,9 +232,6 @@ class API:
 
             # cache to file
             self.profile_data.write_to_storage()
-
-        account_data["expires"] = date_to_str(
-            get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
         self.account_data = AccountData(account_data)
         self.account_data.write_to_storage()
