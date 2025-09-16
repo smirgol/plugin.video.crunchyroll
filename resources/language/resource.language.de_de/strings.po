@@ -80,7 +80,9 @@ msgctxt "#30021"
 msgid "English"
 msgstr "Englisch"
 
-# 30022 free
+msgctxt "#30022"
+msgid "Library"
+msgstr ""
 
 msgctxt "#30023"
 msgid "Spanish"
@@ -155,6 +157,13 @@ msgctxt "#30143"
 msgid "In an anime seasons or series view, display dubs in Japanese with subtitles in your configured subtitle languages."
 msgstr "Zeige in der Season- und Serien-Übersicht eines Anime japanische Dubs mit Untertiteln in deiner konfigurierten Untertitel Sprache"
 
+msgctxt "#30144"
+msgid "TV Shows Path"
+msgstr ""
+
+msgctxt "#30145"
+msgid "Movies Path"
+msgstr ""
 
 # Crunchyroll Menue
 
@@ -300,3 +309,7 @@ msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."
 msgctxt "#30090"
 msgid "No search results"
 msgstr "Keine Suchergebnisse"
+
+msgctxt "#30048"
+msgid "Add to library"
+msgstr ""

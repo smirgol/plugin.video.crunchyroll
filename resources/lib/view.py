@@ -295,6 +295,10 @@ def add_listables(
             route = (G.args.addonurl +
                      router.create_path_from_route('series_view', {'series_id': listable.series_id}))
             cm.append((G.args.addon.getLocalizedString(30045), "Container.Update(%s)" % route))
+            
+            route = (G.args.addonurl +
+                     router.create_path_from_route('add_serie_library', {'series_id': listable.series_id}))
+            cm.append((G.args.addon.getLocalizedString(30048), "RunPlugin(%s)" % route))
 
         if options & OPT_CTX_EPISODES and hasattr(listable, 'season_id') and getattr(listable, 'season_id') is not None:
             route = (G.args.addonurl +

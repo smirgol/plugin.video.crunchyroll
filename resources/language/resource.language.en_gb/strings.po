@@ -79,7 +79,9 @@ msgctxt "#30021"
 msgid "English"
 msgstr ""
 
-# 30022 free
+msgctxt "#30022"
+msgid "Library"
+msgstr ""
 
 msgctxt "#30023"
 msgid "Spanish"
@@ -155,6 +157,13 @@ msgctxt "#30143"
 msgid "In an anime seasons or series view, display dubs in Japanese with subtitles in your configured subtitle languages."
 msgstr "In an anime seasons or series view, display dubs in Japanese with with subtitles in your configured subtitle languages."
 
+msgctxt "#30144"
+msgid "TV Shows Path"
+msgstr ""
+
+msgctxt "#30145"
+msgid "Movies Path"
+msgstr ""
 
 # Crunchyroll Menue
 
@@ -189,8 +198,6 @@ msgstr ""
 msgctxt "#30047"
 msgid "Resume"
 msgstr ""
-
-# 30048 free
 
 msgctxt "#30049"
 msgid "Crunchylists"
@@ -302,3 +309,7 @@ msgstr ""
 msgctxt "#30090"
 msgid "No search results"
 msgstr "No search results"
+
+msgctxt "#30048"
+msgid "Add to library"
+msgstr ""

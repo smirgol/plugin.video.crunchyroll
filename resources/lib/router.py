@@ -73,6 +73,10 @@ plugin_routes: dict = {
         "url": "/profiles/{mode}",
         "mode": "profiles_list"
     },
+    "add_serie_library": {
+        "url": "/add_library/{series_id}",
+        "mode": "add_library"
+    },
 }
 
 
