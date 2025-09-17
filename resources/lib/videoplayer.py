@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
 import time
-from typing import Optional
+from typing import Optional, List
 from urllib.parse import urlencode
 
 import requests
@@ -53,6 +53,8 @@ class VideoPlayer(Object):
         if self.isPlaying():
             utils.log("Skipping playback because already playing")
             return
+
+        self.clear_all_active_streams()
 
         if not self._get_video_stream_data():
             return
@@ -151,47 +153,47 @@ class VideoPlayer(Object):
         from inputstreamhelper import Helper  # noqa
 
         is_helper = Helper("mpd", drm='com.widevine.alpha')
-        if is_helper.check_inputstream():
-            manifest_headers = {
-                'User-Agent': G.api.CRUNCHYROLL_UA,
-                'Authorization': f"Bearer {G.api.account_data.access_token}"
-            }
-            license_headers = {
-                'User-Agent': G.api.CRUNCHYROLL_UA,
-                'Content-Type': 'application/octet-stream',
-                'Origin': 'https://static.crunchyroll.com',
-                'Authorization': f"Bearer {G.api.account_data.access_token}",
-                'x-cr-content-id': G.args.get_arg('episode_id'),
-                'x-cr-video-token': self._stream_data.token
-            }
-            license_config = {
-                'license_server_url': G.api.LICENSE_ENDPOINT,
-                'headers': urlencode(license_headers),
-                'post_data': 'R{SSM}',
-                'response_data': 'JBlicense'
-            }
+        #if is_helper.check_inputstream():
+        manifest_headers = {
+            'User-Agent': G.api.CRUNCHYROLL_UA,
+            'Authorization': f"Bearer {G.api.account_data.access_token}"
+        }
+        license_headers = {
+            'User-Agent': G.api.CRUNCHYROLL_UA,
+            'Content-Type': 'application/octet-stream',
+            'Origin': 'https://static.crunchyroll.com',
+            'Authorization': f"Bearer {G.api.account_data.access_token}",
+            'x-cr-content-id': G.args.get_arg('episode_id'),
+            'x-cr-video-token': self._stream_data.token
+        }
+        license_config = {
+            'license_server_url': G.api.LICENSE_ENDPOINT,
+            'headers': urlencode(license_headers),
+            'post_data': 'R{SSM}',
+            'response_data': 'JBlicense'
+        }
 
-            inputstream_config = {
-                'ssl_verify_peer': False
-            }
+        inputstream_config = {
+            'ssl_verify_peer': False
+        }
 
-            item.setProperty("inputstream", "inputstream.adaptive")
-            item.setProperty("inputstream.adaptive.manifest_type", "mpd")
-            item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
-            item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
-            item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
-            item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
-            item.setProperty('inputstream.adaptive.config', json.dumps(inputstream_config))
+        item.setProperty("inputstream", "inputstream.adaptive")
+        item.setProperty("inputstream.adaptive.manifest_type", "mpd")
+        item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
+        item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
+        item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
+        item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
+        item.setProperty('inputstream.adaptive.config', json.dumps(inputstream_config))
 
-            # @todo: i think other meta data like description and images are still fetched from args.
-            #        we should call the objects endpoint and use this data to remove args dependency (besides id)
+        # @todo: i think other meta data like description and images are still fetched from args.
+        #        we should call the objects endpoint and use this data to remove args dependency (besides id)
 
-            # add soft subtitles url for configured language
-            if self._stream_data.subtitle_urls:
-                item.setSubtitles(self._stream_data.subtitle_urls)
+        # add soft subtitles url for configured language
+        if self._stream_data.subtitle_urls:
+            item.setSubtitles(self._stream_data.subtitle_urls)
 
-            """ start playback"""
-            xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
+        """ start playback"""
+        xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
     def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
@@ -257,7 +259,7 @@ class VideoPlayer(Object):
         self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get('end', 0))
         self.update_playhead()
 
-    def clear_active_stream(self):
+    def clear_active_stream(self, token: Optional[str] = None):
         """ Tell Crunchyroll that we no longer use the stream.
             Crunchyroll keeps track of started streams. If they are not released, CR will block starting a new one.
         """
@@ -266,9 +268,11 @@ class VideoPlayer(Object):
             return
 
         try:
+            token = token or self._stream_data.token
+
             G.api.make_request(
                 method="DELETE",
-                url=G.api.STREAMS_ENDPOINT_CLEAR_STREAM.format(G.args.get_arg('episode_id'), self._stream_data.token),
+                url=G.api.STREAMS_ENDPOINT_CLEAR_STREAM.format(G.args.get_arg('episode_id'), token),
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
@@ -277,6 +281,37 @@ class VideoPlayer(Object):
 
         utils.crunchy_log("Cleared active stream for episode: %s" % G.args.get_arg('episode_id'))
 
+    def get_active_streams(self) -> List[str]:
+        try:
+            req = G.api.make_request(
+                method="DELETE",
+                url=G.api.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS
+            )
+        except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
+            # catch timeout or any other possible exception
+            utils.crunchy_log("Failed to get active streams")
+            return
+
+        active = []
+
+        if not req:
+            return active
+
+        for item in req:
+            if item.get('deviceId') != G.args.device_id:
+                continue
+            active.append(item.get('token'))
+
+        return active
+
+    def clear_all_active_streams(self):
+        active_streams_tokens = self.get_active_streams()
+        if not active_streams_tokens:
+            return
+
+        for token in active_streams_tokens:
+            self.clear_active_stream(token)
+            utils.crunchy_log("Cleared stream token %s" % token)
 
 def update_playhead(content_id: str, playhead: int):
     """ Update playtime to Crunchyroll """

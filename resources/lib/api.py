@@ -50,6 +50,7 @@ class API:
     STREAMS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/videos/{}/streams"
     STREAMS_ENDPOINT_DRM = "https://cr-play-service.prd.crunchyrollsvc.com/v1/{}/android/phone/play"
     STREAMS_ENDPOINT_CLEAR_STREAM = "https://cr-play-service.prd.crunchyrollsvc.com/v1/token/{}/{}"
+    STREAMS_ENDPOINT_GET_ACTIVE_STREAMS = "https://cr-play-service.prd.crunchyrollsvc.com/playback/v1/sessions/streaming"
     # SERIES_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/series/{}"
     SEASONS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/seasons"
     EPISODES_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/episodes"
