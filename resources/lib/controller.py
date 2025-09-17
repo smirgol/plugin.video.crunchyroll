@@ -759,46 +759,46 @@ def start_playback(args, api):
     from inputstreamhelper import Helper  # noqa
 
     is_helper = Helper("mpd", 'com.widevine.alpha')
-    if is_helper.check_inputstream():
-        manifest_headers = OrderedDict([
-            ('User-Agent', API.CRUNCHYROLL_UA),
-            ('Authorization', "Bearer {}".format(api.account_data.access_token))
-        ])
+    #if is_helper.check_inputstream():
+    manifest_headers = OrderedDict([
+        ('User-Agent', API.CRUNCHYROLL_UA),
+        ('Authorization', "Bearer {}".format(api.account_data.access_token))
+    ])
 
-        license_headers = OrderedDict([
-            ('User-Agent', API.CRUNCHYROLL_UA),
-            ('Content-Type', 'application/octet-stream'),
-            ('Origin', 'https://static.crunchyroll.com'),
-            ('Authorization', "Bearer {}".format(api.account_data.access_token)),
-            ('x-cr-content-id', args.episode_id),
-            ('x-cr-video-token', stream_info.token)
-        ])
+    license_headers = OrderedDict([
+        ('User-Agent', API.CRUNCHYROLL_UA),
+        ('Content-Type', 'application/octet-stream'),
+        ('Origin', 'https://static.crunchyroll.com'),
+        ('Authorization', "Bearer {}".format(api.account_data.access_token)),
+        ('x-cr-content-id', args.episode_id),
+        ('x-cr-video-token', stream_info.token)
+    ])
 
-        license_config = OrderedDict([
-            ('license_server_url', API.LICENSE_ENDPOINT),
-            ('headers', urlencode(license_headers)),
-            ('post_data', 'R{SSM}'),
-            ('response_data', 'JBlicense')
-        ])
+    license_config = OrderedDict([
+        ('license_server_url', API.LICENSE_ENDPOINT),
+        ('headers', urlencode(license_headers)),
+        ('post_data', 'R{SSM}'),
+        ('response_data', 'JBlicense')
+    ])
 
-        item.setProperty("inputstreamaddon", "inputstream.adaptive")
-        item.setProperty("inputstream.adaptive.manifest_type", "mpd")
-        item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
-        item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
-        item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
-        item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
+    item.setProperty("inputstreamaddon", "inputstream.adaptive")
+    item.setProperty("inputstream.adaptive.manifest_type", "mpd")
+    item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
+    item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
+    item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
+    item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
 
-        # add soft subtitles url for configured language
-        if stream_info.subtitle_urls:
-            item.setSubtitles(stream_info.subtitle_urls)
+    # add soft subtitles url for configured language
+    if stream_info.subtitle_urls:
+        item.setSubtitles(stream_info.subtitle_urls)
 
-        # start playback
-        xbmcplugin.setResolvedUrl(int(args.argv[1]), True, item)
+    # start playback
+    xbmcplugin.setResolvedUrl(int(args.argv[1]), True, item)
 
-        # wait for playback
-        if wait_for_playback(10):
-            # if successful wait more
-            xbmc.sleep(3000)
+    # wait for playback
+    if wait_for_playback(10):
+        # if successful wait more
+        xbmc.sleep(3000)
 
     # @TODO: fallbacks not tested
 
