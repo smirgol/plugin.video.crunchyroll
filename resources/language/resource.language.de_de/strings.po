@@ -300,3 +300,85 @@ msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."
 msgctxt "#30090"
 msgid "No search results"
 msgstr "Keine Suchergebnisse"
+
+# Developer Options
+
+msgctxt "#30101"
+msgid "Debug Logging"
+msgstr "Debug Protokollierung"
+
+msgctxt "#30102"
+msgid "Enable detailed logging for troubleshooting. Only enable when requested by support."
+msgstr "Aktiviert detaillierte Protokollierung zur Fehlerbehebung. Nur aktivieren wenn vom Support angefordert."
+
+msgctxt "#30240"
+msgid "Developer Options"
+msgstr "Entwickleroptionen"
+
+msgctxt "#30241"
+msgid "Device ID"
+msgstr "Geräte-ID"
+
+# Device Authentication Dialog
+
+msgctxt "#30300"
+msgid "Visit: %s"
+msgstr "Besuchen Sie: %s"
+
+msgctxt "#30301"
+msgid "Please visit the URL above and enter the code"
+msgstr "Bitte besuchen Sie die obige URL und geben Sie den Code ein"
+
+msgctxt "#30302"
+msgid "Time remaining: %02d:%02d"
+msgstr "Verbleibende Zeit: %02d:%02d"
+
+msgctxt "#30303"
+msgid "New code generated - please visit the URL again"
+msgstr "Neuer Code generiert - bitte besuchen Sie die URL erneut"
+
+msgctxt "#30304"
+msgid "✓ Authentication successful!"
+msgstr "✓ Authentifizierung erfolgreich!"
+
+msgctxt "#30305"
+msgid "⚠ Code expired - click Refresh for new code"
+msgstr "⚠ Code abgelaufen - klicken Sie auf Aktualisieren für neuen Code"
+
+msgctxt "#30306"
+msgid "❌ Error: %s"
+msgstr "❌ Fehler: %s"
+
+msgctxt "#30307"
+msgid "Failed to generate new code"
+msgstr "Fehler beim Generieren eines neuen Codes"
+
+msgctxt "#30308"
+msgid "Failed to refresh code"
+msgstr "Fehler beim Aktualisieren des Codes"
+
+# User-friendly Error Messages
+
+msgctxt "#30400"
+msgid "Unable to connect to Crunchyroll. Please check your internet connection and try again."
+msgstr "Verbindung zu Crunchyroll nicht möglich. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
+
+msgctxt "#30401"
+msgid "Your login session has expired. Please authenticate again."
+msgstr "Ihre Anmeldesitzung ist abgelaufen. Bitte authentifizieren Sie sich erneut."
+
+msgctxt "#30402"
+msgid "Crunchyroll servers are currently unavailable. Please try again later."
+msgstr "Crunchyroll-Server sind derzeit nicht verfügbar. Bitte versuchen Sie es später erneut."
+
+msgctxt "#30403"
+msgid "Device authentication was cancelled. Please try again if you want to continue."
+msgstr "Geräteauthentifizierung wurde abgebrochen. Bitte versuchen Sie es erneut, wenn Sie fortfahren möchten."
+
+msgctxt "#30404"
+msgid "Device code has expired. Please start authentication again."
+msgstr "Gerätecode ist abgelaufen. Bitte starten Sie die Authentifizierung erneut."
+
+msgctxt "#30405"
+msgid "Authentication failed. Please restart the addon and try again."
+msgstr "Authentifizierung fehlgeschlagen. Bitte starten Sie das Addon neu und versuchen Sie es erneut."

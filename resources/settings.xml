@@ -3,35 +3,14 @@
     <section id="plugin.video.crunchyroll">
         <category id="general" label="30010" help="">
             <group id="1" label="30200">
-                <setting id="crunchyroll_username" type="string" label="30001" help="">
-                    <level>0</level>
-                    <default/>
-                    <constraints>
-                        <allowempty>true</allowempty>
-                    </constraints>
-                    <control type="edit" format="string">
-                        <heading>30001</heading>
-                    </control>
-                </setting>
-                <setting id="crunchyroll_password" type="string" label="30002" help="">
-                    <level>0</level>
-                    <default/>
-                    <constraints>
-                        <allowempty>true</allowempty>
-                    </constraints>
-                    <control type="edit" format="string">
-                        <heading>30002</heading>
-                        <hidden>true</hidden>
-                    </control>
-                </setting>
-                <setting id="device_id" type="string" label="30002" help="">
+                <setting id="device_id" type="string" label="30241" help="">
                     <level>4</level>
                     <default/>
                     <constraints>
                         <allowempty>true</allowempty>
                     </constraints>
                     <control type="edit" format="string">
-                        <heading>30002</heading>
+                        <heading>30241</heading>
                         <hidden>true</hidden>
                     </control>
                     <visible>false</visible>
@@ -150,6 +129,15 @@
                 <setting id="ask_before_skipping" type="boolean" label="30013" help="">
                     <level>0</level>
                     <default>true</default>
+                    <control type="toggle"/>
+                </setting>
+            </group>
+        </category>
+        <category id="developer_options" label="30240" help="">
+            <group id="1" label="30240">
+                <setting id="debug_logging" type="boolean" label="30101" help="30102">
+                    <level>0</level>
+                    <default>false</default>
                     <control type="toggle"/>
                 </setting>
             </group>
