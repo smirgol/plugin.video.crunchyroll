@@ -230,6 +230,7 @@ class AccountData(Cacheable):
         self.default_subtitles_language: str = data.get("preferred_content_subtitle_language")
         self.default_audio_language: str = data.get("preferred_content_audio_language")
         self.username: str = data.get("username")
+        self.user_agent_type: str = data.get('user_agent_type')
 
     def get_cache_file_name(self) -> str:
         return 'session_data.json'
