@@ -18,6 +18,11 @@ import asyncio
 import datetime
 import os
 import sys
+import threading
+import http.server
+import socketserver
+import urllib.parse
+import time
 from typing import Union, Dict, Optional, Any
 
 import requests
@@ -30,6 +35,242 @@ from resources.lib.globals import G
 from resources.lib.model import Object, CrunchyrollError, PlayableItem
 from resources.lib.utils import log_error_with_trace, crunchy_log, \
     get_playheads_from_api, get_cms_object_data_by_ids, get_listables_from_response
+from ..modules import cloudscraper
+
+
+def _make_cloudflare_request(url: str) -> Optional[Dict]:
+    """
+    Make CloudScraper request for AndroidTV streaming endpoint
+
+    Args:
+        url: Stream URL that requires CloudFlare bypass
+
+    Returns:
+        JSON response dict or None if failed
+    """
+    try:
+        # Create CloudScraper with AndroidTV User-Agent
+        scraper = cloudscraper.create_scraper(
+            delay=10,
+            browser={'custom': G.api.CRUNCHYROLL_UA_DEVICE}
+        )
+
+        # Prepare headers with authentication
+        headers = {
+            "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+            "User-Agent": G.api.CRUNCHYROLL_UA_DEVICE,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        # Add CMS parameters
+        params = {
+            "Policy": G.api.account_data.cms.policy,
+            "Signature": G.api.account_data.cms.signature,
+            "Key-Pair-Id": G.api.account_data.cms.key_pair_id
+        }
+
+        crunchy_log(f"CloudScraper request to: {url}")
+        crunchy_log(f"CloudScraper User-Agent: {headers['User-Agent']}", xbmc.LOGDEBUG)
+
+        response = scraper.get(
+            url=url,
+            headers=headers,
+            params=params,
+            timeout=30
+        )
+
+        crunchy_log(f"CloudScraper response: HTTP {response.status_code}", xbmc.LOGDEBUG)
+
+        if response.ok:
+            return response.json()
+        else:
+            crunchy_log(f"CloudScraper request failed: {response.status_code} {response.text}")
+            return None
+
+    except Exception as e:
+        crunchy_log(f"CloudScraper request error: {e}")
+        return None
+
+
+class CloudflareProxy:
+    """
+    Minimal HTTP proxy to bypass Cloudflare for Kodi manifest access
+
+    Auto-terminates after TTL to prevent zombie processes
+    """
+
+    def __init__(self, ttl_seconds=30):
+        self.server = None
+        self.server_thread = None
+        self.port = None
+        self.ttl_seconds = ttl_seconds
+        self.start_time = None
+        self.shutdown_timer = None
+
+    def get_proxied_url(self, original_url: str) -> str:
+        """Get proxied URL for Cloudflare-protected manifest"""
+        try:
+            if not self.server:
+                self._start_server()
+
+            # Verify server is still running
+            if self.server_thread and not self.server_thread.is_alive():
+                crunchy_log("Proxy server thread died, restarting", xbmc.LOGDEBUG)
+                self.restart()
+
+            # Encode original URL as parameter
+            encoded_url = urllib.parse.quote(original_url, safe='')
+            return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
+
+        except Exception as e:
+            crunchy_log(f"Error in get_proxied_url: {e}")
+            # Try to restart proxy and return original URL as fallback
+            try:
+                self.restart()
+                encoded_url = urllib.parse.quote(original_url, safe='')
+                return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
+            except Exception as restart_error:
+                crunchy_log(f"Proxy restart failed: {restart_error}")
+                return original_url  # Fallback to original URL
+
+    def _start_server(self):
+        """Start minimal HTTP server for manifest proxying with auto-shutdown"""
+        try:
+            class ProxyHandler(http.server.BaseHTTPRequestHandler):
+                def do_GET(self):
+                    if self.path.startswith('/proxy?url='):
+                        # Extract original URL
+                        url_param = self.path.split('url=', 1)[1]
+                        original_url = urllib.parse.unquote(url_param)
+
+                        crunchy_log(f"Proxy request for: {original_url}")
+
+                        try:
+                            # Use CloudScraper to fetch manifest
+                            scraper = cloudscraper.create_scraper(
+                                delay=10,
+                                browser={'custom': G.api.CRUNCHYROLL_UA_DEVICE}
+                            )
+
+                            headers = {
+                                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                                "User-Agent": G.api.CRUNCHYROLL_UA_DEVICE,
+                            }
+
+                            response = scraper.get(original_url, headers=headers, timeout=30)
+
+                            if response.ok:
+                                # Forward response to Kodi
+                                self.send_response(200)
+                                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/dash+xml'))
+                                self.send_header('Content-Length', str(len(response.content)))
+                                self.end_headers()
+                                self.wfile.write(response.content)
+                                crunchy_log(f"Proxy served: {len(response.content)} bytes", xbmc.LOGDEBUG)
+                            else:
+                                self.send_error(response.status_code, f"Upstream error: {response.status_code}")
+
+                        except Exception as e:
+                            crunchy_log(f"Proxy error: {e}")
+                            self.send_error(500, f"Proxy error: {str(e)}")
+                    else:
+                        self.send_error(404, "Not found")
+
+                def log_message(self, format, *args):
+                    # Suppress default HTTP server logging
+                    pass
+
+            # Start server on random port
+            self.server = socketserver.TCPServer(("127.0.0.1", 0), ProxyHandler)
+            self.port = self.server.server_address[1]
+
+            # Start in background thread
+            self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            self.server_thread.start()
+
+            # Set start time and schedule auto-shutdown
+            self.start_time = time.time()
+            self._schedule_auto_shutdown()
+
+            crunchy_log(f"CloudFlare proxy started on port {self.port} (TTL: {self.ttl_seconds}s)")
+
+        except Exception as e:
+            crunchy_log(f"Failed to start CloudFlare proxy: {e}")
+            raise
+
+    def stop(self):
+        """Stop proxy server"""
+        # Cancel auto-shutdown timer
+        if self.shutdown_timer:
+            self.shutdown_timer.cancel()
+            self.shutdown_timer = None
+
+        if self.server:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+            self.server_thread = None
+            self.port = None
+            self.start_time = None
+            crunchy_log("CloudFlare proxy stopped")
+
+    def restart(self):
+        """Restart proxy server if it fails"""
+        crunchy_log("Restarting CloudFlare proxy")
+        self.stop()
+        self._start_server()
+
+    def _schedule_auto_shutdown(self):
+        """Schedule automatic shutdown after TTL"""
+        def auto_shutdown():
+            if self.server:  # Check if still running
+                crunchy_log(f"CloudFlare proxy auto-shutdown after {self.ttl_seconds}s TTL")
+                self.stop()
+
+        self.shutdown_timer = threading.Timer(self.ttl_seconds, auto_shutdown)
+        self.shutdown_timer.daemon = True
+        self.shutdown_timer.start()
+
+    def extend_ttl(self, additional_seconds=30):
+        """Extend proxy TTL if needed (for longer operations)"""
+        if self.server and self.start_time:
+            # Cancel current timer
+            if self.shutdown_timer:
+                self.shutdown_timer.cancel()
+
+            # Calculate new TTL
+            elapsed = time.time() - self.start_time
+            new_ttl = elapsed + additional_seconds
+
+            crunchy_log(f"Extending proxy TTL by {additional_seconds}s", xbmc.LOGDEBUG)
+            self.shutdown_timer = threading.Timer(additional_seconds, lambda: self.stop())
+            self.shutdown_timer.daemon = True
+            self.shutdown_timer.start()
+
+
+# Global proxy instance (lazy loaded)
+_cloudflare_proxy = None
+
+
+def get_cloudflare_proxy() -> CloudflareProxy:
+    """Get global CloudFlare proxy instance"""
+    global _cloudflare_proxy
+    if not _cloudflare_proxy:
+        _cloudflare_proxy = CloudflareProxy()
+    return _cloudflare_proxy
+
+
+def cleanup_cloudflare_proxy():
+    """Cleanup global CloudFlare proxy instance"""
+    global _cloudflare_proxy
+    if _cloudflare_proxy:
+        try:
+            _cloudflare_proxy.stop()
+            crunchy_log("CloudFlare proxy cleaned up", xbmc.LOGDEBUG)
+        except Exception as e:
+            crunchy_log(f"Error during proxy cleanup: {e}", xbmc.LOGDEBUG)
+        finally:
+            _cloudflare_proxy = None
 
 
 class VideoPlayerStreamData(Object):
@@ -125,12 +366,33 @@ class VideoStream(Object):
         """ get json stream data from cr api for given args.stream_id using new endpoint b/c drm """
 
         # from utils import crunchy_log
-        crunchy_log("URL: %s" % G.api.STREAMS_ENDPOINT_DRM.format(G.args.get_arg('episode_id')))
+        # Dynamic endpoint selection based on authentication type
+        user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
 
-        req = G.api.make_request(
-            method="GET",
-            url=G.api.STREAMS_ENDPOINT_DRM.format(G.args.get_arg('episode_id')),
-        )
+        if user_agent_type == "device":
+            # Use AndroidTV endpoint for device authentication
+            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM_ANDROID_TV
+            crunchy_log("Using AndroidTV streaming endpoint for device session")
+        else:
+            # Use mobile/phone endpoint for legacy authentication
+            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM
+            crunchy_log("Using mobile streaming endpoint for legacy session")
+
+        stream_url = stream_endpoint.format(G.args.get_arg('episode_id'))
+        crunchy_log("Stream URL: %s" % stream_url)
+        crunchy_log(f"Current API User-Agent: {G.api.CRUNCHYROLL_UA}")
+        crunchy_log(f"Current API Headers User-Agent: {G.api.api_headers.get('User-Agent', 'Unknown')}", xbmc.LOGDEBUG)
+
+        # Use CloudScraper for AndroidTV endpoint (www.crunchyroll.com is Cloudflare protected)
+        if user_agent_type == "device":
+            crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
+            req = _make_cloudflare_request(stream_url)
+        else:
+            crunchy_log("Using regular request for mobile streaming endpoint")
+            req = G.api.make_request(
+                method="GET",
+                url=stream_url,
+            )
 
         # check for error
         if "error" in req or req is None:
@@ -157,6 +419,14 @@ class VideoStream(Object):
                     url = api_data["url"]
             else:
                 url = api_data["url"]
+
+            # Proxy Cloudflare-protected URLs for device authentication
+            user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
+            if user_agent_type == "device" and url and "www.crunchyroll.com" in url:
+                proxy = get_cloudflare_proxy()
+                proxied_url = proxy.get_proxied_url(url)
+                crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
+                url = proxied_url
 
         except IndexError:
             item = xbmcgui.ListItem(G.args.get_arg('title', 'Title not provided'))
