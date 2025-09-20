@@ -380,3 +380,25 @@ msgstr "Le code de l'appareil a expiré. Veuillez redémarrer l'authentification
 msgctxt "#30405"
 msgid "Authentication failed. Please restart the addon and try again."
 msgstr "L'authentification a échoué. Veuillez redémarrer l'addon et réessayer."
+
+# Device Activation Dialog UI
+
+msgctxt "#30309"
+msgid "Crunchyroll Device Activation"
+msgstr "Activation d'Appareil Crunchyroll"
+
+msgctxt "#30310"
+msgid "Enter the activation code shown below:"
+msgstr "Entrez le code d'activation affiché ci-dessous:"
+
+msgctxt "#30311"
+msgid "Refresh Code"
+msgstr "Actualiser le Code"
+
+msgctxt "#30312"
+msgid "Cancel"
+msgstr "Annuler"
+
+msgctxt "#30313"
+msgid "Use remote control arrows to navigate • Press BACK to cancel"
+msgstr "Utilisez les flèches de la télécommande pour naviguer • Appuyez sur RETOUR pour annuler"
