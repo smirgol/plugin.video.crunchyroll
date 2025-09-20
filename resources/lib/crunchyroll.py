@@ -45,9 +45,7 @@ def main(argv):
             xbmcaddon.Addon(id="inputstream.adaptive").openSettings()
         return True
 
-    # get account information
-    username = G.args.addon.getSetting("crunchyroll_username")
-    password = G.args.addon.getSetting("crunchyroll_password")
+    # Initialize device ID if not present
     G.args._device_id = G.args.addon.getSetting("device_id")
     if not G.args.device_id:
         char_set = "0123456789abcdefghijklmnopqrstuvwxyz0123456789"
@@ -76,35 +74,39 @@ def main(argv):
             10
         )
 
-    if not (username and password):
-        # open addon settings
-        view.add_item({"title": G.args.addon.getLocalizedString(30062)})
+    # Start API authentication (uses device authentication)
+    try:
+        G.api.start()
+
+        # request to select profile if not set already
+        if G.api.profile_data.profile_id is None:
+            controller.show_profiles()
+
+        # list menu
+        xbmcplugin.setContent(int(G.args.argv[1]), "tvshows")
+
+        return check_mode()
+    except (LoginError, CrunchyrollError) as e:
+        # login failed - determine error type and show user-friendly message
+        error_message = str(e).lower()
+
+        if "cancelled" in error_message:
+            error_type = "cancelled"
+        elif "expired" in error_message or "token" in error_message:
+            error_type = "auth_expired"
+        elif "network" in error_message or "connection" in error_message:
+            error_type = "network"
+        elif "server" in error_message or "unavailable" in error_message:
+            error_type = "server"
+        else:
+            error_type = "general"
+
+        utils.show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
+
+        view.add_item({"title": G.args.addon.getLocalizedString(30060)})
         view.end_of_directory()
-        G.args.addon.openSettings()
+
         return False
-    else:
-        # login
-        try:
-            G.api.start()
-
-            # request to select profile if not set already
-            if G.api.profile_data.profile_id is None:
-                controller.show_profiles()
-
-            # list menu
-            xbmcplugin.setContent(int(G.args.argv[1]), "tvshows")
-
-            return check_mode()
-        except (LoginError, CrunchyrollError):
-            # login failed
-            utils.crunchy_log("Login failed", xbmc.LOGERROR)
-            utils.crunchy_log("If you have not changed your Crunchyroll login credentials, please download the latest app version.", xbmc.LOGINFO)
-            utils.crunchy_log("If the problem persists, please open an issue on github.", xbmc.LOGINFO)
-            view.add_item({"title": G.args.addon.getLocalizedString(30060)})
-            view.end_of_directory()
-            xbmcgui.Dialog().ok(G.args.addon_name, G.args.addon.getLocalizedString(30060))
-
-            return False
 
 
 def check_mode():

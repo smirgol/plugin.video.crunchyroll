@@ -204,6 +204,12 @@ def log(message) -> None:
 
 def crunchy_log(message, loglevel=xbmc.LOGINFO) -> None:
     addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, 'addon_name') else "Crunchyroll"
+
+    # Skip LOGDEBUG messages if debug_logging is disabled
+    if loglevel == xbmc.LOGDEBUG:
+        if G.args is None or not hasattr(G.args, 'addon') or G.args.addon.getSetting("debug_logging") != "true":
+            return
+
     xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
 
 
@@ -236,6 +242,42 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
             xbmcgui.NOTIFICATION_ERROR,
             5
         )
+
+
+def show_user_friendly_error(error_type: str, technical_message: str = None) -> None:
+    """
+    Show user-friendly error notification to user (translated)
+    While keeping technical logs in English for developers
+
+    Args:
+        error_type: Type of error (network, auth_expired, server, cancelled, expired, general)
+        technical_message: Optional technical message for logs (stays in English)
+    """
+    error_messages = {
+        "network": 30400,  # "Unable to connect to Crunchyroll. Please check your internet connection and try again."
+        "auth_expired": 30401,  # "Your login session has expired. Please authenticate again."
+        "server": 30402,  # "Crunchyroll servers are currently unavailable. Please try again later."
+        "cancelled": 30403,  # "Device authentication was cancelled. Please try again if you want to continue."
+        "expired": 30404,  # "Device code has expired. Please start authentication again."
+        "general": 30405,  # "Authentication failed. Please restart the addon and try again."
+    }
+
+    # Log technical message in English for developers
+    if technical_message:
+        crunchy_log(f"Error ({error_type}): {technical_message}", xbmc.LOGERROR)
+
+    # Show translated message to user
+    addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, 'addon_name') else "Crunchyroll"
+    message_id = error_messages.get(error_type, 30405)  # Default to general error
+    user_message = G.args.addon.getLocalizedString(message_id)
+
+    xbmcgui.Dialog().notification(
+        f'{addon_name} Error',
+        user_message,
+        xbmcgui.NOTIFICATION_ERROR,
+        8000  # Show for 8 seconds
+    )
+
 
 def filter_series(seriesItem: Dict) -> bool:
     """ takes an API info struct and returns if it matches user language settings """
