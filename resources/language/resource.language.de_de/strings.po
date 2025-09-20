@@ -382,3 +382,25 @@ msgstr "Gerätecode ist abgelaufen. Bitte starten Sie die Authentifizierung erne
 msgctxt "#30405"
 msgid "Authentication failed. Please restart the addon and try again."
 msgstr "Authentifizierung fehlgeschlagen. Bitte starten Sie das Addon neu und versuchen Sie es erneut."
+
+# Device Activation Dialog UI
+
+msgctxt "#30309"
+msgid "Crunchyroll Device Activation"
+msgstr "Crunchyroll Geräte-Aktivierung"
+
+msgctxt "#30310"
+msgid "Enter the activation code shown below:"
+msgstr "Geben Sie den unten angezeigten Aktivierungscode ein:"
+
+msgctxt "#30311"
+msgid "Refresh Code"
+msgstr "Code Aktualisieren"
+
+msgctxt "#30312"
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgctxt "#30313"
+msgid "Use remote control arrows to navigate • Press BACK to cancel"
+msgstr "Pfeiltasten zur Navigation • ZURÜCK zum Abbrechen"
