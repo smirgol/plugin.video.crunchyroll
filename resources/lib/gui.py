@@ -50,8 +50,10 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
         from resources.lib.videoplayer import update_playhead
         if control_id == 1000:
             xbmc.Player().seekTime(self.seek_time)
-            update_playhead(self.content_id, int(self.seek_time))
-            self.close()
+            try:
+                update_playhead(self.content_id, int(self.seek_time))
+            finally:
+                self.close()
 
     def onAction(self, action):
         if action.getId() in self.action_exit_keys_id:
@@ -72,6 +74,9 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
     LABEL_STATUS = 1003
     BUTTON_REFRESH = 1004
     BUTTON_CANCEL = 1005
+    LABEL_TITLE = 1006
+    LABEL_INSTRUCTION = 1007
+    LABEL_HELP = 1008
 
     def __init__(self, *args, **kwargs):
         """
@@ -108,6 +113,22 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         """Initialize dialog UI elements"""
         try:
             from .globals import G
+
+            # Set translated static labels
+            title_text = G.args.addon.getLocalizedString(30309)
+            self.getControl(self.LABEL_TITLE).setLabel(title_text)
+
+            instruction_text = G.args.addon.getLocalizedString(30310)
+            self.getControl(self.LABEL_INSTRUCTION).setLabel(instruction_text)
+
+            help_text = G.args.addon.getLocalizedString(30313)
+            self.getControl(self.LABEL_HELP).setLabel(help_text)
+
+            refresh_text = G.args.addon.getLocalizedString(30311)
+            self.getControl(self.BUTTON_REFRESH).setLabel(refresh_text)
+
+            cancel_text = G.args.addon.getLocalizedString(30312)
+            self.getControl(self.BUTTON_CANCEL).setLabel(cancel_text)
 
             # Set user code display
             user_code = self.device_code_data.get('user_code', 'ERROR')
@@ -230,6 +251,21 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
             # Stop current operations
             self.stop_polling.set()
+
+            # Wait for existing threads to finish
+            current_thread = threading.current_thread()
+
+            # Join polling thread if it exists and we're not in it
+            if (self.polling_thread and
+                self.polling_thread.is_alive() and
+                current_thread != self.polling_thread):
+                self.polling_thread.join(timeout=1.0)
+
+            # Join timer thread if it exists and we're not in it
+            if (self.timer_thread and
+                self.timer_thread.is_alive() and
+                current_thread != self.timer_thread):
+                self.timer_thread.join(timeout=1.0)
 
             # Request new device code
             new_code_data = self.api_instance.request_device_code()

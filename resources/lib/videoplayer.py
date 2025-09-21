@@ -45,6 +45,8 @@ class VideoPlayer(Object):
         self.lastUpdatePlayhead = 0
         self.clearedStream = False
         self.createTime = time.time()
+        self.playhead_retry_count = 0
+        self.playhead_max_retries = 3
 
     def start_playback(self):
         """ Set up player and start playback """
@@ -153,7 +155,7 @@ class VideoPlayer(Object):
         from inputstreamhelper import Helper  # noqa
 
         is_helper = Helper("mpd", drm='com.widevine.alpha')
-        #if is_helper.check_inputstream():
+        # if is_helper.check_inputstream():
         manifest_headers = {
             'User-Agent': G.api.CRUNCHYROLL_UA,
             'Authorization': f"Bearer {G.api.account_data.access_token}"
@@ -203,11 +205,29 @@ class VideoPlayer(Object):
                 (self._player.getTime() - self.lastUpdatePlayhead) > 10
         ):
             self.lastUpdatePlayhead = self._player.getTime()
-            # api request
-            update_playhead(
-                G.args.get_arg('episode_id'),
-                int(self._player.getTime())
-            )
+            # api request with retry logic
+            try:
+                update_playhead(
+                    G.args.get_arg('episode_id'),
+                    int(self._player.getTime())
+                )
+                # Reset retry count on success
+                self.playhead_retry_count = 0
+            except Exception as e:
+                if isinstance(e, CrunchyrollError):
+                    error_msg = 'Playhead update failed'
+                else:
+                    error_msg = 'Unexpected playhead update error'
+
+                self.playhead_retry_count += 1
+                utils.crunchy_log(
+                    f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}"
+                )
+
+                # Only raise if we've exceeded max retries
+                if self.playhead_retry_count >= self.playhead_max_retries:
+                    utils.crunchy_log("Max playhead update retries exceeded. Stopping playhead updates.")
+                    raise
 
     def check_skipping(self):
         """ background thread to check and handle skipping intro/credits/... """
@@ -313,8 +333,9 @@ class VideoPlayer(Object):
             self.clear_active_stream(token)
             utils.crunchy_log("Cleared stream token %s" % token)
 
+
 def update_playhead(content_id: str, playhead: int):
-    """ Update playtime to Crunchyroll """
+    """ Update playtime to Crunchyroll (legacy function, kept for compatibility) """
 
     # if sync_playtime is disabled in settings, do nothing
     if G.args.addon.getSetting("sync_playtime") != "true":
@@ -332,11 +353,13 @@ def update_playhead(content_id: str, playhead: int):
                 'Content-Type': 'application/json'
             }
         )
-    except (CrunchyrollError, requests.exceptions.RequestException) as e:
+    except (CrunchyrollError, LoginError, requests.exceptions.RequestException) as e:
         # catch timeout or any other possible exception
         utils.crunchy_log(
             "Failed to update playhead to crunchyroll: %s for %s" % (
                 str(e), content_id
-            )
+            ),
+            xbmc.LOGERROR
         )
-        pass
+
+        raise e
