@@ -207,12 +207,10 @@ class API:
             self._handle_device_code_flow()
             return  # Success, exit flow
         except LoginError as e:
-            utils.crunchy_log(f"Device code authentication failed: {e}", xbmc.LOGDEBUG)
+            utils.crunchy_log(f"Device code authentication failed: {e}", xbmc.LOGERROR)
             # Device flow failure is expected during Phase 1, no notification needed
 
         # All authentication methods failed
-        error_msg = f"Device code authentication failed: {e}"
-        utils.crunchy_log(error_msg, xbmc.LOGERROR)
         raise LoginError("Device authentication failed")
 
     def _handle_refresh_flow(self) -> None:

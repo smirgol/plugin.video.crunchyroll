@@ -95,7 +95,7 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 #### First Setup
 1. Open the Crunchyroll plugin in Kodi
 2. A dialog will appear with a **device code** and **activation URL**
-3. On your phone/computer, visit the displayed URL (e.g., `https://www.crunchyroll.com/activate`)
+3. On your phone/computer, visit the displayed URL (e.g., `https://www.crunchyroll.com/activate`) or scan the QR-Code
 4. Enter the **device code** shown in Kodi
 5. Sign in with your Crunchyroll account
 6. Return to Kodi - authentication will complete automatically
@@ -172,6 +172,7 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 * jasonfrancis
 * APachecoDiSanti
 * Acidzero2020
+* Centulus
 * ...and all the forgotten heroes :)
 
 ***
