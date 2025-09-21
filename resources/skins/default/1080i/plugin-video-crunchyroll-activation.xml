@@ -76,7 +76,7 @@
             <!-- Activation code (large display) -->
             <control type="label" id="1000">
                 <posx>0</posx>
-                <posy>240</posy>
+                <posy>220</posy>
                 <width>1200</width>
                 <height>120</height>
                 <font>font30_title</font>
@@ -89,7 +89,7 @@
             <!-- Countdown timer -->
             <control type="label" id="1002">
                 <posx>0</posx>
-                <posy>380</posy>
+                <posy>330</posy>
                 <width>1200</width>
                 <height>50</height>
                 <font>font14</font>
@@ -98,10 +98,33 @@
                 <label>Time remaining: 05:00</label>
             </control>
 
+            <!-- OR divider -->
+            <control type="label" id="1011">
+                <posx>0</posx>
+                <posy>390</posy>
+                <width>1200</width>
+                <height>30</height>
+                <font>font13</font>
+                <align>center</align>
+                <textcolor>FFCCCCCC</textcolor>
+                <label>-- OR SCAN QR CODE --</label>
+            </control>
+
+            <!-- QR Code -->
+            <control type="image" id="1009">
+                <posx>450</posx>
+                <posy>450</posy>
+                <width>300</width>
+                <height>300</height>
+                <texture></texture>
+                <aspectratio>keep</aspectratio>
+                <bordersize>0</bordersize>
+            </control>
+
             <!-- Status message -->
             <control type="label" id="1003">
                 <posx>50</posx>
-                <posy>450</posy>
+                <posy>750</posy>
                 <width>1100</width>
                 <height>80</height>
                 <font>font13</font>
@@ -114,7 +137,7 @@
             <!-- Button container -->
             <control type="grouplist" id="9000">
                 <posx>200</posx>
-                <posy>700</posy>
+                <posy>800</posy>
                 <width>800</width>
                 <height>100</height>
                 <orientation>horizontal</orientation>
@@ -162,18 +185,6 @@
                     <onup>1005</onup>
                     <ondown>1005</ondown>
                 </control>
-            </control>
-
-            <!-- Help text at bottom -->
-            <control type="label" id="1008">
-                <posx>50</posx>
-                <posy>820</posy>
-                <width>1100</width>
-                <height>40</height>
-                <font>font12</font>
-                <align>center</align>
-                <textcolor>FFAAAAAA</textcolor>
-                <label>Use remote control arrows to navigate • Press BACK to cancel</label>
             </control>
         </control>
     </controls>
