@@ -321,7 +321,7 @@ msgid "Visit: %s"
 msgstr ""
 
 msgctxt "#30301"
-msgid "Please visit the URL above and enter the code"
+msgid "Waiting for activation..."
 msgstr ""
 
 msgctxt "#30302"
@@ -333,15 +333,15 @@ msgid "New code generated - please visit the URL again"
 msgstr ""
 
 msgctxt "#30304"
-msgid "✓ Authentication successful!"
+msgid "Authentication successful!"
 msgstr ""
 
 msgctxt "#30305"
-msgid "⚠ Code expired - click Refresh for new code"
+msgid "! Code expired - click Refresh for new code"
 msgstr ""
 
 msgctxt "#30306"
-msgid "❌ Error: %s"
+msgid "x Error: %s"
 msgstr ""
 
 msgctxt "#30307"
@@ -396,6 +396,6 @@ msgctxt "#30312"
 msgid "Cancel"
 msgstr ""
 
-msgctxt "#30313"
-msgid "Use remote control arrows to navigate • Press BACK to cancel"
+msgctxt "#30312"
+msgid "- OR SCAN QR CODE -"
 msgstr ""

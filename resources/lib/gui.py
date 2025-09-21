@@ -76,7 +76,9 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
     BUTTON_CANCEL = 1005
     LABEL_TITLE = 1006
     LABEL_INSTRUCTION = 1007
-    LABEL_HELP = 1008
+    IMAGE_QR_CODE = 1009
+    LABEL_QR_STATUS = 1010
+    LABEL_QR_HEADER = 1011
 
     def __init__(self, *args, **kwargs):
         """
@@ -121,9 +123,6 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             instruction_text = G.args.addon.getLocalizedString(30310)
             self.getControl(self.LABEL_INSTRUCTION).setLabel(instruction_text)
 
-            help_text = G.args.addon.getLocalizedString(30313)
-            self.getControl(self.LABEL_HELP).setLabel(help_text)
-
             refresh_text = G.args.addon.getLocalizedString(30311)
             self.getControl(self.BUTTON_REFRESH).setLabel(refresh_text)
 
@@ -139,9 +138,22 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             visit_text = G.args.addon.getLocalizedString(30300) % verification_uri
             self.getControl(self.LABEL_VERIFICATION_URL).setLabel(visit_text)
 
+            # Generate QR code for verification URL with user code
+            user_code = self.device_code_data.get('user_code', '')
+            if user_code:
+                # Create URL with embedded user code for better mobile experience
+                qr_url = f"{verification_uri}?user_code={user_code}&device=Android%20TV"
+            else:
+                qr_url = verification_uri
+            self.set_qr(qr_url)
+
             # Set initial status
             status_text = G.args.addon.getLocalizedString(30301)
             self.getControl(self.LABEL_STATUS).setLabel(status_text)
+
+            # set qr code header translation
+            qr_header_text = G.args.addon.getLocalizedString(30313)
+            self.getControl(self.LABEL_QR_HEADER).setLabel(qr_header_text)
 
             # Set initial countdown
             self._update_countdown_display()
@@ -163,11 +175,6 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         if action_id in self.action_exit_keys_id:
             # User wants to cancel
             self._cancel_activation()
-        elif action_id in [ACTION_ENTER, ACTION_SELECT_ITEM]:
-            # Enter/Select on focused button
-            focused_control = self.getFocusId()
-            if focused_control in [self.BUTTON_REFRESH, self.BUTTON_CANCEL]:
-                self.onClick(focused_control)
 
     def onClick(self, control_id):
         """Handle button clicks"""
@@ -279,6 +286,15 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                 refresh_status = G.args.addon.getLocalizedString(30303)
                 self.getControl(self.LABEL_STATUS).setLabel(refresh_status)
 
+                # Regenerate QR code with new data
+                verification_uri = new_code_data.get('verification_uri', 'https://www.crunchyroll.com/activate')
+                new_user_code = new_code_data.get('user_code', '')
+                if new_user_code:
+                    qr_url = f"{verification_uri}?user_code={new_user_code}&device=Android%20TV"
+                else:
+                    qr_url = verification_uri
+                self.set_qr(qr_url)
+
                 # Restart operations
                 self._start_countdown_timer()
                 self._start_polling()
@@ -336,9 +352,159 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         self.getControl(self.LABEL_STATUS).setLabel(error_text)
         self.return_value = 'error'
 
+    def set_qr(self, qr_url):
+        """Generate and display QR code for the given URL"""
+        if not qr_url:
+            self._update_qr_status("No URL provided for QR code")
+            return
+
+        try:
+            from . import utils
+            import os
+            import time as _t
+            import struct
+            import zlib
+            import xbmc
+
+            # Try to import pyqrcode module
+            _pyqrcode = None
+            try:
+                from resources.modules import pyqrcode as _pyqrcode
+            except Exception:
+                try:
+                    from ..modules import pyqrcode as _pyqrcode
+                except Exception:
+                    try:
+                        import sys
+                        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                        if addon_root and addon_root not in sys.path:
+                            sys.path.insert(0, addon_root)
+                        from resources.modules import pyqrcode as _pyqrcode
+                    except Exception:
+                        utils.crunchy_log("[Crunchyroll] Failed to import pyqrcode module", xbmc.LOGERROR)
+                        self._update_qr_status("PyQRCode module not found. Use the code above.")
+                        return
+
+            # Helper function for PNG generation
+            def _chunk(fh, chunk_type, data):
+                """Write a PNG chunk"""
+                fh.write(struct.pack('>I', len(data)))
+                fh.write(chunk_type)
+                fh.write(data)
+                crc = zlib.crc32(chunk_type + data) & 0xffffffff
+                fh.write(struct.pack('>I', crc))
+
+            def _write_png_gray(path, qr_rows, width, height):
+                """Write grayscale PNG file for QR code"""
+                import xbmcvfs
+                with xbmcvfs.File(path, 'wb') as fh:
+                    # PNG signature
+                    fh.write(b'\x89PNG\r\n\x1a\n')
+                    # IHDR chunk
+                    ihdr = struct.pack('>IIBBBBB', width, height, 8, 0, 0, 0, 0)
+                    _chunk(fh, b'IHDR', ihdr)
+                    # IDAT chunk
+                    scanlines = []
+                    for row in qr_rows:
+                        scanline = bytearray([0])  # No filter
+                        scanline.extend(row)
+                        scanlines.append(bytes(scanline))
+                    idat_data = zlib.compress(b''.join(scanlines))
+                    _chunk(fh, b'IDAT', idat_data)
+                    # IEND chunk
+                    _chunk(fh, b'IEND', b'')
+
+            try:
+                # Generate QR matrix
+                qr = _pyqrcode.create(qr_url)
+                qr_matrix = qr.code
+
+                # Scale factor for readability (6 pixels per module)
+                scale = 6
+                img_size = len(qr_matrix) * scale
+
+                # Create scaled pixel data (grayscale)
+                rows = []
+                for matrix_row in qr_matrix:
+                    # Create scaled rows
+                    for _ in range(scale):
+                        pixel_row = []
+                        for cell in matrix_row:
+                            # Convert QR cell to grayscale: 1 -> black (0), 0 -> white (255)
+                            color = 0 if cell == 1 else 255
+                            pixel_row.extend([color] * scale)
+                        rows.append(pixel_row)
+
+                # Generate temporary file path
+                import xbmc
+                import xbmcvfs
+
+                # Use Kodi's temp directory
+                temp_dir = xbmcvfs.translatePath('special://temp/')
+                qr_filename = f"crunchyroll_qr_{int(_t.time())}.png"
+                qr_path = os.path.join(temp_dir, qr_filename)
+
+                # Write PNG file
+                _write_png_gray(qr_path, rows, img_size, img_size)
+
+            except Exception as e_gen:
+                utils.crunchy_log(f"[Crunchyroll] QR code generation failed: {e_gen}", xbmc.LOGERROR)
+                self._update_qr_status("Unable to generate QR code. Use the code above.")
+                return
+
+            # Check if file was created successfully
+            if xbmcvfs.exists(qr_path):
+                try:
+                    # Set QR image in UI
+                    self.getControl(self.IMAGE_QR_CODE).setImage(qr_path)
+                    self._update_qr_status("QR code ready")
+                    utils.crunchy_log(f"[Crunchyroll] QR code generated: {qr_path}")
+
+                    # Store path for cleanup
+                    if not hasattr(self, '_qr_temp_files'):
+                        self._qr_temp_files = []
+                    self._qr_temp_files.append(qr_path)
+
+                except Exception as e_ui:
+                    utils.crunchy_log(f"[Crunchyroll] Failed to set QR image: {e_ui}", xbmc.LOGERROR)
+                    self._update_qr_status("QR code generated but display failed")
+                    try:
+                        xbmcvfs.delete(qr_path)
+                    except Exception:
+                        pass
+            else:
+                utils.crunchy_log("[Crunchyroll] QR file does not exist!", xbmc.LOGERROR)
+                self._update_qr_status("QR file missing")
+
+        except Exception as e:
+            utils.crunchy_log(f"[Crunchyroll] Error setting QR code: {e}", xbmc.LOGERROR)
+            self._update_qr_status("QR code error")
+
+    def _update_qr_status(self, status):
+        """Update QR status text"""
+        try:
+            self.getControl(self.LABEL_QR_STATUS).setLabel(status)
+        except Exception:
+            pass
+
+    def _cleanup_qr_files(self):
+        """Clean up temporary QR files"""
+        if hasattr(self, '_qr_temp_files'):
+            import xbmcvfs
+            for qr_path in self._qr_temp_files:
+                try:
+                    if xbmcvfs.exists(qr_path):
+                        xbmcvfs.delete(qr_path)
+                except Exception:
+                    pass
+            self._qr_temp_files = []
+
     def close(self):
         """Clean up when closing dialog"""
         self.stop_polling.set()
+
+        # Clean up QR temporary files
+        self._cleanup_qr_files()
 
         # Don't join threads if we're being called from within a thread
         # (this prevents "cannot join current thread" error)
