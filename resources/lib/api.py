@@ -711,6 +711,9 @@ class API:
             # Initialize account data, back up ua type
             existing_ua_type = getattr(self.account_data, 'user_agent_type',
                                        'mobile') if self.account_data else 'mobile'
+
+            # We need to clear this, otherwise make_request() might try to refresh again, ending up in a loop
+            # should be prevented by using make_unauthenticated_request below, which bypasses refresh logic
             self.account_data = AccountData({})
 
             # Extract token information
@@ -769,17 +772,19 @@ class API:
 
             # Fetch index data (user info, account details)
             utils.crunchy_log("Fetching index data", xbmc.LOGDEBUG)
-            r = self.make_request(
+            r = self.make_unauthenticated_request(
                 method="GET",
-                url=API.INDEX_ENDPOINT
+                url=API.INDEX_ENDPOINT,
+                headers=self.api_headers
             )
             account_data.update(r)
 
             # Fetch profile data
             utils.crunchy_log("Fetching profile data", xbmc.LOGDEBUG)
-            r = self.make_request(
+            r = self.make_unauthenticated_request(
                 method="GET",
-                url=API.PROFILE_ENDPOINT
+                url=API.PROFILE_ENDPOINT,
+                headers=self.api_headers
             )
             account_data.update(r)
 
@@ -787,9 +792,10 @@ class API:
             if action == "refresh_profile" and profile_id:
                 utils.crunchy_log(f"Refreshing profile data for profile_id: {profile_id}", xbmc.LOGDEBUG)
                 # Fetch all profiles from API
-                r = self.make_request(
+                r = self.make_unauthenticated_request(
                     method="GET",
                     url=self.PROFILES_LIST_ENDPOINT,
+                    headers=self.api_headers
                 )
 
                 # Extract current profile data as dict from ProfileData obj
@@ -839,31 +845,31 @@ class API:
             json_data=None,
             is_retry=False,
     ) -> Optional[Dict]:
-        if params is None:
-            params = dict()
-        if headers is None:
-            headers = dict()
+        params = params or dict()
+        headers = headers or dict()
+
         if self.account_data:
-            if expiration := self.account_data.expires:
-                current_time = get_date()
-                if current_time > str_to_date(expiration):
-                    # CRITICAL: Prevent infinite refresh loops
-                    if hasattr(self, 'refresh_attempts'):
-                        self.refresh_attempts += 1
-                    else:
-                        self.refresh_attempts = 1
+            # token refresh if expired
+            if not self.is_token_valid():
+                if hasattr(self, 'refresh_attempts'):
+                    self.refresh_attempts += 1
+                else:
+                    self.refresh_attempts = 1
 
-                    if self.refresh_attempts > 3:
-                        utils.crunchy_log("CRITICAL: Too many refresh attempts, stopping to prevent infinite loop", xbmc.LOGERROR)
-                        raise LoginError("Authentication refresh failed repeatedly - please restart addon")
+                if self.refresh_attempts > 3:
+                    utils.crunchy_log("CRITICAL: Too many refresh attempts, stopping to prevent infinite loop", xbmc.LOGERROR)
+                    raise LoginError("Authentication refresh failed repeatedly - please restart addon")
 
-                    utils.crunchy_log(f"make_request_proposal: session renewal due to expired token (attempt {self.refresh_attempts}/3)", xbmc.LOGINFO)
-                    self.create_session(action="refresh")
+                utils.crunchy_log(f"make_request_proposal: session renewal due to expired token (attempt {self.refresh_attempts}/3)", xbmc.LOGINFO)
+                self._handle_refresh_flow()
+
+            # update keys
             params.update({
                 "Policy": self.account_data.cms.policy,
                 "Signature": self.account_data.cms.signature,
                 "Key-Pair-Id": self.account_data.cms.key_pair_id
             })
+
         request_headers = {}
         request_headers.update(self.api_headers)
         request_headers.update(headers)

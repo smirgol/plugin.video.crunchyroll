@@ -38,7 +38,7 @@
             </control>
 
             <!-- Crunchyroll logo/title -->
-            <control type="label">
+            <control type="label" id="1006">
                 <posx>0</posx>
                 <posy>40</posy>
                 <width>1200</width>
@@ -62,7 +62,7 @@
             </control>
 
             <!-- Secondary instruction -->
-            <control type="label">
+            <control type="label" id="1007">
                 <posx>50</posx>
                 <posy>180</posy>
                 <width>1100</width>
@@ -165,7 +165,7 @@
             </control>
 
             <!-- Help text at bottom -->
-            <control type="label">
+            <control type="label" id="1008">
                 <posx>50</posx>
                 <posy>820</posy>
                 <width>1100</width>
