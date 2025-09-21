@@ -710,10 +710,6 @@ class API:
             existing_ua_type = getattr(self.account_data, 'user_agent_type',
                                        'mobile') if self.account_data else 'mobile'
 
-            # We need to clear this, otherwise make_request() might try to refresh again, ending up in a loop
-            # should be prevented by using make_unauthenticated_request below, which bypasses refresh logic
-            self.account_data = AccountData({})
-
             # Extract token information
             access_token = token_response["access_token"]
             token_type = token_response["token_type"]
