@@ -31,7 +31,7 @@ msgctxt "#30230"
 msgid "Other"
 msgstr ""
 
-msgctxt "#30240"
+msgctxt "#30260"
 msgid "Addons"
 msgstr ""
 
@@ -307,26 +307,130 @@ msgctxt "#30090"
 msgid "No search results"
 msgstr "No search results"
 
-msgctxt "#30319"
+msgctxt "#30519"
 msgid "UpNext fixed or unavailable end detection duration"
 msgstr ""
 
-msgctxt "#30300"
+msgctxt "#30500"
 msgid "Show UpNext dialog at"
 msgstr ""
 
-msgctxt "#30301"
+msgctxt "#30501"
 msgid "credits start"
 msgstr ""
 
-msgctxt "#30302"
+msgctxt "#30502"
 msgid "preview start"
 msgstr ""
 
-msgctxt "#30303"
+msgctxt "#30503"
 msgid "fixed time before the end"
 msgstr ""
 
-msgctxt "#30304"
+msgctxt "#30504"
 msgid "never (disabled)"
+msgstr ""
+
+# Developer Options
+
+msgctxt "#30101"
+msgid "Debug Logging"
+msgstr ""
+
+msgctxt "#30102"
+msgid "Enable detailed logging for troubleshooting. Only enable when requested by support."
+msgstr ""
+
+msgctxt "#30240"
+msgid "Developer Options"
+msgstr ""
+
+msgctxt "#30241"
+msgid "Device ID"
+msgstr ""
+
+# Device Authentication Dialog
+
+msgctxt "#30300"
+msgid "Visit: %s"
+msgstr ""
+
+msgctxt "#30301"
+msgid "Waiting for activation..."
+msgstr ""
+
+msgctxt "#30302"
+msgid "Time remaining: %02d:%02d"
+msgstr ""
+
+msgctxt "#30303"
+msgid "New code generated - please visit the URL again"
+msgstr ""
+
+msgctxt "#30304"
+msgid "Authentication successful!"
+msgstr ""
+
+msgctxt "#30305"
+msgid "! Code expired - click Refresh for new code"
+msgstr ""
+
+msgctxt "#30306"
+msgid "x Error: %s"
+msgstr ""
+
+msgctxt "#30307"
+msgid "Failed to generate new code"
+msgstr ""
+
+msgctxt "#30308"
+msgid "Failed to refresh code"
+msgstr ""
+
+# User-friendly Error Messages
+
+msgctxt "#30400"
+msgid "Unable to connect to Crunchyroll. Please check your internet connection and try again."
+msgstr ""
+
+msgctxt "#30401"
+msgid "Your login session has expired. Please authenticate again."
+msgstr ""
+
+msgctxt "#30402"
+msgid "Crunchyroll servers are currently unavailable. Please try again later."
+msgstr ""
+
+msgctxt "#30403"
+msgid "Device authentication was cancelled. Please try again if you want to continue."
+msgstr ""
+
+msgctxt "#30404"
+msgid "Device code has expired. Please start authentication again."
+msgstr ""
+
+msgctxt "#30405"
+msgid "Authentication failed. Please restart the addon and try again."
+msgstr ""
+
+# Device Activation Dialog UI
+
+msgctxt "#30309"
+msgid "Crunchyroll Device Activation"
+msgstr ""
+
+msgctxt "#30310"
+msgid "Enter the activation code shown below:"
+msgstr ""
+
+msgctxt "#30311"
+msgid "Refresh Code"
+msgstr ""
+
+msgctxt "#30312"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#30312"
+msgid "- OR SCAN QR CODE -"
 msgstr ""

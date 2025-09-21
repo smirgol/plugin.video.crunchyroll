@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+    <!-- Default focused control (Refresh button) -->
+    <defaultcontrol always="true">1004</defaultcontrol>
+    <zorder>1</zorder>
+
+    <controls>
+        <!-- Background overlay (fully opaque to hide fanart and content) -->
+        <control type="image">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>black.png</texture>
+            <colordiffuse>DD000000</colordiffuse> <!-- Semi-transparent dark overlay -->
+            <animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
+            <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
+        </control>
+
+        <!-- Main popup container -->
+        <control type="group">
+            <!-- Centered positioning -->
+            <posx>360</posx>
+            <posy>90</posy>
+
+            <!-- Popup background with border -->
+            <control type="image">
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1200</width>
+                <height>900</height>
+                <texture>white.png</texture>
+                <colordiffuse>FF2A2A2A</colordiffuse>
+                <bordertexture border="40">panel-background.png</bordertexture>
+                <bordersize>20</bordersize>
+                <animation effect="zoom" start="80" end="100" time="300" center="600,450">WindowOpen</animation>
+                <animation effect="zoom" start="100" end="80" time="300" center="600,450">WindowClose</animation>
+            </control>
+
+            <!-- Crunchyroll logo/title -->
+            <control type="label" id="1006">
+                <posx>0</posx>
+                <posy>40</posy>
+                <width>1200</width>
+                <height>80</height>
+                <font>font16_title</font>
+                <align>center</align>
+                <textcolor>FFFF6B00</textcolor>
+                <label>CRUNCHYROLL DEVICE ACTIVATION</label>
+            </control>
+
+            <!-- Instructions -->
+            <control type="label" id="1001">
+                <posx>50</posx>
+                <posy>130</posy>
+                <width>1100</width>
+                <height>60</height>
+                <font>font13</font>
+                <align>center</align>
+                <textcolor>FFFFFFFF</textcolor>
+                <label>Visit: https://www.crunchyroll.com/activate</label>
+            </control>
+
+            <!-- Secondary instruction -->
+            <control type="label" id="1007">
+                <posx>50</posx>
+                <posy>180</posy>
+                <width>1100</width>
+                <height>40</height>
+                <font>font12</font>
+                <align>center</align>
+                <textcolor>FFCCCCCC</textcolor>
+                <label>Enter the activation code shown below:</label>
+            </control>
+
+            <!-- Activation code (large display) -->
+            <control type="label" id="1000">
+                <posx>0</posx>
+                <posy>220</posy>
+                <width>1200</width>
+                <height>120</height>
+                <font>font30_title</font>
+                <align>center</align>
+                <textcolor>FFFF6B00</textcolor>
+                <shadowcolor>88000000</shadowcolor>
+                <label>------</label>
+            </control>
+
+            <!-- Countdown timer -->
+            <control type="label" id="1002">
+                <posx>0</posx>
+                <posy>330</posy>
+                <width>1200</width>
+                <height>50</height>
+                <font>font14</font>
+                <align>center</align>
+                <textcolor>FFFFFF00</textcolor>
+                <label>Time remaining: 05:00</label>
+            </control>
+
+            <!-- OR divider -->
+            <control type="label" id="1011">
+                <posx>0</posx>
+                <posy>390</posy>
+                <width>1200</width>
+                <height>30</height>
+                <font>font13</font>
+                <align>center</align>
+                <textcolor>FFCCCCCC</textcolor>
+                <label>-- OR SCAN QR CODE --</label>
+            </control>
+
+            <!-- QR Code -->
+            <control type="image" id="1009">
+                <posx>450</posx>
+                <posy>450</posy>
+                <width>300</width>
+                <height>300</height>
+                <texture></texture>
+                <aspectratio>keep</aspectratio>
+                <bordersize>0</bordersize>
+            </control>
+
+            <!-- Status message -->
+            <control type="label" id="1003">
+                <posx>50</posx>
+                <posy>750</posy>
+                <width>1100</width>
+                <height>80</height>
+                <font>font13</font>
+                <align>center</align>
+                <textcolor>FFFFFFFF</textcolor>
+                <wrapmultiline>true</wrapmultiline>
+                <label>Please visit the URL above and enter the code</label>
+            </control>
+
+            <!-- Button container -->
+            <control type="grouplist" id="9000">
+                <posx>200</posx>
+                <posy>800</posy>
+                <width>800</width>
+                <height>100</height>
+                <orientation>horizontal</orientation>
+                <itemgap>50</itemgap>
+                <align>center</align>
+
+                <!-- Refresh button -->
+                <control type="button" id="1004">
+                    <description>Refresh Code</description>
+                    <width>350</width>
+                    <height>80</height>
+                    <font>font14</font>
+                    <label>Refresh Code</label>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFF6B00</focusedcolor>
+                    <selectedcolor>FFFF6B00</selectedcolor>
+                    <shadowcolor>88000000</shadowcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <texturefocus border="20" colordiffuse="FFFF6B00">button-focus.png</texturefocus>
+                    <texturenofocus border="20" colordiffuse="FF555555">button-nofocus.png</texturenofocus>
+                    <onleft>1005</onleft>
+                    <onright>1005</onright>
+                    <onup>1004</onup>
+                    <ondown>1004</ondown>
+                </control>
+
+                <!-- Cancel button -->
+                <control type="button" id="1005">
+                    <description>Cancel</description>
+                    <width>350</width>
+                    <height>80</height>
+                    <font>font14</font>
+                    <label>Cancel</label>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFF6B00</focusedcolor>
+                    <selectedcolor>FFFF6B00</selectedcolor>
+                    <shadowcolor>88000000</shadowcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <texturefocus border="20" colordiffuse="FFCC0000">button-focus.png</texturefocus>
+                    <texturenofocus border="20" colordiffuse="FF555555">button-nofocus.png</texturenofocus>
+                    <onleft>1004</onleft>
+                    <onright>1004</onright>
+                    <onup>1005</onup>
+                    <ondown>1005</ondown>
+                </control>
+            </control>
+        </control>
+    </controls>
+</window>

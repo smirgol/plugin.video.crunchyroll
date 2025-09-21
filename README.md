@@ -87,6 +87,46 @@ There are two types for each kodi version:
 > [!NOTE]
 > *Leia* is discontinued, it will no longer receive new features. But I'll try to keep it alive as long as possible.
 
+***
+
+### Authentication
+
+This plugin uses **Device Authentication** for secure login to your Crunchyroll account.
+
+#### First Setup
+1. Open the Crunchyroll plugin in Kodi
+2. A dialog will appear with a **device code** and **activation URL**
+3. On your phone/computer, visit the displayed URL (e.g., `https://www.crunchyroll.com/activate`) or scan the QR-Code
+4. Enter the **device code** shown in Kodi
+5. Sign in with your Crunchyroll account
+6. Return to Kodi - authentication will complete automatically
+
+#### Re-authentication
+- Authentication tokens are automatically refreshed
+- If re-authentication is needed, the device code dialog will appear again
+- Simply repeat the activation process
+
+> [!TIP]
+> Keep the Kodi dialog open while activating on your device. The code expires after a few minutes.
+
+***
+
+### Troubleshooting
+
+#### Authentication Issues
+- **"Device code expired"**: Close the dialog and try again to get a new code
+- **"Authentication cancelled"**: The activation was cancelled on the website - restart the process
+- **Connection errors**: Check your internet connection and try again
+- **Still having issues?**: Enable debug logging and create an issue:
+  1. Go to Kodi Settings → Add-ons → My add-ons → Video add-ons → Crunchyroll → Configure
+  2. Navigate to "Developer Options" → Enable "Debug Logging"
+  3. Try to reproduce the problem
+  4. Create an issue on [GitHub](https://github.com/smirgol/plugin.video.crunchyroll/issues) with the Kodi log file
+
+#### General Issues
+- **Videos won't play**: Ensure you have an active Crunchyroll Premium subscription
+- **Missing subtitles**: Check subtitle language settings in the addon configuration
+- **Performance issues**: Enable/disable "Soft Subtitles" setting to improve playback
 
 ***
 
@@ -97,6 +137,22 @@ There are two types for each kodi version:
 * Portuguese
 * Spanish
 * French
+
+***
+
+### Recent Changes
+
+#### Version 2.0.0+ (Device Authentication Update)
+- **🔐 New Authentication System**: Switched from email/password to secure device authentication
+- **📱 Device Code Flow**: Authenticate using your phone/computer browser
+- **🔄 Automatic Token Refresh**: No more manual re-login required
+- **🌐 Better CloudFlare Support**: Improved compatibility with Crunchyroll's protection
+- **🌍 Enhanced Translations**: All user-facing messages now properly translated
+- **⚡ Performance Improvements**: Optimized proxy handling and resource management
+- **🛡️ Improved Security**: No more storing passwords in Kodi settings
+
+> [!IMPORTANT]
+> **Breaking Change**: Email/password authentication is no longer supported. Existing users will be migrated to device authentication automatically on next login.
 
 ***
 
@@ -117,6 +173,7 @@ There are two types for each kodi version:
 * jasonfrancis
 * APachecoDiSanti
 * Acidzero2020
+* Centulus
 * ...and all the forgotten heroes :)
 
 ***

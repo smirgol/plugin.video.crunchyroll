@@ -3,35 +3,14 @@
     <section id="plugin.video.crunchyroll">
         <category id="general" label="30010" help="">
             <group id="1" label="30200">
-                <setting id="crunchyroll_username" type="string" label="30001" help="">
-                    <level>0</level>
-                    <default/>
-                    <constraints>
-                        <allowempty>true</allowempty>
-                    </constraints>
-                    <control type="edit" format="string">
-                        <heading>30001</heading>
-                    </control>
-                </setting>
-                <setting id="crunchyroll_password" type="string" label="30002" help="">
-                    <level>0</level>
-                    <default/>
-                    <constraints>
-                        <allowempty>true</allowempty>
-                    </constraints>
-                    <control type="edit" format="string">
-                        <heading>30002</heading>
-                        <hidden>true</hidden>
-                    </control>
-                </setting>
-                <setting id="device_id" type="string" label="30002" help="">
+                <setting id="device_id" type="string" label="30241" help="">
                     <level>4</level>
                     <default/>
                     <constraints>
                         <allowempty>true</allowempty>
                     </constraints>
                     <control type="edit" format="string">
-                        <heading>30002</heading>
+                        <heading>30241</heading>
                         <hidden>true</hidden>
                     </control>
                     <visible>false</visible>
@@ -154,29 +133,38 @@
                 </setting>
             </group>
         </category>
-        <category id="addons_options" label="30240" help="">
-            <group id="1" label="30240">
-                <setting id="upnext_mode" type="string" label="30300" help="">
+        <category id="addons_options" label="30260" help="">
+            <group id="1" label="30260">
+                <setting id="upnext_mode" type="string" label="30500" help="">
                     <level>0</level>
                     <default>disabled</default>
                     <constraints>
                         <options>
-                            <option label="30301">credits</option>
-                            <option label="30302">preview</option>
-                            <option label="30303">fixed</option>
-                            <option label="30304">disabled</option>
+                            <option label="30501">credits</option>
+                            <option label="30502">preview</option>
+                            <option label="30503">fixed</option>
+                            <option label="30504">disabled</option>
                         </options>
                     </constraints>
                     <control type="list" format="string">
-                        <heading>30300</heading>
+                        <heading>30500</heading>
                     </control>
                 </setting>
-                <setting id="upnext_fixed_duration" type="number" label="30089" help="">
+                <setting id="upnext_fixed_duration" type="number" label="30519" help="">
                     <level>0</level>
                     <default>15</default>
                     <control type="edit" format="number">
-                        <heading>30319</heading>
+                        <heading>30519</heading>
                     </control>
+                </setting>
+            </group>
+        </category>
+        <category id="developer_options" label="30240" help="">
+            <group id="1" label="30240">
+                <setting id="debug_logging" type="boolean" label="30101" help="30102">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
                 </setting>
             </group>
         </category>
