@@ -142,7 +142,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             user_code = self.device_code_data.get('user_code', '')
             if user_code:
                 # Create URL with embedded user code for better mobile experience
-                qr_url = f"{verification_uri}?user_code={user_code}&device=Android%20TV"
+                qr_url = f"{verification_uri}?code={user_code}&device=Android%20TV"
             else:
                 qr_url = verification_uri
             self.set_qr(qr_url)
