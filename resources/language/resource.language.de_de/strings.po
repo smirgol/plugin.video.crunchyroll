@@ -32,6 +32,10 @@ msgctxt "#30230"
 msgid "Other"
 msgstr "Sonstiges"
 
+msgctxt "#30260"
+msgid "Addons"
+msgstr "Erweiterungen"
+
 msgctxt "#30101"
 msgid "Email"
 msgstr "E-Mail"
@@ -301,6 +305,29 @@ msgctxt "#30090"
 msgid "No search results"
 msgstr "Keine Suchergebnisse"
 
+msgctxt "#30519"
+msgid "UpNext fixed or unavailable end detection duration"
+msgstr "Vorlaufzeit für UpNext wenn \"Statisch\" oder keine Credits/Vorschau"
+
+msgctxt "#30500"
+msgid "Show UpNext dialog at"
+msgstr "UpNext Integration"
+
+msgctxt "#30501"
+msgid "credits start"
+msgstr "Zu Beginn der Credits, wenn danach keine Vorschau kommt"
+
+msgctxt "#30502"
+msgid "preview start"
+msgstr "Zu Beginn der Vorschau"
+
+msgctxt "#30503"
+msgid "fixed time before the end"
+msgstr "Statisch"
+
+msgctxt "#30504"
+msgid "never (disabled)"
+msgstr "Deaktiviert"
 # Developer Options
 
 msgctxt "#30101"
