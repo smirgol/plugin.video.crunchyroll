@@ -337,6 +337,8 @@ class VideoPlayer(Object):
 def update_playhead(content_id: str, playhead: int):
     """ Update playtime to Crunchyroll (legacy function, kept for compatibility) """
 
+    import xbmc
+
     # if sync_playtime is disabled in settings, do nothing
     if G.args.addon.getSetting("sync_playtime") != "true":
         return
