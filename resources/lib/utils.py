@@ -206,11 +206,15 @@ def crunchy_log(message, loglevel=xbmc.LOGINFO) -> None:
     addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, 'addon_name') else "Crunchyroll"
 
     # Skip LOGDEBUG messages if debug_logging is disabled
-    if loglevel == xbmc.LOGDEBUG:
-        if G.args is None or not hasattr(G.args, 'addon') or G.args.addon.getSetting("debug_logging") != "true":
-            return
+    # if loglevel == xbmc.LOGDEBUG:
+    #     if G.args is None or not hasattr(G.args, 'addon') or G.args.addon.getSetting("debug_logging") != "true":
+    #         return
 
-    xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
+    try:
+        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
+    except (NameError, AttributeError):
+        # Fallback for threading issues where xbmc module is not available
+        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), xbmc.LOGINFO)
 
 
 def log_error_with_trace(message, show_notification: bool = True) -> None:
