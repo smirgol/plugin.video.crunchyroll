@@ -155,47 +155,47 @@ class VideoPlayer(Object):
         from inputstreamhelper import Helper  # noqa
 
         is_helper = Helper("mpd", drm='com.widevine.alpha')
-        # if is_helper.check_inputstream():
-        manifest_headers = {
-            'User-Agent': G.api.CRUNCHYROLL_UA,
-            'Authorization': f"Bearer {G.api.account_data.access_token}"
-        }
-        license_headers = {
-            'User-Agent': G.api.CRUNCHYROLL_UA,
-            'Content-Type': 'application/octet-stream',
-            'Origin': 'https://static.crunchyroll.com',
-            'Authorization': f"Bearer {G.api.account_data.access_token}",
-            'x-cr-content-id': G.args.get_arg('episode_id'),
-            'x-cr-video-token': self._stream_data.token
-        }
-        license_config = {
-            'license_server_url': G.api.LICENSE_ENDPOINT,
-            'headers': urlencode(license_headers),
-            'post_data': 'R{SSM}',
-            'response_data': 'JBlicense'
-        }
+        if is_helper.check_inputstream():
+            manifest_headers = {
+                'User-Agent': G.api.CRUNCHYROLL_UA,
+                'Authorization': f"Bearer {G.api.account_data.access_token}"
+            }
+            license_headers = {
+                'User-Agent': G.api.CRUNCHYROLL_UA,
+                'Content-Type': 'application/octet-stream',
+                'Origin': 'https://static.crunchyroll.com',
+                'Authorization': f"Bearer {G.api.account_data.access_token}",
+                'x-cr-content-id': G.args.get_arg('episode_id'),
+                'x-cr-video-token': self._stream_data.token
+            }
+            license_config = {
+                'license_server_url': G.api.LICENSE_ENDPOINT,
+                'headers': urlencode(license_headers),
+                'post_data': 'R{SSM}',
+                'response_data': 'JBlicense'
+            }
 
-        inputstream_config = {
-            'ssl_verify_peer': False
-        }
+            inputstream_config = {
+                'ssl_verify_peer': False
+            }
 
-        item.setProperty("inputstream", "inputstream.adaptive")
-        item.setProperty("inputstream.adaptive.manifest_type", "mpd")
-        item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
-        item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
-        item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
-        item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
-        item.setProperty('inputstream.adaptive.config', json.dumps(inputstream_config))
+            item.setProperty("inputstream", "inputstream.adaptive")
+            item.setProperty("inputstream.adaptive.manifest_type", "mpd")
+            item.setProperty("inputstream.adaptive.license_type", "com.widevine.alpha")
+            item.setProperty('inputstream.adaptive.stream_headers', urlencode(manifest_headers))
+            item.setProperty("inputstream.adaptive.manifest_headers", urlencode(manifest_headers))
+            item.setProperty('inputstream.adaptive.license_key', '|'.join(list(license_config.values())))
+            item.setProperty('inputstream.adaptive.config', json.dumps(inputstream_config))
 
-        # @todo: i think other meta data like description and images are still fetched from args.
-        #        we should call the objects endpoint and use this data to remove args dependency (besides id)
+            # @todo: i think other meta data like description and images are still fetched from args.
+            #        we should call the objects endpoint and use this data to remove args dependency (besides id)
 
-        # add soft subtitles url for configured language
-        if self._stream_data.subtitle_urls:
-            item.setSubtitles(self._stream_data.subtitle_urls)
+            # add soft subtitles url for configured language
+            if self._stream_data.subtitle_urls:
+                item.setSubtitles(self._stream_data.subtitle_urls)
 
-        """ start playback"""
-        xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
+            """ start playback"""
+            xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
     def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
