@@ -353,9 +353,17 @@ def filter_seasons(item: Dict) -> bool:
     return False
 
 
-def format_long_episode_title(season_title: str, episode_number: int, title: str):
-    return season_title + " #" + str(episode_number) + " - " + title
+def format_long_episode_title(season_title: str, series_number: int, episode_number: int, title: str):
+    series_number_str = str(series_number)
+    episode_number_str = str(episode_number)
 
+    return season_title + \
+            " - S" + \
+            f"{series_number_str:0>2}" + \
+            "E" + \
+            f"{episode_number_str:0>2}" + \
+            " - " + \
+            title
 
 def format_short_episode_title(episode_number: int, title: str):
     return two_digits(episode_number) + " - " + title
