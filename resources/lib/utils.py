@@ -206,11 +206,15 @@ def crunchy_log(message, loglevel=xbmc.LOGINFO) -> None:
     addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, 'addon_name') else "Crunchyroll"
 
     # Skip LOGDEBUG messages if debug_logging is disabled
-    if loglevel == xbmc.LOGDEBUG:
-        if G.args is None or not hasattr(G.args, 'addon') or G.args.addon.getSetting("debug_logging") != "true":
-            return
+    # if loglevel == xbmc.LOGDEBUG:
+    #     if G.args is None or not hasattr(G.args, 'addon') or G.args.addon.getSetting("debug_logging") != "true":
+    #         return
 
-    xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
+    try:
+        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
+    except (NameError, AttributeError):
+        # Fallback for threading issues where xbmc module is not available
+        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), xbmc.LOGINFO)
 
 
 def log_error_with_trace(message, show_notification: bool = True) -> None:
@@ -349,9 +353,17 @@ def filter_seasons(item: Dict) -> bool:
     return False
 
 
-def format_long_episode_title(season_title: str, episode_number: int, title: str):
-    return season_title + " #" + str(episode_number) + " - " + title
+def format_long_episode_title(season_title: str, series_number: int, episode_number: int, title: str):
+    series_number_str = str(series_number)
+    episode_number_str = str(episode_number)
 
+    return season_title + \
+            " - S" + \
+            f"{series_number_str:0>2}" + \
+            "E" + \
+            f"{episode_number_str:0>2}" + \
+            " - " + \
+            title
 
 def format_short_episode_title(episode_number: int, title: str):
     return two_digits(episode_number) + " - " + title

@@ -42,9 +42,9 @@ class API:
     # TIMEOUT = 30
 
     # User Agents - Different clients for different purposes
-    CRUNCHYROLL_UA = "Crunchyroll/3.90.0 Android/14 okhttp/4.12.0"  # Legacy UA
-    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.45.2_22274 (Android 16; en-US; sdk_gphone64_x86_64)"  # For device auth
-    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.91.1 Android/14 okhttp/4.12.0"  # Mobile fallback
+    CRUNCHYROLL_UA = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Legacy UA
+    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.49.1_22281 (Android 14; en-US; Chromecast)"  # For device auth
+    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Mobile fallback
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
@@ -87,9 +87,9 @@ class API:
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
     # Authentication credentials - Multiple client types for different purposes
-    AUTHORIZATION_DEVICE = "Basic Y2I5bnpybWh0MzJ2Z3RleHlna286S1V3bU1qSlh4eHVyc0hJVGQxenZsMkMyeVFhUW84TjQ="  # AndroidTV for device auth
-    AUTHORIZATION_MOBILE = "Basic dXhmdzRjZnVpYWtqeGp2bnhrYmo6WTU4TzRBemttR2I2LUVveU55NVRKTVVCM0ota2FnVWc="  # Mobile fallback
-    AUTHORIZATION_LEGACY = "Basic YmY3MHg2aWhjYzhoZ3p3c2J2eGk6eDJjc3BQZXQzWno1d0pDdEpyVUNPSVM5Ynpad1JDcGM="  # Legacy compatibility
+    AUTHORIZATION_DEVICE = "Basic bGtlc2k3c25zeTlvb2ptaTJyOWg6LWFHRFhGRk5UbHVaTUxZWEVSbmdOWW5FanZnSDVvZHY="  # AndroidTV for device auth
+    AUTHORIZATION_MOBILE = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Mobile fallback
+    AUTHORIZATION_LEGACY = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Legacy compatibility
 
     # Primary authorization (for backward compatibility)
     AUTHORIZATION = AUTHORIZATION_DEVICE
@@ -114,7 +114,7 @@ class API:
         self.account_data: AccountData = AccountData(dict())
         self.profile_data: ProfileData = ProfileData(dict())
         self.api_headers: Dict = default_request_headers()
-        self.retry_counter = 0
+        self.refresh_attempts = 0
 
     def start(self) -> None:
         session_restart = G.args.get_arg('session_restart', False)
@@ -240,7 +240,7 @@ class API:
         scraper = self.create_auth_scraper()
         if scraper:
             try:
-                utils.crunchy_log("Trying token refresh via www endpoint with cloudscraper", xbmc.LOGDEBUG)
+                utils.crunchy_log("Trying token refresh via www endpoint with cloudscraper")
                 r = scraper.post(
                     url=self.TOKEN_ENDPOINT,
                     headers=headers,
@@ -706,6 +706,7 @@ class API:
         """
         try:
             utils.crunchy_log(f"Finalizing session from tokens (action: {action})", xbmc.LOGDEBUG)
+            utils.crunchy_log(f"Token response keys: {list(token_response.keys()) if token_response else 'None'}", xbmc.LOGDEBUG)
 
             # Initialize account data, back up ua type
             existing_ua_type = getattr(self.account_data, 'user_agent_type',
@@ -811,12 +812,8 @@ class API:
             self.account_data = AccountData(account_data)
             self.account_data.write_to_storage()
 
-            # Reset retry counter
-            self.retry_counter = 0
-
             # Reset refresh attempts counter on successful session finalization
-            if hasattr(self, 'refresh_attempts'):
-                self.refresh_attempts = 0
+            self.refresh_attempts = 0
 
             utils.crunchy_log(f"Session finalization completed successfully (action: {action})")
 
@@ -846,10 +843,7 @@ class API:
         if self.account_data:
             # token refresh if expired
             if not self.is_token_valid():
-                if hasattr(self, 'refresh_attempts'):
-                    self.refresh_attempts += 1
-                else:
-                    self.refresh_attempts = 1
+                self.refresh_attempts += 1
 
                 if self.refresh_attempts > 3:
                     utils.crunchy_log("CRITICAL: Too many refresh attempts, stopping to prevent infinite loop", xbmc.LOGERROR)
