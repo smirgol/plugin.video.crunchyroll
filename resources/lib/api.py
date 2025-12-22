@@ -23,6 +23,7 @@ from typing import Optional, Dict
 
 import requests
 import xbmc
+import xbmcgui
 from requests import HTTPError, Response
 
 from . import utils
@@ -169,8 +170,19 @@ class API:
             return self._handle_login_flow()
 
         elif action == "refresh":
-            # Refresh existing token
-            return self._handle_refresh_flow()
+            # Refresh existing token, fall back to device auth if refresh token expired
+            try:
+                return self._handle_refresh_flow()
+            except LoginError as e:
+                if "refresh token expired" in str(e).lower():
+                    xbmcgui.Dialog().ok(
+                        G.args.addon_name,
+                        G.args.addon.getLocalizedString(30401)
+                    )
+                    self.account_data.delete_storage()
+                    return self._handle_login_flow()
+                else:
+                    raise
 
         elif action == "refresh_profile":
             # Switch profile using existing refresh token
