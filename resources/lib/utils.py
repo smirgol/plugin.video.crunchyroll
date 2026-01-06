@@ -194,6 +194,18 @@ def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[st
     return None
 
 
+def infer_img_from_id(id: str, image_type: str) -> Union[str, None]:
+    """ get image URL from listable struct data """
+
+    match image_type:
+        case "backdrop_wide":
+            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{id}-backdrop_wide"
+        case "title_logo":
+            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{id}-title_logo-en-us"
+        case _:
+            return None
+
+
 def dump(data) -> None:
     xbmc.log(dumps(data, indent=4), xbmc.LOGINFO)
 
