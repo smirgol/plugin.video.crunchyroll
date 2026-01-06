@@ -140,7 +140,7 @@ OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
     from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_watchlist_status_from_api, \
-        get_img_from_struct
+        get_img_from_struct, infer_img_from_id
 
     # playheads
     ids_playhead = [listable.id for listable in listables if
@@ -202,25 +202,36 @@ async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[
         # update images for SeasonData, as they come with none by default
         if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
             setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.thumb)
-            setattr(listable, 'fanart',
                     get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide",
-                                        2) or listable.fanart)
+                                        2) or listable.thumb)
+            setattr(listable, 'landscape',
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide",
+                                        2) or listable.landscape)
+            setattr(listable, 'fanart',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "backdrop_wide") or listable.fanart)
+            setattr(listable, 'clearlogo',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "title_logo") or listable.clearlogo)
+            setattr(listable, 'clearart',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "title_logo") or listable.clearart)
             setattr(listable, 'poster',
                     get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
                                         2) or listable.poster)
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
-            # for others, only set the thumb image to a nicer one
-            setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.thumb)
+            # for episodes, only thumb is provided, so we can use it
+            # however, fanart and other arts are empty so we need to get them from the series to get a complete interface
+            setattr(listable, 'landscape',
+                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide",
+                                        2) or listable.landscape)
+            setattr(listable, 'fanart',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "backdrop_wide") or listable.fanart)
+            setattr(listable, 'clearlogo',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "title_logo") or listable.clearlogo)
+            setattr(listable, 'clearart',
+                    infer_img_from_id(result_obj.get('objects').get(listable.series_id).get('id'), "title_logo") or listable.clearart)
             setattr(listable, 'poster',
                     get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
                                         2) or listable.poster)
-            # setattr(listable, 'fanart',
-            #         get_image_from_struct(result_obj.get('objects').get(listable.id), "poster_wide", 2) or listable.fanart)
 
         if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get(
                 'rating') and hasattr(listable, 'rating'):
