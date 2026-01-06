@@ -109,11 +109,16 @@ def add_item(
             li.addContextMenuItems(cm)
 
     # set media image
-    li.setArt({"thumb": info.get("thumb", "DefaultFolder.png"),
-               "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-               "banner": info.get("thumb", "DefaultFolder.png"),
-               "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
-               "icon": info.get("thumb", "DefaultFolder.png")})
+    li.setArt({
+        "thumb": info.get("thumb", "DefaultFolder.png"),
+        "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
+        "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
+        "landscape": info.get("landscape", info.get("thumb", 'DefaultFolder.png')),
+        "banner": info.get("thumb", "DefaultFolder.png"),
+        "clearlogo": info.get("clearlogo"),
+        "clearart": info.get("clearart"),
+        "icon": info.get("thumb", "DefaultFolder.png")
+    })
 
     if callbacks:
         for cb in callbacks:

@@ -289,16 +289,23 @@ class ListableItem(Object):
                         li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
 
         li.setInfo('video', list_info)
-        li.setArt({
-            "thumb": self.thumb or 'DefaultFolder.png',
-            "landscape": self.landscape or self.thumb or 'DefaultFolder.png',
-            'poster': self.poster or self.thumb or 'DefaultFolder.png',
-            'banner': self.thumb or 'DefaultFolder.png',
-            'fanart': self.fanart or xbmcvfs.translatePath(G.args.addon.getAddonInfo('fanart')),
-            'clearlogo': self.clearlogo,
-            'clearart': self.clearart,
-            'icon': self.thumb or 'DefaultFolder.png'
-        })
+        artworks = {}
+        # Do not add an artwork if it is empty here,
+        # otherwise, you will override the inherited one (from series or season for example).
+        if self.thumb is not None:
+            artworks["thumb"] = self.thumb
+        if self.poster is not None:
+            artworks["poster"] = self.poster
+            artworks["banner"] = self.poster
+        if self.fanart is not None:
+            artworks["fanart"] = self.fanart
+        if self.landscape is not None:
+            artworks["landscape"] = self.landscape
+        if self.clearart is not None:
+            artworks["clearart"] = self.clearart
+        if self.clearlogo is not None:
+            artworks["clearlogo"] = self.clearlogo
+        li.setArt(artworks)
 
         return li
 
