@@ -248,9 +248,12 @@ class ListableItem(Object):
         self.title: str | None = None
         self.title_unformatted: str | None = None
         self.thumb: str | None = None
+        self.landscape: str | None = None
         self.fanart: str | None = None
         self.poster: str | None = None
         self.banner: str | None = None
+        self.clearlogo: str | None = None
+        self.clearart: str | None = None
 
     @abstractmethod
     def get_info(self) -> Dict:
@@ -288,9 +291,12 @@ class ListableItem(Object):
         li.setInfo('video', list_info)
         li.setArt({
             "thumb": self.thumb or 'DefaultFolder.png',
+            "landscape": self.landscape or self.thumb or 'DefaultFolder.png',
             'poster': self.poster or self.thumb or 'DefaultFolder.png',
             'banner': self.thumb or 'DefaultFolder.png',
             'fanart': self.fanart or xbmcvfs.translatePath(G.args.addon.getAddonInfo('fanart')),
+            'clearlogo': self.clearlogo,
+            'clearart': self.clearart,
             'icon': self.thumb or 'DefaultFolder.png'
         })
 
@@ -355,8 +361,11 @@ class SeriesData(ListableItem):
         self.episode: int = meta.get('episode_count')
         self.season: int = meta.get('season_count')
 
-        self.thumb: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
-        self.fanart: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
+        self.fanart: str | None = utils.infer_img_from_id(self.id, "backdrop_wide")
+        self.clearlogo: str | None = utils.infer_img_from_id(self.id, "title_logo")
+        self.clearart: str | None = utils.infer_img_from_id(self.id, "title_logo")
         self.poster: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
         self.banner: str | None = None
         self.rating: int = 0
@@ -413,9 +422,12 @@ class SeasonData(ListableItem):
         self.episode: int = 0  # @todo we want to display that, but it's not in the data
         self.season: int = data.get('season_number')
         self.thumb: str | None = None
+        self.landscape: str | None = None
         self.fanart: str | None = None
         self.poster: str | None = None
         self.banner: str | None = None
+        self.clearlogo: str | None = None
+        self.clearart: str | None = None
         self.rating: int = 0
         self.playcount: int = 1 if data.get('is_complete') == 'true' else 0
 
@@ -482,9 +494,12 @@ class EpisodeData(PlayableItem):
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
+        self.clearlogo: str | None = None
+        self.clearart: str | None = None
         self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
@@ -554,9 +569,12 @@ class MovieData(PlayableItem):
         self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
             "premium_available_date") is not None else ""
         self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.poster: str | None = None
         self.banner: str | None = None
+        self.clearlogo: str | None = None
+        self.clearart: str | None = None
         self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
