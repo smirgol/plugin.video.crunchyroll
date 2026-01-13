@@ -174,7 +174,7 @@ class API:
             try:
                 return self._handle_refresh_flow()
             except LoginError as e:
-                if "refresh token expired" in str(e).lower():
+                if e.error_code == "REFRESH_TOKEN_EXPIRED":
                     xbmcgui.Dialog().ok(
                         G.args.addon_name,
                         G.args.addon.getLocalizedString(30401)
@@ -291,11 +291,11 @@ class API:
                 utils.crunchy_log(f"Beta-api token refresh failed: {r.status_code}", xbmc.LOGDEBUG)
                 if r.status_code == 400:
                     # Refresh token expired/invalid
-                    raise LoginError("Refresh token expired")
+                    raise LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
                 elif r.status_code >= 500:
                     # Server errors
                     utils.crunchy_log("Server error during token refresh", xbmc.LOGERROR)
-                    raise LoginError("Server error")
+                    raise LoginError("Server error", error_code="SERVER_ERROR")
 
         except requests.exceptions.RequestException as e:
             # Network connectivity issues
