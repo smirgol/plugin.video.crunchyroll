@@ -314,7 +314,7 @@ def add_listables(
         if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
             cm.append((
                 G.args.addon.getLocalizedString(30067),
-                'RunPlugin(%s?mode=add_to_queue&content_id=%s&session_restart=True)' % (G.args.argv[0], listable.id)
+                'RunPlugin(%s?mode=add_to_queue&content_id=%s)' % (G.args.argv[0], listable.id)
             ))
 
         if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and getattr(listable, 'series_id') is not None:
