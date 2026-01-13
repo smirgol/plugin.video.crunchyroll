@@ -16,7 +16,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import json
 import time
 from datetime import timedelta, datetime
 from typing import Optional, Dict
@@ -74,8 +73,10 @@ class API:
     # only v2 will allow removal of watchlist entries.
     # !!!! be super careful and always provide a content_id, or it will delete the whole playlist! *sighs* !!!!
     # WATCHLIST_REMOVE_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist/{}"
-    WATCHLIST_V2_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist"
-    PLAYHEADS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/playheads"
+    #WATCHLIST_V2_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist"
+    WATCHLIST_V2_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/watchlist"
+    #PLAYHEADS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/playheads"
+    PLAYHEADS_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/playheads"
     HISTORY_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watch-history"
     RESUME_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/discover/{}/history"
     SEASONAL_TAGS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/discover/seasonal_tags"
@@ -916,6 +917,130 @@ class API:
         r = self.http.send(prepped)
 
         return get_json_from_response(r)
+
+    def make_scraper_request(
+            self,
+            method: str,
+            url: str,
+            auth_type: str = "device",
+            headers: Dict = None,
+            params: Dict = None,
+            data: Dict = None,
+            json_data: Dict = None,
+            timeout: int = 30,
+            auto_refresh: bool = False,
+            is_retry: bool = False
+    ) -> Optional[Dict]:
+        """
+        Make HTTP request using CloudScraper for Cloudflare-protected endpoints.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: Full URL to request
+            auth_type: Authorization type ("device", "legacy", "mobile", or None)
+            headers: Optional additional headers
+            params: Query parameters
+            data: Form data (for application/x-www-form-urlencoded)
+            json_data: JSON body data
+            timeout: Request timeout in seconds
+            auto_refresh: Enable automatic token refresh (for content endpoints)
+            is_retry: Internal flag to prevent infinite retry loops
+
+        Returns:
+            Parsed JSON response or None
+
+        Raises:
+            LoginError: For authentication errors
+            CrunchyrollError: For API errors
+        """
+        params = params or {}
+        headers = headers or {}
+
+        if auto_refresh and self.account_data:
+            if not self.is_token_valid():
+                if not self.account_data.refresh_token:
+                    utils.crunchy_log("CRITICAL: Token expired but no refresh token available - session not properly initialized", xbmc.LOGERROR)
+                    raise LoginError("Not authenticated - please restart plugin and login")
+
+                self.refresh_attempts += 1
+
+                if self.refresh_attempts > 3:
+                    utils.crunchy_log("CRITICAL: Too many refresh attempts, stopping to prevent infinite loop", xbmc.LOGERROR)
+                    raise LoginError("Authentication refresh failed repeatedly - please restart addon")
+
+                utils.crunchy_log(f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)", xbmc.LOGINFO)
+                self._handle_refresh_flow()
+
+        if self.account_data:
+            params.update({
+                "Policy": self.account_data.cms.policy,
+                "Signature": self.account_data.cms.signature,
+                "Key-Pair-Id": self.account_data.cms.key_pair_id
+            })
+
+        auth_headers = {}
+        if auth_type == "device":
+            auth_headers = {
+                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "User-Agent": self.CRUNCHYROLL_UA_DEVICE,
+            }
+        elif auth_type == "legacy":
+            auth_headers = {
+                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "User-Agent": self.CRUNCHYROLL_UA,
+            }
+        elif auth_type == "mobile":
+            auth_headers = {
+                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "User-Agent": self.CRUNCHYROLL_UA_MOBILE,
+            }
+
+        request_headers = {}
+        request_headers.update(auth_headers)
+        request_headers.update(headers)
+
+        scraper = self.create_auth_scraper()
+        if not scraper:
+            utils.crunchy_log("CloudScraper initialization failed, cannot proceed", xbmc.LOGERROR)
+            raise LoginError("CloudScraper initialization failed")
+
+        try:
+            utils.crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
+
+            r = scraper.request(
+                method=method,
+                url=url,
+                headers=request_headers,
+                params=params,
+                data=data,
+                json=json_data,
+                timeout=timeout
+            )
+
+            utils.crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
+
+            if r.status_code == 401 and auto_refresh and not is_retry:
+                utils.crunchy_log("Request failed due to auth error, forcing token refresh and retry", xbmc.LOGERROR)
+                self.account_data.expires = date_to_str(get_date() - timedelta(seconds=1))
+                return self.make_scraper_request(
+                    method, url, auth_type, headers, params,
+                    data, json_data, timeout, auto_refresh, is_retry=True
+                )
+
+            return get_json_from_response(r)
+
+        except requests.exceptions.Timeout:
+            utils.crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
+            raise LoginError("Request timeout - check your network connection")
+        except requests.exceptions.ConnectionError as e:
+            utils.crunchy_log(f"CloudScraper connection error: {e}", xbmc.LOGERROR)
+            raise LoginError("Network connection failed")
+        except requests.exceptions.RequestException as e:
+            utils.crunchy_log(f"CloudScraper request error: {e}", xbmc.LOGERROR)
+            raise LoginError(f"Request failed: {str(e)}")
+        except Exception as e:
+            utils.crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
+            raise LoginError(f"Unexpected error: {str(e)}")
 
 
 def default_request_headers() -> Dict:
