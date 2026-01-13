@@ -37,61 +37,6 @@ from resources.lib.utils import log_error_with_trace, crunchy_log, \
     get_playheads_from_api, get_cms_object_data_by_ids, get_listables_from_response
 from ..modules import cloudscraper
 
-
-def _make_cloudflare_request(url: str) -> Optional[Dict]:
-    """
-    Make CloudScraper request for AndroidTV streaming endpoint
-
-    Args:
-        url: Stream URL that requires CloudFlare bypass
-
-    Returns:
-        JSON response dict or None if failed
-    """
-    try:
-        # Create CloudScraper with AndroidTV User-Agent
-        scraper = cloudscraper.create_scraper(
-            delay=10,
-            browser={'custom': G.api.CRUNCHYROLL_UA_DEVICE}
-        )
-
-        # Prepare headers with authentication
-        headers = {
-            "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
-            "User-Agent": G.api.CRUNCHYROLL_UA_DEVICE,
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
-
-        # Add CMS parameters
-        params = {
-            "Policy": G.api.account_data.cms.policy,
-            "Signature": G.api.account_data.cms.signature,
-            "Key-Pair-Id": G.api.account_data.cms.key_pair_id
-        }
-
-        crunchy_log(f"CloudScraper request to: {url}")
-        crunchy_log(f"CloudScraper User-Agent: {headers['User-Agent']}", xbmc.LOGDEBUG)
-
-        response = scraper.get(
-            url=url,
-            headers=headers,
-            params=params,
-            timeout=30
-        )
-
-        crunchy_log(f"CloudScraper response: HTTP {response.status_code}", xbmc.LOGDEBUG)
-
-        if response.ok:
-            return response.json()
-        else:
-            crunchy_log(f"CloudScraper request failed: {response.status_code} {response.text}")
-            return None
-
-    except Exception as e:
-        crunchy_log(f"CloudScraper request error: {e}")
-        return None
-
-
 class CloudflareProxy:
     """
     Minimal HTTP proxy to bypass Cloudflare for Kodi manifest access
@@ -386,7 +331,12 @@ class VideoStream(Object):
         # Use CloudScraper for AndroidTV endpoint (www.crunchyroll.com is Cloudflare protected)
         if user_agent_type == "device":
             crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
-            req = _make_cloudflare_request(stream_url)
+            req = G.api.make_scraper_request(
+                method="GET",
+                url=stream_url,
+                auth_type="device",
+                auto_refresh=True
+            )
         else:
             crunchy_log("Using regular request for mobile streaming endpoint")
             req = G.api.make_request(
