@@ -194,8 +194,19 @@ def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[st
     return None
 
 
-def infer_img_from_id(id: str, image_type: str) -> Union[str, None]:
-    """ get image URL from listable struct data """
+def infer_img_from_id(id: str, image_type: str) -> Optional[str]:
+    """
+    Generate Crunchyroll artwork URL based on ID and image type.
+
+    Args:
+        id: Crunchyroll series/item ID
+        image_type: Type of artwork (backdrop_wide, title_logo)
+
+    Returns:
+        Generated URL or None if invalid input
+    """
+    if not id:
+        return None
 
     match image_type:
         case "backdrop_wide":
