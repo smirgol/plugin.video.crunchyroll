@@ -109,11 +109,21 @@ def add_item(
             li.addContextMenuItems(cm)
 
     # set media image
-    li.setArt({"thumb": info.get("thumb", "DefaultFolder.png"),
-               "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-               "banner": info.get("thumb", "DefaultFolder.png"),
-               "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
-               "icon": info.get("thumb", "DefaultFolder.png")})
+    artworks = {
+        "thumb": info.get("thumb", "DefaultFolder.png"),
+        "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
+        "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
+        "landscape": info.get("landscape", info.get("thumb", 'DefaultFolder.png')),
+        "banner": info.get("poster", info.get("thumb", "DefaultFolder.png")),
+        "icon": info.get("thumb", "DefaultFolder.png")
+    }
+
+    if info.get("clearlogo"):
+        artworks["clearlogo"] = info.get("clearlogo")
+    if info.get("clearart"):
+        artworks["clearart"] = info.get("clearart")
+
+    li.setArt(artworks)
 
     if callbacks:
         for cb in callbacks:
@@ -140,7 +150,7 @@ OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
     from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_watchlist_status_from_api, \
-        get_img_from_struct
+        get_img_from_struct, infer_img_from_id
 
     # playheads
     ids_playhead = [listable.id for listable in listables if
@@ -201,26 +211,42 @@ async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[
 
         # update images for SeasonData, as they come with none by default
         if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
+            series_data = result_obj.get('objects').get(listable.series_id)
+            series_id = series_data.get('id') if series_data else None
+
             setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.thumb)
+                    get_img_from_struct(series_data, "poster_wide", 2) or listable.thumb)
+            setattr(listable, 'landscape',
+                    get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape)
             setattr(listable, 'fanart',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_wide",
-                                        2) or listable.fanart)
+                    infer_img_from_id(series_id, "backdrop_wide") or
+                    get_img_from_struct(series_data, "poster_wide", 2) or
+                    listable.fanart)
+            setattr(listable, 'clearlogo',
+                    infer_img_from_id(series_id, "title_logo") or listable.clearlogo)
+            setattr(listable, 'clearart',
+                    infer_img_from_id(series_id, "title_logo") or listable.clearart)
             setattr(listable, 'poster',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.poster)
+                    get_img_from_struct(series_data, "poster_tall", 2) or listable.poster)
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
-            # for others, only set the thumb image to a nicer one
-            setattr(listable, 'thumb',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.thumb)
+            # for episodes, only thumb is provided, so we can use it
+            # however, fanart and other arts are empty so we need to get them from the series to get a complete interface
+            series_data = result_obj.get('objects').get(listable.series_id)
+            series_id = series_data.get('id') if series_data else None
+
+            setattr(listable, 'landscape',
+                    get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape)
+            setattr(listable, 'fanart',
+                    infer_img_from_id(series_id, "backdrop_wide") or
+                    get_img_from_struct(series_data, "poster_wide", 2) or
+                    listable.fanart)
+            setattr(listable, 'clearlogo',
+                    infer_img_from_id(series_id, "title_logo") or listable.clearlogo)
+            setattr(listable, 'clearart',
+                    infer_img_from_id(series_id, "title_logo") or listable.clearart)
             setattr(listable, 'poster',
-                    get_img_from_struct(result_obj.get('objects').get(listable.series_id), "poster_tall",
-                                        2) or listable.poster)
-            # setattr(listable, 'fanart',
-            #         get_image_from_struct(result_obj.get('objects').get(listable.id), "poster_wide", 2) or listable.fanart)
+                    get_img_from_struct(series_data, "poster_tall", 2) or listable.poster)
 
         if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get(
                 'rating') and hasattr(listable, 'rating'):
@@ -288,7 +314,7 @@ def add_listables(
         if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
             cm.append((
                 G.args.addon.getLocalizedString(30067),
-                'RunPlugin(%s?mode=add_to_queue&content_id=%s&session_restart=True)' % (G.args.argv[0], listable.id)
+                'RunPlugin(%s?mode=add_to_queue&content_id=%s)' % (G.args.argv[0], listable.id)
             ))
 
         if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and getattr(listable, 'series_id') is not None:

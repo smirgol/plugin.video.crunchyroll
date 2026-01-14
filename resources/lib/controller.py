@@ -18,7 +18,6 @@
 
 import json
 import math
-import time
 
 import xbmc
 import xbmcgui
@@ -509,11 +508,13 @@ def start_playback():
 
 
 def add_to_queue() -> bool:
-    # api request
+    from .model import LoginError
+
     try:
-        G.api.make_request(
+        req = G.api.make_scraper_request(
             method="POST",
             url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
+            auth_type="device",
             json_data={
                 "content_id": G.args.get_arg('content_id')
             },
@@ -525,8 +526,31 @@ def add_to_queue() -> bool:
                 'Content-Type': 'application/json'
             }
         )
+
+        if req and "error" in req:
+            error_msg = req.get("error", "Unknown error")
+            if 'content.add_watchlist_item_v2.item_already_exists' in error_msg:
+                xbmcgui.Dialog().notification(
+                    '%s Error' % G.args.addon_name,
+                    'Item already in watchlist',
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3
+                )
+                return False
+            else:
+                raise CrunchyrollError(f"Failed to add to watchlist: {error_msg}")
+
     except CrunchyrollError as e:
         if 'content.add_watchlist_item_v2.item_already_exists' in str(e):
+            xbmcgui.Dialog().notification(
+                '%s Error' % G.args.addon_name,
+                'Item already in watchlist',
+                xbmcgui.NOTIFICATION_ERROR,
+                3
+            )
+            return False
+        else:
+            utils.log_error_with_trace(f"Failed to add to queue: {e}")
             xbmcgui.Dialog().notification(
                 '%s Error' % G.args.addon_name,
                 'Failed to add item to watchlist',
@@ -534,8 +558,24 @@ def add_to_queue() -> bool:
                 3
             )
             return False
-        else:
-            raise e
+    except LoginError as e:
+        utils.log_error_with_trace(f"Authentication error adding to queue: {e}")
+        xbmcgui.Dialog().notification(
+            '%s Error' % G.args.addon_name,
+            'Authentication failed - it\'s broken, Jim! :(',
+            xbmcgui.NOTIFICATION_ERROR,
+            3
+        )
+        return False
+    except Exception as e:
+        utils.log_error_with_trace(f"Unexpected error adding to queue: {e}")
+        xbmcgui.Dialog().notification(
+            '%s Error' % G.args.addon_name,
+            'Failed to add item to watchlist',
+            xbmcgui.NOTIFICATION_ERROR,
+            3
+        )
+        return False
 
     xbmcgui.Dialog().notification(
         G.args.addon_name,

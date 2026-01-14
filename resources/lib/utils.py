@@ -119,13 +119,16 @@ async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
     if isinstance(episode_ids, str):
         episode_ids = [episode_ids]
 
-    response = G.api.make_request(
+    response = G.api.make_scraper_request(
         method='GET',
         url=G.api.PLAYHEADS_ENDPOINT.format(G.api.account_data.account_id),
+        auth_type="device",
         params={
             'locale': G.args.subtitle,
+            'preferred_audio_language': G.api.account_data.default_audio_language,
             'content_ids': ','.join(episode_ids)
-        }
+        },
+        auto_refresh=True
     )
 
     out = {}
@@ -146,13 +149,15 @@ async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
 async def get_watchlist_status_from_api(ids: list) -> list:
     """ retrieve watchlist status for given media ids """
 
-    req = G.api.make_request(
+    req = G.api.make_scraper_request(
         method="GET",
         url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
+        auth_type="device",
         params={
             "content_ids": ','.join(ids),
             "locale": G.args.subtitle
-        }
+        },
+        auto_refresh=True
     )
 
     if not req or req.get("error") is not None:
@@ -192,6 +197,29 @@ def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[st
             return src.get('source')
 
     return None
+
+
+def infer_img_from_id(id: str, image_type: str) -> Optional[str]:
+    """
+    Generate Crunchyroll artwork URL based on ID and image type.
+
+    Args:
+        id: Crunchyroll series/item ID
+        image_type: Type of artwork (backdrop_wide, title_logo)
+
+    Returns:
+        Generated URL or None if invalid input
+    """
+    if not id:
+        return None
+
+    match image_type:
+        case "backdrop_wide":
+            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{id}-backdrop_wide"
+        case "title_logo":
+            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{id}-title_logo-en-us"
+        case _:
+            return None
 
 
 def dump(data) -> None:
