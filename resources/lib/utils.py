@@ -213,13 +213,12 @@ def infer_img_from_id(id: str, image_type: str) -> Optional[str]:
     if not id:
         return None
 
-    match image_type:
-        case "backdrop_wide":
-            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{id}-backdrop_wide"
-        case "title_logo":
-            return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{id}-title_logo-en-us"
-        case _:
-            return None
+    if image_type == "backdrop_wide":
+        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{id}-backdrop_wide"
+    elif image_type == "title_logo":
+        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{id}-title_logo-en-us"
+    else:
+        return None
 
 
 def dump(data) -> None:
