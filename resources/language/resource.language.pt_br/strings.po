@@ -31,6 +31,10 @@ msgctxt "#30230"
 msgid "Other"
 msgstr "Outros"
 
+msgctxt "#30260"
+msgid "Addons"
+msgstr ""
+
 msgctxt "#30001"
 msgid "Username"
 msgstr "E-mail"
@@ -297,6 +301,30 @@ msgstr "Muitas streams ativas. Por favor, tente mais tarde"
 
 msgctxt "#30090"
 msgid "No search results"
+msgstr ""
+
+msgctxt "#30519"
+msgid "UpNext fixed or unavailable end detection duration"
+msgstr ""
+
+msgctxt "#30500"
+msgid "Show UpNext dialog at"
+msgstr ""
+
+msgctxt "#30501"
+msgid "credits start"
+msgstr ""
+
+msgctxt "#30502"
+msgid "preview start"
+msgstr ""
+
+msgctxt "#30503"
+msgid "fixed time before the end"
+msgstr ""
+
+msgctxt "#30504"
+msgid "never (disabled)"
 msgstr ""
 
 # Developer Options

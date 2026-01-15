@@ -31,6 +31,17 @@ msgctxt "#30230"
 msgid "Other"
 msgstr ""
 
+msgctxt "#30260"
+msgid "Addons"
+msgstr ""
+
+msgctxt "#30001"
+msgid "Email"
+msgstr ""
+
+msgctxt "#30002"
+msgid "Password"
+msgstr ""
 
 msgctxt "#30003"
 msgid "Synchronize play time progress"
@@ -295,6 +306,30 @@ msgstr ""
 msgctxt "#30090"
 msgid "No search results"
 msgstr "No search results"
+
+msgctxt "#30519"
+msgid "UpNext fixed or unavailable end detection duration"
+msgstr ""
+
+msgctxt "#30500"
+msgid "Show UpNext dialog at"
+msgstr ""
+
+msgctxt "#30501"
+msgid "credits start"
+msgstr ""
+
+msgctxt "#30502"
+msgid "preview start"
+msgstr ""
+
+msgctxt "#30503"
+msgid "fixed time before the end"
+msgstr ""
+
+msgctxt "#30504"
+msgid "never (disabled)"
+msgstr ""
 
 # Developer Options
 

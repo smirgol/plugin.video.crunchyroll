@@ -33,6 +33,7 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [x] Optionally soft-subs only
 - [x] Configure up to two languages for subtitles / dubs
 - [x] Crunchylists support
+- [x] UpNext addon integration
 - [x] Crunchyroll profiles
 
 ### What it currently can't do:

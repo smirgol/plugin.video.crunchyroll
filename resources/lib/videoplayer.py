@@ -24,11 +24,13 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import utils
-from resources.lib.globals import G
-from resources.lib.gui import SkipModalDialog, show_modal_dialog
-from resources.lib.model import Object, CrunchyrollError, LoginError
-from resources.lib.videostream import VideoPlayerStreamData, VideoStream
+from . import utils, view
+from .addons import upnext
+from .api import API
+from .globals import G
+from .gui import SkipModalDialog, show_modal_dialog
+from .model import Object, CrunchyrollError, LoginError
+from .videostream import VideoPlayerStreamData, VideoStream
 
 
 class VideoPlayer(Object):
@@ -62,6 +64,7 @@ class VideoPlayer(Object):
             return
 
         self._prepare_and_start_playback()
+        self._handle_upnext()
 
     def isPlaying(self) -> bool:
         if not self._stream_data:
@@ -197,6 +200,48 @@ class VideoPlayer(Object):
             """ start playback"""
             xbmcplugin.setResolvedUrl(int(G.args.argv[1]), True, item)
 
+    def _handle_upnext(self):
+        # never skip preview (fetched for upnext)
+        if self._stream_data.skip_events_data.get('preview'):
+            self._stream_data.skip_events_data.pop('preview', None)
+
+        if self._stream_data.end_marker == 'credits' and self._stream_data.skip_events_data.get('credits'):
+            self._stream_data.skip_events_data.pop('credits', None)
+
+        try:
+            next_episode = self._stream_data.next_playable_item
+            if not next_episode:
+                utils.crunchy_log("_handle_upnext: No episode or disabled upnext integration")
+                return
+            next_url = view.build_url(
+                {
+                    "series_id": G.args.get_arg("series_id"),
+                    "episode_id": next_episode.episode_id,
+                    "stream_id": next_episode.stream_id
+                },
+                "video_episode_play"
+            )
+            show_next_at_seconds = self._stream_data.end_timecode
+            if show_next_at_seconds is not None:
+                # Needs to wait 10s, otherwise, upnext will show next dialog at episode start...
+                xbmc.sleep(10000)
+                utils.crunchy_log("_handle_upnext: Next URL (shown at %ds / %ds): %s" % (
+                    show_next_at_seconds,
+                    self._stream_data.playable_item.duration,
+                    next_url
+                ))
+
+                upnext.send_next_info(
+                    G.args,
+                    self._stream_data.playable_item,
+                    next_episode,
+                    next_url,
+                    show_next_at_seconds,
+                    self._stream_data.playable_item_parent
+                )
+        except Exception:
+            utils.crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
+
     def update_playhead(self):
         """ background thread to update playback with crunchyroll in intervals """
 
@@ -284,7 +329,7 @@ class VideoPlayer(Object):
             Crunchyroll keeps track of started streams. If they are not released, CR will block starting a new one.
         """
 
-        if not G.args.get_arg('episode_id') or not self._stream_data.token:
+        if not G.args.get_arg('episode_id') or not self._stream_data or not self._stream_data.token:
             return
 
         try:

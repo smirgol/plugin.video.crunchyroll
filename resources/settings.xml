@@ -133,6 +133,32 @@
                 </setting>
             </group>
         </category>
+        <category id="addons_options" label="30260" help="">
+            <group id="1" label="30260">
+                <setting id="upnext_mode" type="string" label="30500" help="">
+                    <level>0</level>
+                    <default>disabled</default>
+                    <constraints>
+                        <options>
+                            <option label="30501">credits</option>
+                            <option label="30502">preview</option>
+                            <option label="30503">fixed</option>
+                            <option label="30504">disabled</option>
+                        </options>
+                    </constraints>
+                    <control type="list" format="string">
+                        <heading>30500</heading>
+                    </control>
+                </setting>
+                <setting id="upnext_fixed_duration" type="number" label="30519" help="">
+                    <level>0</level>
+                    <default>15</default>
+                    <control type="edit" format="number">
+                        <heading>30519</heading>
+                    </control>
+                </setting>
+            </group>
+        </category>
         <category id="developer_options" label="30240" help="">
             <group id="1" label="30240">
                 <setting id="debug_logging" type="boolean" label="30101" help="30102">
