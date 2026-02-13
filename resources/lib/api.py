@@ -265,9 +265,12 @@ class API:
                     self._finalize_session_from_tokens(r_json, action="refresh")
                     return  # Success
                 else:
-                    utils.crunchy_log(f"WWW token refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+                    utils.crunchy_log(f"WWW token refresh failed: {r.status_code}", xbmc.LOGERROR)
+            except LoginError:
+                # Re-raise LoginErrors as-is to preserve error_code
+                raise
             except Exception as e:
-                utils.crunchy_log(f"WWW token refresh error: {e}", xbmc.LOGDEBUG)
+                utils.crunchy_log(f"WWW token refresh error: {e}", xbmc.LOGERROR)
                 # Network errors during refresh are recoverable, continue to fallback
 
         # Fallback to beta-api endpoint
@@ -288,7 +291,7 @@ class API:
                 self._finalize_session_from_tokens(r_json, action="refresh")
                 return  # Success
             else:
-                utils.crunchy_log(f"Beta-api token refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+                utils.crunchy_log(f"Beta-api token refresh failed: {r.status_code}", xbmc.LOGERROR)
                 if r.status_code == 400:
                     # Refresh token expired/invalid
                     raise LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
@@ -297,6 +300,9 @@ class API:
                     utils.crunchy_log("Server error during token refresh", xbmc.LOGERROR)
                     raise LoginError("Server error", error_code="SERVER_ERROR")
 
+        except LoginError:
+            # Re-raise LoginErrors with error_code intact (e.g., REFRESH_TOKEN_EXPIRED from line 294)
+            raise
         except requests.exceptions.RequestException as e:
             # Network connectivity issues
             utils.crunchy_log(f"Network error during token refresh: {e}", xbmc.LOGERROR)
@@ -351,6 +357,9 @@ class API:
                     return  # Success
                 else:
                     utils.crunchy_log(f"WWW profile refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+            except LoginError:
+                # Re-raise LoginErrors as-is to preserve error_code
+                raise
             except Exception as e:
                 utils.crunchy_log(f"WWW profile refresh error: {e}", xbmc.LOGDEBUG)
 
@@ -374,6 +383,9 @@ class API:
             else:
                 utils.crunchy_log(f"Beta-api profile refresh failed: {r.status_code}", xbmc.LOGDEBUG)
 
+        except LoginError:
+            # Re-raise LoginErrors with error_code intact
+            raise
         except requests.exceptions.RequestException as e:
             # Network connectivity issues
             utils.crunchy_log(f"Network error during profile refresh: {e}", xbmc.LOGERROR)
