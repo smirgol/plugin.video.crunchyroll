@@ -317,6 +317,18 @@ msgctxt "#30241"
 msgid "Device ID"
 msgstr "ID de l'Appareil"
 
+msgctxt "#30242"
+msgid "Reset Authentication"
+msgstr "Réinitialiser l'Authentification"
+
+msgctxt "#30243"
+msgid "Deletes all stored session data. You will need to authenticate again."
+msgstr "Supprime toutes les données de session stockées. Vous devrez vous authentifier à nouveau."
+
+msgctxt "#30244"
+msgid "Session data deleted successfully. Please restart the addon to authenticate again."
+msgstr "Données de session supprimées avec succès. Veuillez redémarrer l'addon pour vous authentifier à nouveau."
+
 # Device Authentication Dialog
 
 msgctxt "#30300"

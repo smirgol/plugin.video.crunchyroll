@@ -74,6 +74,15 @@ def main(argv):
             10
         )
 
+    # handle settings->clear session data
+    if G.args.get_arg('mode') and G.args.get_arg('mode') == 'delete_account_data':
+        G.api.delete_account_data()
+        xbmcgui.Dialog().ok(
+            G.args.addon_name,
+            G.args.addon.getLocalizedString(30244)
+        )
+        return True
+
     # Start API authentication (uses device authentication)
     try:
         G.api.start()

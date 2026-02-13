@@ -436,6 +436,9 @@ class API:
         """
         # no longer required, data is saved upon session update already
 
+    def delete_account_data(self):
+        self.account_data.delete_storage()
+
     def destroy(self) -> None:
         """Destroys session
         """

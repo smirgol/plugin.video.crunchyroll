@@ -140,6 +140,11 @@
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="delete_account_data" type="action" label="30242" help="30243">
+                    <level>0</level>
+                    <data>RunPlugin(plugin://plugin.video.crunchyroll/?mode=delete_account_data)</data>
+                    <control type="button" format="action"/>
+                </setting>
             </group>
         </category>
     </section>
