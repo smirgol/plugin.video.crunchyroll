@@ -580,4 +580,9 @@ class VideoStream(Object):
 
         if G.args.addon.getSetting("enable_skip_credits") != "true" and prepared.get('credits'):
             prepared.pop('credits', None)
+
+        # delay the skip a bit if it starts right at the beginning, as it would show before the video otherwise
+        if prepared.get('intro') and prepared['intro']['start'] <= 0.5:
+            prepared['intro']['start'] += 2.0
+
         return prepared if len(prepared) > 0 else None
