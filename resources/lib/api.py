@@ -42,9 +42,10 @@ class API:
     # TIMEOUT = 30
 
     # User Agents - Different clients for different purposes
-    CRUNCHYROLL_UA = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Legacy UA
-    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.49.1_22281 (Android 14; en-US; Chromecast)"  # For device auth
-    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Mobile fallback
+    # @todo: remove legacy and mobile auth
+    CRUNCHYROLL_UA = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Legacy UA
+    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"  # For device auth
+    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Mobile fallback
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
@@ -73,9 +74,7 @@ class API:
     # only v2 will allow removal of watchlist entries.
     # !!!! be super careful and always provide a content_id, or it will delete the whole playlist! *sighs* !!!!
     # WATCHLIST_REMOVE_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist/{}"
-    #WATCHLIST_V2_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist"
     WATCHLIST_V2_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/watchlist"
-    #PLAYHEADS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/playheads"
     PLAYHEADS_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/playheads"
     HISTORY_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watch-history"
     RESUME_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/discover/{}/history"
@@ -88,9 +87,9 @@ class API:
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
     # Authentication credentials - Multiple client types for different purposes
-    AUTHORIZATION_DEVICE = "Basic bGtlc2k3c25zeTlvb2ptaTJyOWg6LWFHRFhGRk5UbHVaTUxZWEVSbmdOWW5FanZnSDVvZHY="  # AndroidTV for device auth
-    AUTHORIZATION_MOBILE = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Mobile fallback
-    AUTHORIZATION_LEGACY = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Legacy compatibility
+    AUTHORIZATION_DEVICE = "Basic cG84NzF4ZnN3YXNrdGI4ODlncnM6UFMtM3BXUmRoSHFNVFl3V21EUU1DODdQOHItN0NmOU4="  # AndroidTV for device auth
+    AUTHORIZATION_MOBILE = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Mobile fallback
+    AUTHORIZATION_LEGACY = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Legacy compatibility
 
     # Primary authorization (for backward compatibility)
     AUTHORIZATION = AUTHORIZATION_DEVICE
