@@ -5,8 +5,9 @@ Tests that LoginError exceptions with error_code are properly preserved
 during token refresh flows and not wrapped in generic exceptions.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 import requests
 
 from resources.lib.api import API
