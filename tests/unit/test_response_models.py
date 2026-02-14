@@ -5,9 +5,9 @@ Tests the response model classes including data conversion,
 validation, and helper methods for all model types.
 """
 
+from datetime import datetime
+
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock
 
 # Import our new response models
 try:
