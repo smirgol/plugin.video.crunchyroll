@@ -42,9 +42,10 @@ class API:
     # TIMEOUT = 30
 
     # User Agents - Different clients for different purposes
-    CRUNCHYROLL_UA = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Legacy UA
-    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.49.1_22281 (Android 14; en-US; Chromecast)"  # For device auth
-    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.94.0 Android/14 Ktor http-client"  # Mobile fallback
+    # @todo: remove legacy and mobile auth
+    CRUNCHYROLL_UA = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Legacy UA
+    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"  # For device auth
+    CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Mobile fallback
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
@@ -73,9 +74,7 @@ class API:
     # only v2 will allow removal of watchlist entries.
     # !!!! be super careful and always provide a content_id, or it will delete the whole playlist! *sighs* !!!!
     # WATCHLIST_REMOVE_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist/{}"
-    #WATCHLIST_V2_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watchlist"
     WATCHLIST_V2_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/watchlist"
-    #PLAYHEADS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/playheads"
     PLAYHEADS_ENDPOINT = "https://www.crunchyroll.com/content/v2/{}/playheads"
     HISTORY_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/watch-history"
     RESUME_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/discover/{}/history"
@@ -89,9 +88,9 @@ class API:
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
     # Authentication credentials - Multiple client types for different purposes
-    AUTHORIZATION_DEVICE = "Basic bGtlc2k3c25zeTlvb2ptaTJyOWg6LWFHRFhGRk5UbHVaTUxZWEVSbmdOWW5FanZnSDVvZHY="  # AndroidTV for device auth
-    AUTHORIZATION_MOBILE = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Mobile fallback
-    AUTHORIZATION_LEGACY = "Basic dWtta3d2aHdsZGh0eXNrdzIydGk6XzluVTFjenJ3aFc2YjFHUjlvc3RIbHdoTEs1amlwTXI="  # Legacy compatibility
+    AUTHORIZATION_DEVICE = "Basic cG84NzF4ZnN3YXNrdGI4ODlncnM6UFMtM3BXUmRoSHFNVFl3V21EUU1DODdQOHItN0NmOU4="  # AndroidTV for device auth
+    AUTHORIZATION_MOBILE = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Mobile fallback
+    AUTHORIZATION_LEGACY = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Legacy compatibility
 
     # Primary authorization (for backward compatibility)
     AUTHORIZATION = AUTHORIZATION_DEVICE
@@ -267,9 +266,12 @@ class API:
                     self._finalize_session_from_tokens(r_json, action="refresh")
                     return  # Success
                 else:
-                    utils.crunchy_log(f"WWW token refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+                    utils.crunchy_log(f"WWW token refresh failed: {r.status_code}", xbmc.LOGERROR)
+            except LoginError:
+                # Re-raise LoginErrors as-is to preserve error_code
+                raise
             except Exception as e:
-                utils.crunchy_log(f"WWW token refresh error: {e}", xbmc.LOGDEBUG)
+                utils.crunchy_log(f"WWW token refresh error: {e}", xbmc.LOGERROR)
                 # Network errors during refresh are recoverable, continue to fallback
 
         # Fallback to beta-api endpoint
@@ -290,7 +292,7 @@ class API:
                 self._finalize_session_from_tokens(r_json, action="refresh")
                 return  # Success
             else:
-                utils.crunchy_log(f"Beta-api token refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+                utils.crunchy_log(f"Beta-api token refresh failed: {r.status_code}", xbmc.LOGERROR)
                 if r.status_code == 400:
                     # Refresh token expired/invalid
                     raise LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
@@ -299,6 +301,9 @@ class API:
                     utils.crunchy_log("Server error during token refresh", xbmc.LOGERROR)
                     raise LoginError("Server error", error_code="SERVER_ERROR")
 
+        except LoginError:
+            # Re-raise LoginErrors with error_code intact (e.g., REFRESH_TOKEN_EXPIRED from line 294)
+            raise
         except requests.exceptions.RequestException as e:
             # Network connectivity issues
             utils.crunchy_log(f"Network error during token refresh: {e}", xbmc.LOGERROR)
@@ -353,6 +358,9 @@ class API:
                     return  # Success
                 else:
                     utils.crunchy_log(f"WWW profile refresh failed: {r.status_code}", xbmc.LOGDEBUG)
+            except LoginError:
+                # Re-raise LoginErrors as-is to preserve error_code
+                raise
             except Exception as e:
                 utils.crunchy_log(f"WWW profile refresh error: {e}", xbmc.LOGDEBUG)
 
@@ -376,6 +384,9 @@ class API:
             else:
                 utils.crunchy_log(f"Beta-api profile refresh failed: {r.status_code}", xbmc.LOGDEBUG)
 
+        except LoginError:
+            # Re-raise LoginErrors with error_code intact
+            raise
         except requests.exceptions.RequestException as e:
             # Network connectivity issues
             utils.crunchy_log(f"Network error during profile refresh: {e}", xbmc.LOGERROR)
@@ -437,6 +448,9 @@ class API:
         """Saves cookies and session
         """
         # no longer required, data is saved upon session update already
+
+    def delete_account_data(self):
+        self.account_data.delete_storage()
 
     def destroy(self) -> None:
         """Destroys session
