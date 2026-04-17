@@ -122,6 +122,26 @@ msgctxt "#30032"
 msgid "Hindi"
 msgstr ""
 
+msgctxt "#30033"
+msgid "Indonesian"
+msgstr ""
+
+msgctxt "#30034"
+msgid "Malay"
+msgstr ""
+
+msgctxt "#30035"
+msgid "Chinese (Simplified)"
+msgstr ""
+
+msgctxt "#30036"
+msgid "Chinese (Traditional)"
+msgstr ""
+
+msgctxt "#30037"
+msgid "Thai"
+msgstr ""
+
 
 msgctxt "#30038"
 msgid "Filter available dubs"
@@ -416,3 +436,7 @@ msgstr "Abbrechen"
 msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr "- ODER QR-CODE SCANNEN -"
+
+msgctxt "#30314"
+msgid "Vietnamese"
+msgstr ""
