@@ -72,7 +72,9 @@ msgctxt "#30021"
 msgid "English"
 msgstr ""
 
-# 30022 free
+msgctxt "#30022"
+msgid "Vietnamese"
+msgstr ""
 
 msgctxt "#30023"
 msgid "Spanish"
@@ -432,6 +434,3 @@ msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr ""
 
-msgctxt "#30314"
-msgid "Vietnamese"
-msgstr ""
