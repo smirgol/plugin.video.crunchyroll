@@ -25,7 +25,8 @@ class TestStreamingAPIIntegration:
         bucket = "/crunchyroll"
 
         response = api_client.make_request(
-            url=api_client.STREAMS_ENDPOINT.format(bucket, test_episode_id)
+            url=api_client.STREAMS_ENDPOINT.format(bucket, test_episode_id),
+            method="GET"
         )
 
         if response.status_code != 200:
@@ -60,7 +61,8 @@ class TestStreamingAPIIntegration:
         bucket = "/crunchyroll"
 
         response = api_client.make_request(
-            url=api_client.STREAMS_ENDPOINT.format(bucket, test_episode_id)
+            url=api_client.STREAMS_ENDPOINT.format(bucket, test_episode_id),
+            method="GET"
         )
 
         if response.status_code != 200:
@@ -94,7 +96,8 @@ class TestStreamingAPIIntegration:
         This test should run LAST to verify cleanup worked.
         """
         response = api_client.make_request(
-            url=api_client.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS
+            url=api_client.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS,
+            method="GET"
         )
 
         if response.status_code == 200:
