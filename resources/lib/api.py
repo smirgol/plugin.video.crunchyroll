@@ -1107,7 +1107,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
 
     # handle plain text responses (e.g. subtitles from CDN)
     # CDN may serve subtitles as text/plain or application/octet-stream
-    if response_type in ("text/plain", "application/octet-stream"):
+    if response_type in ("text/plain", "application/octet-stream") and (not r.text or r.text[0] != "{"):
         # if encoding is not provided in the response, Requests will make an educated guess and very likely fail
         # messing encoding up - which did cost me hours. We will always receive utf-8 from crunchy, so enforce that
         r.encoding = "utf-8"
