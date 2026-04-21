@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.crunchyroll" name="Crunchyroll" version="3.6.6" provider-name="smirgol">
+<addon id="plugin.video.crunchyroll" name="Crunchyroll" version="3.6.7" provider-name="smirgol">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
         <import addon="script.module.inputstreamhelper" version="0.3.3"/>
@@ -21,7 +21,8 @@
         <disclaimer lang="de_DE">HINWEIS: Du MUSST PREMIUM Mitglied sein um dieses Plugin zu benutzen</disclaimer>
         <disclaimer lang="es_ES">Atención: Necesitas ser miembro PREMIUM para utilizar este Plugin</disclaimer>
         <news>
-            v3.6.6 (2026.04.19) - Add hard-sub support for asian languages
+            v3.6.7 (2026.04.21) - Fix soft-subs (thanks nattadasu)
+            v3.6.6 (2026.04.19) - Add hard-sub support for asian languages (thanks nattadasu)
             v3.6.3 (2026.02.13) - Setting to reset auth, improve skip intro
             v3.6.3 (2026.01.06) - Better artwork handling (thanks lumiru), fix add_to_queue, fix update playhead after pause
             v3.6.2 (2025.12.22) - Restart login flow if refresh token expired
