@@ -52,39 +52,24 @@ def api_client(token_manager, test_credentials):
     api = API()
 
     token = token_manager.get_valid_token()
+    expires_at = token_manager.token_expires_at
+    expires_str = "{}-{}-{}T{}:{}:{}Z".format(
+        expires_at.year, expires_at.month, expires_at.day,
+        expires_at.hour, expires_at.minute, expires_at.second
+    )
 
     api.account_data = AccountData({
         "access_token": token,
         "refresh_token": test_credentials["refresh_token"],
         "device_id": test_credentials["device_id"],
-        "account_id": test_credentials.get("account_id", "")
+        "account_id": test_credentials.get("account_id", ""),
+        "token_type": "Bearer",
+        "user_agent_type": "device",
+        "expires": expires_str
     })
 
     return api
 
-
-@pytest.fixture(scope="session")
-def clean_all_streams_before_suite(api_client):
-    """Cleanup all active streams BEFORE test suite starts
-
-    This prevents stream counter blocking from previous test runs.
-    """
-    try:
-        active_streams = api_client.get_active_streams()
-        if active_streams:
-            print(f"\nCleaning {len(active_streams)} active streams before test suite...")
-            for stream_info in active_streams:
-                token = stream_info.get("token")
-                content_id = stream_info.get("content_id")
-                if token and content_id:
-                    try:
-                        api_client.clear_active_stream(token, content_id)
-                    except Exception as e:
-                        print(f"Warning: Failed to clear stream {content_id}: {e}")
-    except Exception as e:
-        print(f"Warning: Failed to cleanup streams: {e}")
-
-    yield
 
 
 @pytest.fixture
@@ -108,7 +93,10 @@ def stream_cleanup(api_client):
 
     for token, content_id in cleanup_items:
         try:
-            api_client.clear_active_stream(token, content_id)
+            api_client.make_request(
+                method="DELETE",
+                url=api_client.STREAMS_ENDPOINT_CLEAR_STREAM.format(content_id, token)
+            )
         except Exception as e:
             print(f"Warning: Failed to cleanup stream {content_id}: {e}")
 
