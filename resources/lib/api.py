@@ -1094,7 +1094,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
     from .model import CrunchyrollError
 
     code: int = r.status_code
-    response_type: str = r.headers.get("Content-Type")
+    response_type: str = r.headers.get("Content-Type", "")
 
     # no content - possibly POST/DELETE request?
     if not r or not r.text:
@@ -1105,23 +1105,20 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
             # r.text is empty when status code cause raise
             r = e.response
 
-    # handle text/plain response (e.g. fetch subtitle)
-    if response_type == "text/plain":
+    # handle plain text responses (e.g. subtitles from CDN)
+    # CDN may serve subtitles as text/plain or application/octet-stream
+    if response_type in ("text/plain", "application/octet-stream"):
         # if encoding is not provided in the response, Requests will make an educated guess and very likely fail
         # messing encoding up - which did cost me hours. We will always receive utf-8 from crunchy, so enforce that
         r.encoding = "utf-8"
-        d = dict()
-        d.update({
-            'data': r.text
-        })
-        return d
+        return {"data": r.text}
 
-    if not r.ok and r.text[0] != "{":
+    if not r.ok and (r.text[0] != "{"):
         raise CrunchyrollError(f"[{code}] {r.text}")
 
     try:
         r_json: Dict = r.json()
-    except requests.exceptions.JSONDecodeError:
+    except (requests.exceptions.JSONDecodeError, ValueError):
         log_error_with_trace("Failed to parse response data")
         return None
 
