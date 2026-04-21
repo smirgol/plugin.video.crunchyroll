@@ -304,20 +304,20 @@ class VideoPlayer(Object):
     def get_active_streams(self) -> List[str]:
         try:
             req = G.api.make_request(
-                method="DELETE",
+                method="GET",
                 url=G.api.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
             utils.crunchy_log("Failed to get active streams")
-            return
+            return []
 
         active = []
 
         if not req:
             return active
 
-        for item in req:
+        for item in req.get('items', []):
             if item.get('deviceId') != G.args.device_id:
                 continue
             active.append(item.get('token'))
