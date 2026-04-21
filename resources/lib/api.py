@@ -27,7 +27,7 @@ from requests import HTTPError, Response
 
 from . import utils
 from .globals import G
-from .model import AccountData, LoginError, ProfileData
+from .model import AccountData, CrunchyrollError, LoginError, ProfileData
 from ..modules import cloudscraper
 
 
@@ -995,17 +995,17 @@ class API:
         auth_headers = {}
         if auth_type == "device":
             auth_headers = {
-                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "Authorization": f"{self.account_data.token_type} {self.account_data.access_token}",
                 "User-Agent": self.CRUNCHYROLL_UA_DEVICE,
             }
         elif auth_type == "legacy":
             auth_headers = {
-                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "Authorization": f"{self.account_data.token_type} {self.account_data.access_token}",
                 "User-Agent": self.CRUNCHYROLL_UA,
             }
         elif auth_type == "mobile":
             auth_headers = {
-                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
+                "Authorization": f"{self.account_data.token_type} {self.account_data.access_token}",
                 "User-Agent": self.CRUNCHYROLL_UA_MOBILE,
             }
 
@@ -1043,6 +1043,8 @@ class API:
 
             return get_json_from_response(r)
 
+        except (LoginError, CrunchyrollError):
+            raise
         except requests.exceptions.Timeout:
             utils.crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
             raise LoginError("Request timeout - check your network connection")
