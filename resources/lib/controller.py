@@ -66,7 +66,7 @@ def show_profiles():
         return True
 
 
-def show_queue():
+def show_queue(hide_played=False):
     """ shows anime queue/playlist
     """
     # api request
@@ -85,10 +85,14 @@ def show_queue():
         view.end_of_directory()
         return False
 
+    options = view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
+    if hide_played:
+        options = options | view.OPT_HIDE_WATCHED
+
     view.add_listables(
         listables=get_listables_from_response(req.get('items')),
         is_folder=False,
-        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
+        options=options
     )
 
     view.end_of_directory("episodes", cache_to_disc=False)
