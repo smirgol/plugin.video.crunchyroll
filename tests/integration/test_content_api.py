@@ -58,7 +58,7 @@ class TestContentAPIIntegration:
         )
 
         assert data is not None
-        assert "data" in data or isinstance(data, list)
+        assert isinstance(data, dict)
 
     def test_seasonal_tags(self, api_client):
         """Test fetching seasonal tags"""

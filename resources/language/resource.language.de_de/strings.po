@@ -84,7 +84,9 @@ msgctxt "#30021"
 msgid "English"
 msgstr "Englisch"
 
-# 30022 free
+msgctxt "#30022"
+msgid "Vietnamese"
+msgstr ""
 
 msgctxt "#30023"
 msgid "Spanish"
@@ -124,6 +126,26 @@ msgstr "Russisch"
 
 msgctxt "#30032"
 msgid "Hindi"
+msgstr ""
+
+msgctxt "#30033"
+msgid "Indonesian"
+msgstr ""
+
+msgctxt "#30034"
+msgid "Malay"
+msgstr ""
+
+msgctxt "#30035"
+msgid "Chinese (Simplified)"
+msgstr ""
+
+msgctxt "#30036"
+msgid "Chinese (Traditional)"
+msgstr ""
+
+msgctxt "#30037"
+msgid "Thai"
 msgstr ""
 
 
@@ -443,3 +465,4 @@ msgstr "Abbrechen"
 msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr "- ODER QR-CODE SCANNEN -"
+
