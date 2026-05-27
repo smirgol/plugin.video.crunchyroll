@@ -44,7 +44,7 @@ class API:
     # User Agents - Different clients for different purposes
     # @todo: remove legacy and mobile auth
     CRUNCHYROLL_UA = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Legacy UA
-    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"  # For device auth
+    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"  # For device auth
     CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Mobile fallback
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
@@ -88,7 +88,7 @@ class API:
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
     # Authentication credentials - Multiple client types for different purposes
-    AUTHORIZATION_DEVICE = "Basic cG84NzF4ZnN3YXNrdGI4ODlncnM6UFMtM3BXUmRoSHFNVFl3V21EUU1DODdQOHItN0NmOU4="  # AndroidTV for device auth
+    AUTHORIZATION_DEVICE = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="  # AndroidTV for device auth
     AUTHORIZATION_MOBILE = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Mobile fallback
     AUTHORIZATION_LEGACY = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Legacy compatibility
 
@@ -1108,7 +1108,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
 
     # handle plain text responses (e.g. subtitles from CDN)
     # CDN may serve subtitles as text/plain or application/octet-stream
-    if response_type in ("text/plain", "application/octet-stream") and (not r.text or r.text[0] != "{"):
+    if response_type in ("text/plain", "application/octet-stream") and r.text[0] != "{":
         # if encoding is not provided in the response, Requests will make an educated guess and very likely fail
         # messing encoding up - which did cost me hours. We will always receive utf-8 from crunchy, so enforce that
         r.encoding = "utf-8"
