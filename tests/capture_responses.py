@@ -73,10 +73,9 @@ def test_capture_all_responses(api_client):
     # 5. Seasons
     print("5. Capturing seasons...")
     try:
-        bucket = api_client.account_data.cms.bucket
         data = api_client.make_request(
-            "GET", api_client.SEASONS_ENDPOINT.format(bucket),
-            params={"series_id": "GQWH0M1J3", "locale": "de-DE"}
+            "GET", api_client.SEASONS_ENDPOINT.format("GQWH0M1J3"),
+            params={"locale": "de-DE", "force_locale": ""}
         )
         fixtures["seasons_response"] = data
         print("   ✓ Seasons captured")
@@ -88,10 +87,9 @@ def test_capture_all_responses(api_client):
     # 6. Episodes
     print("6. Capturing episodes...")
     try:
-        bucket = api_client.account_data.cms.bucket
         data = api_client.make_request(
-            "GET", api_client.EPISODES_ENDPOINT.format(bucket),
-            params={"season_id": "GYE5CQNJ2", "locale": "de-DE"}
+            "GET", api_client.EPISODES_ENDPOINT.format("GYE5CQNJ2"),
+            params={"locale": "de-DE"}
         )
         fixtures["episodes_response"] = data
         print("   ✓ Episodes captured")

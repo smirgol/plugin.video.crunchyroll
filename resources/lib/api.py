@@ -841,8 +841,6 @@ class API:
 
         try:
             utils.crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"make_scraper_request params: {params}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"make_scraper_request headers: {request_headers}", xbmc.LOGDEBUG)
 
             r = scraper.request(
                 method=method,
@@ -854,7 +852,6 @@ class API:
                 timeout=timeout
             )
 
-            utils.crunchy_log(f"make_scraper_request response URL: {r.url}", xbmc.LOGDEBUG)
             utils.crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
 
             if r.status_code == 401 and auto_refresh and not is_retry:

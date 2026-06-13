@@ -133,21 +133,21 @@ class TestSearchMapping:
 class TestSeasonsMapping:
     """Test Seasons Response structure"""
 
-    def test_seasons_uses_items(self):
-        """Seasons uses 'items' not 'data'"""
+    def test_seasons_uses_data(self):
+        """Seasons uses 'data' (new content API) or 'items' (legacy/captured)"""
         seasons_api = load_captured_response("seasons_response")
 
-        # Seasons uses "items" (wie Browse/Search)
-        assert "items" in seasons_api
+        assert "data" in seasons_api or "items" in seasons_api
         assert "total" in seasons_api
-        assert isinstance(seasons_api["items"], list)
+        assert isinstance(seasons_api.get("data") or seasons_api.get("items"), list)
 
     def test_season_item_structure(self):
         """Test that Season items have all required fields"""
         seasons_api = load_captured_response("seasons_response")
+        seasons = seasons_api.get("data") or seasons_api.get("items", [])
 
-        if len(seasons_api["items"]) > 0:
-            season = seasons_api["items"][0]
+        if len(seasons) > 0:
+            season = seasons[0]
 
             # Critical fields for Seasons
             assert "id" in season
@@ -162,21 +162,21 @@ class TestSeasonsMapping:
 class TestEpisodesMapping:
     """Test Episodes Response structure"""
 
-    def test_episodes_uses_items(self):
-        """Episodes uses 'items' not 'data'"""
+    def test_episodes_uses_data(self):
+        """Episodes uses 'data' (new content API) or 'items' (legacy/captured)"""
         episodes_api = load_captured_response("episodes_response")
 
-        # Episodes uses "items" (wie Browse/Search/Seasons)
-        assert "items" in episodes_api
+        assert "data" in episodes_api or "items" in episodes_api
         assert "total" in episodes_api
-        assert isinstance(episodes_api["items"], list)
+        assert isinstance(episodes_api.get("data") or episodes_api.get("items"), list)
 
     def test_episode_item_structure(self):
         """Test that Episode items have all required fields"""
         episodes_api = load_captured_response("episodes_response")
+        episodes = episodes_api.get("data") or episodes_api.get("items", [])
 
-        if len(episodes_api["items"]) > 0:
-            episode = episodes_api["items"][0]
+        if len(episodes) > 0:
+            episode = episodes[0]
 
             # Critical fields for Episodes
             assert "id" in episode
@@ -188,9 +188,10 @@ class TestEpisodesMapping:
     def test_episode_playback_fields(self):
         """Test that playback-relevant fields exist"""
         episodes_api = load_captured_response("episodes_response")
+        episodes = episodes_api.get("data") or episodes_api.get("items", [])
 
-        if len(episodes_api["items"]) > 0:
-            episode = episodes_api["items"][0]
+        if len(episodes) > 0:
+            episode = episodes[0]
 
             # Important for playback
             if "duration_ms" in episode:

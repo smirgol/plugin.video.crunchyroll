@@ -435,10 +435,9 @@ def view_season():
     # api request
     req = G.api.make_request(
         method="GET",
-        url=G.api.SEASONS_ENDPOINT.format(G.api.account_data.cms.bucket),
+        url=G.api.SEASONS_ENDPOINT.format(G.args.get_arg('series_id')),
         params={
             "locale": G.args.subtitle,
-            "series_id": G.args.get_arg('series_id'),
             "preferred_audio_language": G.api.account_data.default_audio_language,
             "force_locale": ""
         }
@@ -452,7 +451,7 @@ def view_season():
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('items')),
+        listables=get_listables_from_response(req.get('data') or req.get('items')),
         is_folder=True
     )
 
@@ -466,10 +465,9 @@ def view_episodes():
     # api request
     req = G.api.make_request(
         method="GET",
-        url=G.api.EPISODES_ENDPOINT.format(G.api.account_data.cms.bucket),
+        url=G.api.EPISODES_ENDPOINT.format(G.args.get_arg('season_id')),
         params={
-            "locale": G.args.subtitle,
-            "season_id": G.args.get_arg('season_id')
+            "locale": G.args.subtitle
         }
     )
 
@@ -481,7 +479,7 @@ def view_episodes():
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('items')),
+        listables=get_listables_from_response(req.get('data') or req.get('items')),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE
     )
