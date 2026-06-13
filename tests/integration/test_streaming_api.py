@@ -27,7 +27,6 @@ class TestStreamingAPIIntegration:
             response = api_client.make_scraper_request(
                 method="GET",
                 url=api_client.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS,
-                auth_type="device"
             )
         except Exception as e:
             pytest.skip(f"Could not fetch active streams: {e}")
@@ -52,7 +51,6 @@ class TestStreamingAPIIntegration:
             return api_client.make_scraper_request(
                 method="GET",
                 url=url,
-                auth_type="device",
                 auto_refresh=True
             )
         except CrunchyrollError as e:

@@ -27,13 +27,15 @@ class TestAPIAuthUnit:
             })
 
     def test_token_refresh_success(self):
-        """Test successful token refresh flow"""
+        """Test successful token refresh flow via cloudscraper"""
         mock_response = Mock()
         mock_response.ok = True
         mock_response.json.return_value = AUTH_TOKEN_RESPONSE
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=None), \
-             patch.object(self.api.http, 'post', return_value=mock_response), \
+        mock_scraper = Mock()
+        mock_scraper.post.return_value = mock_response
+
+        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper), \
              patch.object(self.api, '_finalize_session_from_tokens') as mock_finalize:
 
             self.api._handle_refresh_flow()
@@ -41,15 +43,15 @@ class TestAPIAuthUnit:
             mock_finalize.assert_called_once_with(AUTH_TOKEN_RESPONSE, action="refresh")
 
     def test_token_refresh_with_expired_refresh_token(self):
-        """Test token refresh with expired refresh token raises LoginError"""
+        """Test token refresh with expired refresh token raises LoginError via cloudscraper"""
         mock_response = Mock()
         mock_response.ok = False
-        mock_response.status_code = 401
-        mock_response.json.return_value = ERROR_RESPONSE_401
+        mock_response.status_code = 400
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=None), \
-             patch.object(self.api.http, 'post', return_value=mock_response):
+        mock_scraper = Mock()
+        mock_scraper.post.return_value = mock_response
 
+        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
             with pytest.raises(LoginError):
                 self.api._handle_refresh_flow()
 
@@ -88,24 +90,23 @@ class TestAPIAuthUnit:
             assert result["status"] == "success"
             assert "data" in result
 
-    def test_cloudscraper_fallback_to_requests(self):
-        """Test that create_auth_scraper returns None when cloudscraper fails"""
-        with patch('resources.lib.api.cloudscraper.create_scraper', side_effect=Exception("CloudScraper failed")):
-
-            scraper = self.api.create_auth_scraper()
-
-            assert scraper is None
+    def test_cloudscraper_failure_raises_login_error(self):
+        """Test that LoginError is raised when cloudscraper initialization fails"""
+        with patch.object(self.api, 'create_auth_scraper', return_value=None):
+            with pytest.raises(LoginError):
+                self.api._handle_refresh_flow()
 
     def test_server_error_handling(self):
-        """Test handling of 500 server errors"""
+        """Test handling of 500 server errors via cloudscraper"""
         mock_response = Mock()
         mock_response.ok = False
         mock_response.status_code = 500
         mock_response.json.return_value = ERROR_RESPONSE_500
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=None), \
-             patch.object(self.api.http, 'post', return_value=mock_response):
+        mock_scraper = Mock()
+        mock_scraper.post.return_value = mock_response
 
+        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
             with pytest.raises(LoginError):
                 self.api._handle_refresh_flow()
 
@@ -125,5 +126,5 @@ class TestAPIAuthUnit:
             call_args = mock_scraper.post.call_args
             headers = call_args[1]["headers"]
 
-            assert headers["Authorization"] == API.AUTHORIZATION_DEVICE
-            assert headers["User-Agent"] == API.CRUNCHYROLL_UA_DEVICE
+            assert headers["Authorization"] == API.AUTHORIZATION
+            assert headers["User-Agent"] == API.CRUNCHYROLL_UA
