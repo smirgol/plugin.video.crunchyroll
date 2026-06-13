@@ -189,4 +189,4 @@ class TestContentAPIIntegration:
         assert data_en is not None
         assert data_de is not None
         assert "items" in data_en
-        assert "items" in data
+        assert "items" in data_de
