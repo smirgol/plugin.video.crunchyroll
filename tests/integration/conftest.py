@@ -64,7 +64,6 @@ def api_client(token_manager, test_credentials):
         "device_id": test_credentials["device_id"],
         "account_id": test_credentials.get("account_id", ""),
         "token_type": "Bearer",
-        "user_agent_type": "device",
         "expires": expires_str
     })
 
