@@ -94,12 +94,12 @@ class CloudflareProxy:
                             # Use CloudScraper to fetch manifest
                             scraper = cloudscraper.create_scraper(
                                 delay=10,
-                                browser={'custom': G.api.CRUNCHYROLL_UA_DEVICE}
+                                browser={'custom': G.api.CRUNCHYROLL_UA}
                             )
 
                             headers = {
                                 "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
-                                "User-Agent": G.api.CRUNCHYROLL_UA_DEVICE,
+                                "User-Agent": G.api.CRUNCHYROLL_UA,
                             }
 
                             response = scraper.get(original_url, headers=headers, timeout=30)
@@ -311,17 +311,9 @@ class VideoStream(Object):
         """ get json stream data from cr api for given args.stream_id using new endpoint b/c drm """
 
         # from utils import crunchy_log
-        # Dynamic endpoint selection based on authentication type
-        user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
-
-        if user_agent_type == "device":
-            # Use AndroidTV endpoint for device authentication
-            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM_ANDROID_TV
-            crunchy_log("Using AndroidTV streaming endpoint for device session")
-        else:
-            # Use mobile/phone endpoint for legacy authentication
-            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM
-            crunchy_log("Using mobile streaming endpoint for legacy session")
+        # Use AndroidTV streaming endpoint for all sessions (device-only auth)
+        stream_endpoint = G.api.STREAMS_ENDPOINT_DRM_ANDROID_TV
+        crunchy_log("Using AndroidTV streaming endpoint")
 
         stream_url = stream_endpoint.format(G.args.get_arg('episode_id'))
         crunchy_log("Stream URL: %s" % stream_url)
@@ -329,20 +321,12 @@ class VideoStream(Object):
         crunchy_log(f"Current API Headers User-Agent: {G.api.api_headers.get('User-Agent', 'Unknown')}", xbmc.LOGDEBUG)
 
         # Use CloudScraper for AndroidTV endpoint (www.crunchyroll.com is Cloudflare protected)
-        if user_agent_type == "device":
-            crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
-            req = G.api.make_scraper_request(
-                method="GET",
-                url=stream_url,
-                auth_type="device",
-                auto_refresh=True
-            )
-        else:
-            crunchy_log("Using regular request for mobile streaming endpoint")
-            req = G.api.make_request(
-                method="GET",
-                url=stream_url,
-            )
+        crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
+        req = G.api.make_scraper_request(
+            method="GET",
+            url=stream_url,
+            auto_refresh=True
+        )
 
         # check for error
         if "error" in req or req is None:
@@ -370,9 +354,8 @@ class VideoStream(Object):
             else:
                 url = api_data["url"]
 
-            # Proxy Cloudflare-protected URLs for device authentication
-            user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
-            if user_agent_type == "device" and url and "www.crunchyroll.com" in url:
+            # Proxy Cloudflare-protected manifest URLs
+            if url and "www.crunchyroll.com" in url:
                 proxy = get_cloudflare_proxy()
                 proxied_url = proxy.get_proxied_url(url)
                 crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
