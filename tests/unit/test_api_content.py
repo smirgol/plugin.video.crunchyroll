@@ -100,11 +100,14 @@ class TestAPIContentUnit:
         with patch.object(self.api, 'is_token_valid', return_value=True), \
              patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
-            bucket = self.api.account_data.cms.bucket
+            series_id = 'GRVN8VK8R'
             result = self.api.make_request(
                 method="GET",
-                url=self.api.SEASONS_ENDPOINT.format(bucket),
-                params={"series_id": "GRVN8VK8R"}
+                url=self.api.SEASONS_ENDPOINT.format(series_id),
+                params={
+                    "force_locale": "ja-JP",
+                    "locale": "de-DE"
+                }
             )
 
             assert "data" in result
@@ -125,10 +128,11 @@ class TestAPIContentUnit:
              patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
             bucket = self.api.account_data.cms.bucket
+            season_id = 'GRJ0X123Y'
             result = self.api.make_request(
                 method="GET",
-                url=self.api.EPISODES_ENDPOINT.format(bucket),
-                params={"season_id": "GRJ0X123Y"}
+                url=self.api.EPISODES_ENDPOINT.format(season_id),
+                params={"locale": "de-DE"}
             )
 
             assert "data" in result

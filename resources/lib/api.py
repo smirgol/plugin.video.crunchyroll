@@ -57,9 +57,8 @@ class API:
     STREAMS_ENDPOINT_DRM_ANDROID_TV = "https://www.crunchyroll.com/playback/v2/{}/tv/android_tv/play"
     STREAMS_ENDPOINT_CLEAR_STREAM = "https://cr-play-service.prd.crunchyrollsvc.com/v1/token/{}/{}"
     STREAMS_ENDPOINT_GET_ACTIVE_STREAMS = "https://cr-play-service.prd.crunchyrollsvc.com/playback/v1/sessions/streaming"
-    # SERIES_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/series/{}"
-    SEASONS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/seasons"
-    EPISODES_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/episodes"
+    SEASONS_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/series/{}/seasons"
+    EPISODES_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/seasons/{}/episodes"
     OBJECTS_BY_ID_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/cms/objects/{}"
     # SIMILAR_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/{}/similar_to"
     # NEWSFEED_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/news_feed"
@@ -842,6 +841,8 @@ class API:
 
         try:
             utils.crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
+            utils.crunchy_log(f"make_scraper_request params: {params}", xbmc.LOGDEBUG)
+            utils.crunchy_log(f"make_scraper_request headers: {request_headers}", xbmc.LOGDEBUG)
 
             r = scraper.request(
                 method=method,
@@ -853,6 +854,7 @@ class API:
                 timeout=timeout
             )
 
+            utils.crunchy_log(f"make_scraper_request response URL: {r.url}", xbmc.LOGDEBUG)
             utils.crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
 
             if r.status_code == 401 and auto_refresh and not is_retry:
