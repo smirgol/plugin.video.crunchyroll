@@ -72,42 +72,47 @@ class TestContentAPIIntegration:
 
     def test_series_seasons(self, api_client):
         """Test fetching seasons for a known series - uses 'items'"""
-        bucket = api_client.account_data.cms.bucket
+
+        series_id = 'GQWH0M1J3'
         data = api_client.make_request(
             method="GET",
-            url=api_client.SEASONS_ENDPOINT.format(bucket),
+            url=api_client.SEASONS_ENDPOINT.format(series_id),
             params={
-                "series_id": "GQWH0M1J3",
+                "force_locale": "ja-JP",
                 "locale": "de-DE"
             }
         )
 
         assert data is not None
-        assert "items" in data
+        assert data.get('data') is not None
 
-        if len(data["items"]) > 0:
-            season = data["items"][0]
+        seasons = data.get("items") or data.get("data") or []
+
+        if len(seasons) > 0:
+            season = seasons[0]
             assert "id" in season
             assert "season_number" in season
             assert "series_id" in season
 
     def test_season_episodes(self, api_client):
         """Test fetching episodes for a season - uses 'items'"""
-        bucket = api_client.account_data.cms.bucket
+
+        season_id = 'GYE5CQNJ2'
         data = api_client.make_request(
             method="GET",
-            url=api_client.EPISODES_ENDPOINT.format(bucket),
+            url=api_client.EPISODES_ENDPOINT.format(season_id),
             params={
-                "season_id": "GYE5CQNJ2",
                 "locale": "de-DE"
             }
         )
 
         assert data is not None
-        assert "items" in data
+        assert data.get('data') is not None
 
-        if len(data["items"]) > 0:
-            episode = data["items"][0]
+        episodes = data.get("items") or data.get("data") or []
+
+        if len(episodes) > 0:
+            episode = episodes[0]
             assert "id" in episode
             assert "episode_number" in episode or "episode" in episode
             assert "title" in episode
@@ -184,4 +189,4 @@ class TestContentAPIIntegration:
         assert data_en is not None
         assert data_de is not None
         assert "items" in data_en
-        assert "items" in data_de
+        assert "items" in data
