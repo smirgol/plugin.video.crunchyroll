@@ -39,8 +39,14 @@ Integration tests make real API calls and require credentials.
    CRUNCHYROLL_REFRESH_TOKEN=your_token_here
    CRUNCHYROLL_DEVICE_ID=your_device_id_here
    ```
+   
+3. Verify that Authorization is up to date in `tests/fixtures/token_manager.py`:
+    ```bash
+        AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
+        USER_AGENT = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"
+    ```
 
-3. Run integration tests:
+4. Run integration tests:
    ```bash
    uv run pytest tests/ -m integration -v
    ```
@@ -110,15 +116,4 @@ def test_something(self):
     mock_response.status_code = 200
     mock_response.json.return_value = {...}
     mock_response.text = json.dumps({...})
-    mock_response.headers = {"Content-Type": "application/json"}
-
-    with patch.object(self.api.http, 'request', return_value=mock_response):
-        result = self.api.make_request("GET", url)
-```
-
-## Current Status
-
-- **50 unit tests** (0.2s)
-- **api.py coverage: 36%**
-- **8 API responses captured**
-- All tests passing ✅
+    mock_response.headers 

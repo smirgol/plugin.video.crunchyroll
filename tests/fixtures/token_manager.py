@@ -15,8 +15,8 @@ class TokenManager:
     """Manages access token with automatic refresh for integration tests"""
 
     TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
-    AUTHORIZATION = "Basic cG84NzF4ZnN3YXNrdGI4ODlncnM6UFMtM3BXUmRoSHFNVFl3V21EUU1DODdQOHItN0NmOU4="
-    USER_AGENT = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"
+    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
+    USER_AGENT = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
 
     def __init__(self, refresh_token: str, device_id: str):
         self.refresh_token = refresh_token
