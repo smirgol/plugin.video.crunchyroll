@@ -347,7 +347,6 @@ def update_playhead(content_id: str, playhead: int):
         G.api.make_scraper_request(
             method="POST",
             url=G.api.PLAYHEADS_ENDPOINT.format(G.api.account_data.account_id),
-            auth_type="device",
             json_data={
                 'playhead': playhead,
                 'content_id': content_id

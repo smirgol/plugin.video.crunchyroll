@@ -6,8 +6,14 @@ from resources.lib.model import AccountData
 from tests.fixtures.api_responses import STREAM_RESPONSE
 
 
+def _mock_scraper(mock_response):
+    scraper = Mock()
+    scraper.request.return_value = mock_response
+    return scraper
+
+
 class TestAPIStreamingUnit:
-    """Unit Tests for Streaming API methods (mocked HTTP)"""
+    """Unit Tests for Streaming API methods (mocked CloudScraper)"""
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
@@ -35,7 +41,7 @@ class TestAPIStreamingUnit:
         mock_response.headers = {"Content-Type": "application/json"}
 
         with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
+             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
@@ -59,7 +65,7 @@ class TestAPIStreamingUnit:
         mock_response.headers = {"Content-Type": "application/json"}
 
         with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
+             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
@@ -84,7 +90,7 @@ class TestAPIStreamingUnit:
         mock_response.headers = {"Content-Type": "application/json"}
 
         with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
+             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"

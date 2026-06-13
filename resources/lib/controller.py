@@ -514,7 +514,6 @@ def add_to_queue() -> bool:
         req = G.api.make_scraper_request(
             method="POST",
             url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
-            auth_type="device",
             json_data={
                 "content_id": G.args.get_arg('content_id')
             },

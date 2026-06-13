@@ -122,7 +122,6 @@ async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
     response = G.api.make_scraper_request(
         method='GET',
         url=G.api.PLAYHEADS_ENDPOINT.format(G.api.account_data.account_id),
-        auth_type="device",
         params={
             'locale': G.args.subtitle,
             'preferred_audio_language': G.api.account_data.default_audio_language,
@@ -152,7 +151,6 @@ async def get_watchlist_status_from_api(ids: list) -> list:
     req = G.api.make_scraper_request(
         method="GET",
         url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
-        auth_type="device",
         params={
             "content_ids": ','.join(ids),
             "locale": G.args.subtitle
