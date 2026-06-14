@@ -25,6 +25,12 @@ import xbmcgui
 import xbmcvfs
 
 from . import utils, view
+from .controller_helpers import (
+    add_next_page_item,
+    is_response_error,
+    is_response_error_strict,
+    render_error_directory,
+)
 from .globals import G
 from .model import CrunchyrollError, ProfileData
 from .utils import get_listables_from_response
@@ -39,10 +45,8 @@ def show_profiles():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     profiles = req.get("profiles")
     profile_list_items = list(map(lambda profile: ProfileData(profile).to_item(), profiles))
@@ -80,10 +84,8 @@ def show_queue():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     view.add_listables(
         listables=get_listables_from_response(req.get("items")),
@@ -124,15 +126,11 @@ def search_anime():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     if not req.get("items") or len(req.get("items")) == 0:
-        view.add_item({"title": G.args.addon.getLocalizedString(30090)})
-        view.end_of_directory()
-        return False
+        return render_error_directory(title_id=30090)
 
     type_data = req.get("items")[0]  # @todo: for now we support only the first type, which should be series
 
@@ -145,14 +143,10 @@ def search_anime():
     # pagination
     items_left = type_data.get("total") - (G.args.get_arg("offset", 0, int) * 50) - len(type_data.get("items"))
     if items_left > 0:
-        view.add_item(
-            {
-                "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg("offset", 0, int) + 50,
-                "search": d,
-                "mode": G.args.get_arg("mode"),
-            },
-            is_folder=True,
+        add_next_page_item(
+            offset=G.args.get_arg("offset", 0, int) + 50,
+            mode=G.args.get_arg("mode"),
+            search=d,
         )
 
     view.end_of_directory("tvshows")
@@ -175,10 +169,8 @@ def show_history():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
@@ -189,13 +181,9 @@ def show_history():
     # pagination
     num_pages = int(math.ceil(req["total"] / items_per_page))
     if current_page < num_pages:
-        view.add_item(
-            {
-                "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg("offset", 1, int) + 1,
-                "mode": G.args.get_arg("mode"),
-            },
-            is_folder=True,
+        add_next_page_item(
+            offset=G.args.get_arg("offset", 1, int) + 1,
+            mode=G.args.get_arg("mode"),
         )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -217,10 +205,8 @@ def show_resume_episodes():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
@@ -232,13 +218,9 @@ def show_resume_episodes():
     # pagination
     items_left = req.get("total") - (G.args.get_arg("offset", 0, int) * items_per_page) - len(req.get("data"))
     if items_left > 0:
-        view.add_item(
-            {
-                "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg("offset", 0, int) + items_per_page,
-                "mode": G.args.get_arg("mode"),
-            },
-            is_folder=True,
+        add_next_page_item(
+            offset=G.args.get_arg("offset", 0, int) + items_per_page,
+            mode=G.args.get_arg("mode"),
         )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -266,10 +248,8 @@ def list_anime_seasons():
     )
 
     # check for error
-    if req.get("error") is not None:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error_strict(req):
+        return render_error_directory()
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
@@ -293,10 +273,8 @@ def list_anime_seasons_without_filter():
     )
 
     # check for error
-    if req.get("error") is not None:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error_strict(req):
+        return render_error_directory()
 
     for season_tag_item in req.get("data"):
         # add to view
@@ -352,10 +330,8 @@ def list_filter():
     )
 
     # check for error
-    if req is None or req.get("error") is not None:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error_strict(req):
+        return render_error_directory()
 
     # series / collection  (crunchy / xbmc)
     view.add_listables(
@@ -368,14 +344,10 @@ def list_filter():
 
     # show next page button
     if items_left > 0:
-        view.add_item(
-            {
-                "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg("offset", 0, int) + items_per_page,
-                "category_filter": category_filter,
-                "mode": G.args.get_arg("mode"),
-            },
-            is_folder=True,
+        add_next_page_item(
+            offset=G.args.get_arg("offset", 0, int) + items_per_page,
+            mode=G.args.get_arg("mode"),
+            category_filter=category_filter,
         )
 
     view.end_of_directory("tvshows")
@@ -394,10 +366,8 @@ def list_filter_without_category():
     )
 
     # check for error
-    if req.get("error") is not None:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error_strict(req):
+        return render_error_directory()
 
     for category_item in req.get("items"):
         try:
@@ -438,10 +408,8 @@ def view_season():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
@@ -465,10 +433,8 @@ def view_episodes():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
@@ -622,10 +588,8 @@ def crunchylists_lists():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     for crunchy_list in req.get("data"):
         # add to view
@@ -661,10 +625,8 @@ def crunchylists_item():
     )
 
     # check for error
-    if not req or "error" in req:
-        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-        view.end_of_directory()
-        return False
+    if is_response_error(req):
+        return render_error_directory()
 
     view.add_listables(
         listables=get_listables_from_response(req.get("data")),
