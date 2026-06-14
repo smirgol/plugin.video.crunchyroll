@@ -10,24 +10,29 @@ Unit and integration tests for the Crunchyroll Kodi plugin.
 uv sync
 ```
 
-### Run Tests
+Test tooling (pytest, python-dotenv, ...) lives in the optional `test` extra.
+`uv run pytest` pulls it in automatically; standalone scripts need it
+explicitly via `uv run --extra test python ...`.
+
+### Run Unit Tests
 
 ```bash
-# Unit tests only (fast, ~0.2s)
+# Unit tests only (fast, ~0.2s) - no credentials required
 uv run pytest tests/unit/ -v
-
-# All tests
-uv run pytest tests/ -v
 
 # With coverage
 uv run pytest tests/unit/ --cov=resources.lib --cov-report=html
 ```
 
-## Integration Tests
+Unit tests run against captured fixtures (`tests/fixtures/captured_responses.json`)
+and mocked HTTP. They do not hit the network. If you switched API endpoints,
+re-capture the fixtures first (see below) so the unit tests validate against
+real response shapes.
 
-Integration tests make real API calls and require credentials.
+## Credentials Setup
 
-### Setup
+Both **capturing** and the **integration tests** make real API calls and need
+credentials. Set them up once:
 
 1. Copy the example env file:
    ```bash
@@ -39,23 +44,68 @@ Integration tests make real API calls and require credentials.
    CRUNCHYROLL_REFRESH_TOKEN=your_token_here
    CRUNCHYROLL_DEVICE_ID=your_device_id_here
    ```
-   
-3. Verify that Authorization is up to date in `tests/fixtures/token_manager.py`:
-    ```bash
-        AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
-        USER_AGENT = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"
-    ```
+   Get these from your Kodi addon (start a fresh device auth on your real
+   client) - see `tests/.env.example` for where to find them.
 
-4. Run integration tests:
-   ```bash
-   uv run pytest tests/ -m integration -v
-   ```
+### Pitfall: the AUTHORIZATION client credential rotates
+
+Token refresh uses a hardcoded `Basic ...` client credential
+(`API.AUTHORIZATION` in `resources/lib/api.py`). Crunchyroll **rotates this
+value every few weeks**. When it is stale, token refresh fails with:
+
+```
+401 - {"code":"auth.obtain_access_token.client_inactive","error":"invalid_client"}
+```
+
+This is **not** an expired refresh token - it is the client credential.
+`tests/fixtures/token_manager.py` reuses `API.AUTHORIZATION` directly (single
+source of truth), so renewing the value in `api.py` fixes both the plugin and
+the tests at once.
+
+## Capturing API Responses
+
+Unit tests assert against real response shapes stored in
+`tests/fixtures/captured_responses.json`. Re-capture these:
+
+- **At least once** before running the unit tests for the first time, and
+- **after every API endpoint change** (e.g. switching seasons/episodes
+  endpoints), so the fixtures reflect the new schema.
+
+`tests/capture_responses.py` is a **standalone script**, not a pytest test.
+Run it as a plain script (requires valid credentials and the `test` extra):
+
+```bash
+uv run --extra test python tests/capture_responses.py
+```
+
+> Do **not** run it via `pytest tests/capture_responses.py`. pytest only
+> imports the file during collection and swallows its output on the fd level -
+> it looks like "nothing happened". The script guards against this and aborts
+> with a clear message if imported by pytest.
+
+It walks through profile, index, browse, search, seasons, episodes, watchlist,
+history and playheads, prints a per-endpoint progress log, and writes the
+result to `tests/fixtures/captured_responses.json`.
+
+To compare old vs new API shapes, capture on the pre-migration commit, rename
+the output (e.g. `captured_responses.old.json`), switch to the new commit and
+capture again.
+
+## Integration Tests
+
+Integration tests make real API calls (see Credentials Setup above).
+
+```bash
+uv run pytest tests/ -m integration -v
+```
 
 ## Project Structure
 
 ```
 tests/
-├── unit/                    # Unit tests (mocked HTTP)
+├── capture_responses.py     # Standalone fixture capture script
+│
+├── unit/                    # Unit tests (mocked HTTP, captured fixtures)
 │   ├── test_api_auth.py
 │   ├── test_api_content.py
 │   ├── test_api_streaming.py
@@ -68,9 +118,9 @@ tests/
 │   └── test_streaming_api.py
 │
 └── fixtures/
-    ├── token_manager.py     # Auto-refresh token management
+    ├── token_manager.py     # Auto-refresh token mgmt (reuses api.py consts)
     ├── api_responses.py     # Mock responses
-    └── captured_responses.json  # Real API responses (8 endpoints)
+    └── captured_responses.json  # Real API responses
 ```
 
 ## Key Points
@@ -116,4 +166,8 @@ def test_something(self):
     mock_response.status_code = 200
     mock_response.json.return_value = {...}
     mock_response.text = json.dumps({...})
-    mock_response.headers 
+    mock_response.headers = {"Content-Type": "application/json"}
+
+    with patch.object(self.api.http, 'request', return_value=mock_response):
+        result = self.api.make_request("GET", url)
+```

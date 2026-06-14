@@ -8,5 +8,5 @@ api-new/
 /docs/
 /tools/
 /tests/.env
-/tests/fixtures/captured_responses.json
+/tests/fixtures/captured_responses*
 /.coverage

@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 import requests
 
+from resources.lib.api import API
+
 # Add resources/modules to path for cloudscraper
 project_root = Path(__file__).parent.parent.parent
 modules_path = project_root / "resources" / "modules"
@@ -14,9 +16,12 @@ if str(modules_path) not in sys.path:
 class TokenManager:
     """Manages access token with automatic refresh for integration tests"""
 
-    TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
-    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
-    USER_AGENT = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
+    # Reuse the production constants from api.py so there is a single source
+    # of truth. The AUTHORIZATION client credential rotates every few weeks;
+    # renew it in api.py and the tests pick it up automatically.
+    TOKEN_ENDPOINT = API.TOKEN_ENDPOINT
+    AUTHORIZATION = API.AUTHORIZATION
+    USER_AGENT = API.CRUNCHYROLL_UA
 
     def __init__(self, refresh_token: str, device_id: str):
         self.refresh_token = refresh_token
