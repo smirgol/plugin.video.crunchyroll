@@ -19,14 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-
-from resources.lib.model import EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
-
-try:
-    from urllib import quote_plus
-except ImportError:
-    from urllib.parse import quote_plus
-
 from collections.abc import Callable
 from typing import Any
 
@@ -34,7 +26,9 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from . import router, utils
+from resources.lib.model import EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
+
+from . import presentation, router, utils
 from .globals import G
 
 # Fix for bug in old python version on windows
@@ -43,57 +37,9 @@ from .globals import G
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# keys allowed in setInfo
-types = [
-    "count",
-    "size",
-    "date",
-    "genre",
-    "country",
-    "year",
-    "episode",
-    "season",
-    "sortepisode",
-    "top250",
-    "setid",
-    "tracknumber",
-    "rating",
-    "userrating",
-    "watched",
-    "overlay",
-    "cast",
-    "castandrole",
-    "director",
-    "mpaa",
-    "plot",
-    "plotoutline",
-    "title",
-    "originaltitle",
-    "sorttitle",
-    "duration",
-    "studio",
-    "tagline",
-    "writer",
-    "tvshowtitle",
-    "premiered",
-    "status",
-    "set",
-    "setoverview",
-    "tag",
-    "imdbnumber",
-    "code",
-    "aired",
-    "credits",
-    "lastplayed",
-    "album",
-    "artist",
-    "votes",
-    "path",
-    "trailer",
-    "dateadded",
-    "mediatype",
-    "dbid",
-]
+# keys allowed in setInfo - kept as backward-compat alias.
+# New code should import KODI_INFO_TYPES from presentation.
+types = presentation.KODI_INFO_TYPES
 
 
 def end_of_directory(content_type=None, update_listing=False, cache_to_disc=True):
@@ -125,13 +71,14 @@ def add_item(
     path_params.update(info)
 
     # get url
-    u = build_url(path_params)
+    u = presentation.build_url(path_params, G.args.addonurl)
 
     # create list item
     li = xbmcgui.ListItem(label=info["title"], path=u)
 
+    sync = G.args.addon.getSetting("sync_playtime") == "true"
     # get infoLabels
-    info_labels = make_info_label(info)
+    info_labels = presentation.make_info_label(info, G.args.args, sync_playtime=sync)
 
     if is_folder:
         # directory
@@ -146,14 +93,13 @@ def add_item(
         # add context menu to jump to seasons xor episodes
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
+        addonurl = G.args.addonurl
         if path_params.get("series_id"):
-            cm.append(
-                (G.args.addon.getLocalizedString(30045), f"Container.Update({build_url(path_params, 'series_view')})")
-            )
+            url = presentation.build_url(path_params, addonurl, "series_view")
+            cm.append((G.args.addon.getLocalizedString(30045), f"Container.Update({url})"))
         if path_params.get("collection_id"):
-            cm.append(
-                (G.args.addon.getLocalizedString(30046), f"Container.Update({build_url(path_params, 'season_view')})")
-            )
+            url = presentation.build_url(path_params, addonurl, "season_view")
+            cm.append((G.args.addon.getLocalizedString(30046), f"Container.Update({url})"))
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
@@ -353,7 +299,7 @@ def add_listables(
     # add listable items to kodi
     for listable in listables:
         # get url
-        u = build_url(listable.get_info())
+        u = presentation.build_url(listable.get_info(), G.args.addonurl)
 
         # get xbmc list item
         list_item = listable.to_item()
@@ -404,63 +350,12 @@ def add_listables(
         )
 
 
-def quote_value(value) -> str:
-    """Quote value depending on python"""
-    if not isinstance(value, str):
-        value = str(value)
-    return quote_plus(value)
-
-
-# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
-# Don't Use this, because it will break the local playcount system.
-# For the local playcount to work, the url (with all args) needs to be identical in the list and the in the player.
-whitelist_url_args = []
-
-
 def build_url(path_params: dict, route_name: str = None) -> str:
-    """Create url"""
-
-    # Get base route
-    if route_name is None:
-        path = router.build_path(path_params)
-    else:
-        path = router.create_path_from_route(route_name, path_params)
-    if path is None:
-        path = "/"
-
-    s = ""
-    # Add whitelisted parameters
-    for key, value in path_params.items():
-        if key in whitelist_url_args and value:
-            s = s + "&" + key + "=" + quote_value(value)
-    if len(s) > 0:
-        s = "?" + s[1:]
-
-    result = G.args.addonurl + path + s
-
-    return result
+    """Create url. Backward-compat wrapper around presentation.build_url()."""
+    return presentation.build_url(path_params, G.args.addonurl, route_name)
 
 
 def make_info_label(info) -> dict:
-    """Generate info_labels from existing dict"""
-    info_labels = {}
-    # step 1 copy new information from info
-    info_items = list(info.items())
-    for key, value in info_items:
-        if value and key in types:
-            info_labels[key] = value
-
-    # step 2 copy old information from args, but don't overwrite
-    arg_items = list(G.args.args.items())
-    for key, value in arg_items:
-        if value and key in types and key not in info_labels:
-            info_labels[key] = value
-
-    # only allow to overwrite the local playcount if we sync the playtime with the server
-    if G.args.addon.getSetting("sync_playtime") == "true":
-        if "playcount" in info_items:
-            info_labels["playcount"] = info_items["playcount"]
-        if "playcount" in arg_items and "playcount" not in info_labels:
-            info_labels["playcount"] = arg_items["playcount"]
-
-    return info_labels
+    """Generate info_labels from existing dict. Backward-compat wrapper."""
+    sync = G.args.addon.getSetting("sync_playtime") == "true"
+    return presentation.make_info_label(info, G.args.args, sync_playtime=sync)
