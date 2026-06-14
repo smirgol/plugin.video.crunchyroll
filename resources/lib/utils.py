@@ -329,7 +329,9 @@ def filter_series(seriesItem: dict) -> bool:
             return True
 
     # is it a dub in my alternate language?
-    if G.args.addon.getSetting("show_dubs_by_language_fallback") == "true" and G.args.subtitle_fallback and G.args.subtitle_fallback in item.get('audio_locales', []):
+    if (G.args.addon.getSetting("show_dubs_by_language_fallback") == "true"
+            and G.args.subtitle_fallback
+            and G.args.subtitle_fallback in item.get('audio_locales', [])):
         return True
 
     if G.args.addon.getSetting("show_subs_by_language") == "true":
@@ -362,7 +364,9 @@ def filter_seasons(item: dict) -> bool:
             return True
 
     # is it a dub in my alternate language?
-    if G.args.addon.getSetting("show_dubs_by_language_fallback") == "true" and G.args.subtitle_fallback and G.args.subtitle_fallback == item.get('audio_locale', ""):
+    if (G.args.addon.getSetting("show_dubs_by_language_fallback") == "true"
+            and G.args.subtitle_fallback
+            and G.args.subtitle_fallback == item.get('audio_locale', "")):
         return True
 
     if G.args.addon.getSetting("show_subs_by_language") == "true":

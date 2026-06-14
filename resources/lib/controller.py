@@ -594,7 +594,8 @@ def add_to_queue() -> bool:
 #     # api request
 #     req = G.api.make_request(
 #         method="DELETE",
-#         url=G.api.WATCHLIST_REMOVE_ENDPOINT.format(G.api.account_data.account_id, G.args.content_id, G.args.content_id),
+#         url=G.api.WATCHLIST_REMOVE_ENDPOINT.format(
+#             G.api.account_data.account_id, G.args.content_id, G.args.content_id),
 #     )
 #
 #     # check for error - probably does not work

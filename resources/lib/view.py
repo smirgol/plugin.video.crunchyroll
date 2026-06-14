@@ -225,19 +225,28 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
 
             listable.thumb = get_img_from_struct(series_data, "poster_wide", 2) or listable.thumb
             listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
-            listable.fanart = infer_img_from_id(series_id, "backdrop_wide") or get_img_from_struct(series_data, "poster_wide", 2) or listable.fanart
+            listable.fanart = (
+                infer_img_from_id(series_id, "backdrop_wide")
+                or get_img_from_struct(series_data, "poster_wide", 2)
+                or listable.fanart
+            )
             listable.clearlogo = infer_img_from_id(series_id, "title_logo") or listable.clearlogo
             listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
             listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
             # for episodes, only thumb is provided, so we can use it
-            # however, fanart and other arts are empty so we need to get them from the series to get a complete interface
+            # however, fanart and other arts are empty so we need to get them from the series
+            # to get a complete interface
             series_data = result_obj.get('objects').get(listable.series_id)
             series_id = series_data.get('id') if series_data else None
 
             listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
-            listable.fanart = infer_img_from_id(series_id, "backdrop_wide") or get_img_from_struct(series_data, "poster_wide", 2) or listable.fanart
+            listable.fanart = (
+                infer_img_from_id(series_id, "backdrop_wide")
+                or get_img_from_struct(series_data, "poster_wide", 2)
+                or listable.fanart
+            )
             listable.clearlogo = infer_img_from_id(series_id, "title_logo") or listable.clearlogo
             listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
             listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster

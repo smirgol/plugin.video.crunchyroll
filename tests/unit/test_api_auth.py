@@ -81,7 +81,9 @@ class TestAPIAuthUnit:
 
     def test_device_token_polling_success(self):
         """Test successful device token polling"""
-        with patch.object(self.api, '_process_device_token_response', return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE}), \
+        with patch.object(
+                self.api, '_process_device_token_response',
+                return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE}), \
              patch.object(self.api, 'create_auth_scraper', return_value=Mock()):
 
             result = self.api.poll_device_token("mock_device_code")

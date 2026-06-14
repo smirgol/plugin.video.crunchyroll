@@ -53,7 +53,10 @@ def api_client(token_manager, test_credentials):
 
     token = token_manager.get_valid_token()
     expires_at = token_manager.token_expires_at
-    expires_str = f"{expires_at.year}-{expires_at.month}-{expires_at.day}T{expires_at.hour}:{expires_at.minute}:{expires_at.second}Z"
+    expires_str = (
+        f"{expires_at.year}-{expires_at.month}-{expires_at.day}"
+        f"T{expires_at.hour}:{expires_at.minute}:{expires_at.second}Z"
+    )
 
     api.account_data = AccountData({
         "access_token": token,
