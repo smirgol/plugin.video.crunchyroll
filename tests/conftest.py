@@ -18,7 +18,15 @@ sys.modules["xbmc"] = MagicMock()
 sys.modules["xbmcgui"] = MagicMock()
 sys.modules["xbmcplugin"] = MagicMock()
 sys.modules["xbmcaddon"] = MagicMock()
-sys.modules["xbmcvfs"] = MagicMock()
+
+# xbmcvfs.listdir must return (dirs, files) tuple to satisfy VideoStream usage.
+xbmcvfs_mock = MagicMock()
+xbmcvfs_mock.listdir.return_value = ([], [])
+sys.modules["xbmcvfs"] = xbmcvfs_mock
+
+# inputstreamhelper is imported lazily inside videoplayer.py.
+inputstreamhelper_mock = MagicMock()
+sys.modules["inputstreamhelper"] = inputstreamhelper_mock
 
 # Mock globals.G BEFORE importing resources.lib modules
 mock_args = MagicMock()

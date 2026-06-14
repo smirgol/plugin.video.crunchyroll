@@ -26,11 +26,10 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib.model import Args, EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
+from resources.lib.model import EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
 
 from . import presentation, router, utils
 from .context import PluginContext
-from .globals import G
 
 # Fix for bug in old python version on windows
 # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/44
@@ -43,17 +42,9 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 types = presentation.KODI_INFO_TYPES
 
 
-def _args_from(ctx: PluginContext | None) -> Args:
-    """Return ctx.args if a context is provided, otherwise fall back to G.args.
 
-    This helper keeps view.py callable from legacy code during the PluginContext
-    transition. It will be removed in Phase 9c when the G singleton is deleted.
-    """
-    return ctx.args if ctx is not None else G.args
-
-
-def end_of_directory(ctx: PluginContext | None = None, content_type=None, update_listing=False, cache_to_disc=True):
-    args = _args_from(ctx)
+def end_of_directory(ctx: PluginContext, content_type=None, update_listing=False, cache_to_disc=True):
+    args = ctx.args
     # let xbmc know the items type in current directory
     if content_type is not None:
         xbmcplugin.setContent(int(args.argv[1]), content_type)
@@ -66,7 +57,7 @@ def end_of_directory(ctx: PluginContext | None = None, content_type=None, update
 
 
 def add_item(
-    ctx: PluginContext | None = None,
+    ctx: PluginContext,
     info=None,
     is_folder=True,
     total_items=0,
@@ -78,7 +69,7 @@ def add_item(
     This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
 
-    args = _args_from(ctx)
+    args = ctx.args
     if info is None:
         info = {}
 
@@ -296,7 +287,7 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
 
 
 def add_listables(
-    ctx: PluginContext | None = None,
+    ctx: PluginContext,
     listables: list[ListableItem] = None,
     is_folder=True,
     options: int = 0,
@@ -307,7 +298,7 @@ def add_listables(
 
     from .utils import crunchy_log, highlight_list_item_title
 
-    args = _args_from(ctx)
+    args = ctx.args
 
     crunchy_log("add_listables: Starting to retrieve data async")
     complement_data = asyncio.run(complement_listables(listables))
@@ -372,17 +363,17 @@ def add_listables(
         )
 
 
-def build_url(ctx: PluginContext | None = None, path_params: dict = None, route_name: str = None) -> str:
+def build_url(ctx: PluginContext, path_params: dict = None, route_name: str = None) -> str:
     """Create url. Backward-compat wrapper around presentation.build_url()."""
-    args = _args_from(ctx)
+    args = ctx.args
     if path_params is None:
         path_params = {}
     return presentation.build_url(path_params, args.addonurl, route_name)
 
 
-def make_info_label(ctx: PluginContext | None = None, info=None) -> dict:
+def make_info_label(ctx: PluginContext, info=None) -> dict:
     """Generate info_labels from existing dict. Backward-compat wrapper."""
-    args = _args_from(ctx)
+    args = ctx.args
     if info is None:
         info = {}
     sync = args.addon.getSetting("sync_playtime") == "true"

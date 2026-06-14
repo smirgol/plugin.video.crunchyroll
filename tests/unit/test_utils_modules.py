@@ -15,57 +15,66 @@ from resources.lib.utils import api_data, filters, formatting, images
 
 
 @pytest.fixture
-def mock_globals():
+def mock_utils_args():
     addon = MagicMock()
     args = MagicMock()
     args.addon = addon
     args.subtitle = "de-DE"
     args.subtitle_fallback = "en-US"
     args.addon_name = "CrunchyrollTest"
+    return args
 
+
+@pytest.fixture
+def mock_utils_api():
     api = MagicMock()
     api.STATIC_IMG_PROFILE = "https://static/img/"
     api.STATIC_WALLPAPER_PROFILE = "https://static/wallpaper/"
-
-    with patch("resources.lib.utils.api_data.G") as g_api_data, \
-         patch("resources.lib.utils.filters.G") as g_filters, \
-         patch("resources.lib.utils.images.G") as g_images:
-        for g in (g_api_data, g_filters, g_images):
-            g.args = args
-            g.api = api
-        yield {"args": args, "api": api}
+    return api
 
 
 class TestFilters:
-    def test_filter_series_disabled_returns_true(self, mock_globals):
-        mock_globals["args"].addon.getSetting.return_value = "false"
-        assert filters.filter_series({"panel": {"series_metadata": {"audio_locales": ["ja-JP"]}}}) is True
+    def test_filter_series_disabled_returns_true(self, mock_utils_args):
+        mock_utils_args.addon.getSetting.return_value = "false"
+        result = filters.filter_series(
+            {"panel": {"series_metadata": {"audio_locales": ["ja-JP"]}}},
+            args=mock_utils_args,
+        )
+        assert result is True
 
-    def test_filter_series_main_audio_matches(self, mock_globals):
+    def test_filter_series_main_audio_matches(self, mock_utils_args):
         def setting(name):
             return {"filter_dubs_by_language": "true", "show_dubs_by_language": "true"}.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
-        assert filters.filter_series({"panel": {"series_metadata": {"audio_locales": ["de-DE"]}}}) is True
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_series(
+            {"panel": {"series_metadata": {"audio_locales": ["de-DE"]}}},
+            args=mock_utils_args,
+        )
+        assert result is True
 
-    def test_filter_series_fallback_audio_matches(self, mock_globals):
+    def test_filter_series_fallback_audio_matches(self, mock_utils_args):
         def setting(name):
             return {
                 "filter_dubs_by_language": "true",
                 "show_dubs_by_language_fallback": "true",
             }.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
-        assert filters.filter_series({"panel": {"series_metadata": {"audio_locales": ["en-US"]}}}) is True
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_series(
+            {"panel": {"series_metadata": {"audio_locales": ["en-US"]}}},
+            args=mock_utils_args,
+        )
+        assert result is True
 
-    def test_filter_series_japanese_with_subtitles(self, mock_globals):
+    def test_filter_series_japanese_with_subtitles(self, mock_utils_args):
         def setting(name):
             return {
                 "filter_dubs_by_language": "true",
                 "show_subs_by_language": "true",
             }.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
+        mock_utils_args.addon.getSetting.side_effect = setting
         assert filters.filter_series(
             {
                 "panel": {
@@ -74,33 +83,42 @@ class TestFilters:
                         "subtitle_locales": ["de-DE"],
                     }
                 }
-            }
+            },
+            args=mock_utils_args,
         ) is True
 
-    def test_filter_series_no_match(self, mock_globals):
+    def test_filter_series_no_match(self, mock_utils_args):
         def setting(name):
             return {"filter_dubs_by_language": "true", "show_dubs_by_language": "true"}.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
-        mock_globals["args"].subtitle = "fr-FR"
-        assert filters.filter_series({"panel": {"series_metadata": {"audio_locales": ["de-DE"]}}}) is False
+        mock_utils_args.addon.getSetting.side_effect = setting
+        mock_utils_args.subtitle = "fr-FR"
+        result = filters.filter_series(
+            {"panel": {"series_metadata": {"audio_locales": ["de-DE"]}}},
+            args=mock_utils_args,
+        )
+        assert result is False
 
-    def test_filter_seasons_main_audio_matches(self, mock_globals):
+    def test_filter_seasons_main_audio_matches(self, mock_utils_args):
         def setting(name):
             return {"filter_dubs_by_language": "true", "show_dubs_by_language": "true"}.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
-        assert filters.filter_seasons({"audio_locale": "de-DE"}) is True
+        mock_utils_args.addon.getSetting.side_effect = setting
+        assert filters.filter_seasons({"audio_locale": "de-DE"}, args=mock_utils_args) is True
 
-    def test_filter_seasons_japanese_with_fallback_subs(self, mock_globals):
+    def test_filter_seasons_japanese_with_fallback_subs(self, mock_utils_args):
         def setting(name):
             return {
                 "filter_dubs_by_language": "true",
                 "show_subs_by_language": "true",
             }.get(name, "false")
 
-        mock_globals["args"].addon.getSetting.side_effect = setting
-        assert filters.filter_seasons({"audio_locale": "ja-JP", "subtitle_locales": ["en-US"]}) is True
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_seasons(
+            {"audio_locale": "ja-JP", "subtitle_locales": ["en-US"]},
+            args=mock_utils_args,
+        )
+        assert result is True
 
 
 class TestFormatting:
@@ -171,14 +189,14 @@ class TestFormatting:
 
 
 class TestImages:
-    def test_get_img_from_static_normal(self, mock_globals):
-        assert images.get_img_from_static("poster.jpg") == "https://static/img/poster.jpg"
+    def test_get_img_from_static_normal(self, mock_utils_api):
+        assert images.get_img_from_static("poster.jpg", api=mock_utils_api) == "https://static/img/poster.jpg"
 
-    def test_get_img_from_static_wallpaper(self, mock_globals):
-        assert images.get_img_from_static("bg.jpg", image_type="wallpaper") == "https://static/wallpaper/bg.jpg"
+    def test_get_img_from_static_wallpaper(self, mock_utils_api):
+        assert images.get_img_from_static("bg.jpg", image_type="wallpaper", api=mock_utils_api) == "https://static/wallpaper/bg.jpg"
 
     def test_get_img_from_static_none(self):
-        assert images.get_img_from_static(None) is None
+        assert images.get_img_from_static(None, api=MagicMock()) is None
 
     def test_get_img_from_struct_extracts_source(self):
         item = {"images": {"poster_tall": [{"source": "https://img/1"}]}}
@@ -211,18 +229,22 @@ class TestApiDataHelpers:
             api_data.get_stream_id_from_item({})
 
     def test_get_listables_from_response_detects_series(self):
+        args = MagicMock()
+        args.addon.getSetting.return_value = "false"
         data = [{"type": "series", "panel": {"series_metadata": {"audio_locales": ["de-DE"]}}}]
-        result = api_data.get_listables_from_response(data)
+        result = api_data.get_listables_from_response(data, args=args)
         assert len(result) == 1
         assert isinstance(result[0], type(result[0]))  # just ensure it is a model instance
 
     def test_get_listables_from_response_type_hint(self):
+        args = MagicMock()
+        args.addon.getSetting.return_value = "false"
         # Build a minimal valid episode struct; use a MagicMock to avoid
         # constructing the full EpisodeData object graph.
         ep = MagicMock()
         with patch("resources.lib.utils.api_data.EpisodeData", return_value=ep) as mock_factory:
             data = [{"episode_number": 1}]
-            result = api_data.get_listables_from_response(data, item_type_hint="episode")
+            result = api_data.get_listables_from_response(data, item_type_hint="episode", args=args)
             assert len(result) == 1
             assert result[0] is ep
             mock_factory.assert_called_once_with(data[0])

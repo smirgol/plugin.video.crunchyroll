@@ -16,45 +16,49 @@
 
 from __future__ import annotations
 
-from ..globals import G
 
-
-def _filter_by_locales(panel: dict, audio_locales: list, subtitle_locales: list | None = None) -> bool:
+def _filter_by_locales(
+    panel: dict,
+    audio_locales: list,
+    subtitle_locales: list | None = None,
+    args=None,
+) -> bool:
     """Shared locale matching logic for series and seasons."""
 
-    if G.args.addon.getSetting("filter_dubs_by_language") != "true":
+
+    if args.addon.getSetting("filter_dubs_by_language") != "true":
         return True
 
     # main audio language
-    if G.args.addon.getSetting("show_dubs_by_language") == "true":
-        if G.args.subtitle in audio_locales:
+    if args.addon.getSetting("show_dubs_by_language") == "true":
+        if args.subtitle in audio_locales:
             return True
 
     # fallback audio language
     if (
-        G.args.addon.getSetting("show_dubs_by_language_fallback") == "true"
-        and G.args.subtitle_fallback
-        and G.args.subtitle_fallback in audio_locales
+        args.addon.getSetting("show_dubs_by_language_fallback") == "true"
+        and args.subtitle_fallback
+        and args.subtitle_fallback in audio_locales
     ):
         return True
 
-    if G.args.addon.getSetting("show_subs_by_language") == "true":
+    if args.addon.getSetting("show_subs_by_language") == "true":
         # edge case for chinese only anime where there is no japanese dub
         # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/51
         if "ja-JP" in audio_locales or "zh-CN" in audio_locales:
             if subtitle_locales == [] and panel.get("is_subbed", False) is True:
                 return True
 
-            if subtitle_locales and G.args.subtitle in subtitle_locales:
+            if subtitle_locales and args.subtitle in subtitle_locales:
                 return True
 
-            if subtitle_locales and G.args.subtitle_fallback and G.args.subtitle_fallback in subtitle_locales:
+            if subtitle_locales and args.subtitle_fallback and args.subtitle_fallback in subtitle_locales:
                 return True
 
     return False
 
 
-def filter_series(seriesItem: dict) -> bool:
+def filter_series(seriesItem: dict, args) -> bool:
     """takes an API info struct and returns if it matches user language settings"""
 
     panel = seriesItem.get("panel") or seriesItem
@@ -64,14 +68,16 @@ def filter_series(seriesItem: dict) -> bool:
         panel,
         item.get("audio_locales", []),
         item.get("subtitle_locales", []),
+        args=args,
     )
 
 
-def filter_seasons(item: dict) -> bool:
+def filter_seasons(item: dict, args) -> bool:
     """takes an API info struct and returns if it matches user language settings"""
 
     return _filter_by_locales(
         item,
         [item.get("audio_locale", "")],
         item.get("subtitle_locales", []),
+        args=args,
     )

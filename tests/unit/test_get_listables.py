@@ -8,9 +8,19 @@ explicit item_type_hint. Mixed lists (browse) must keep auto-detecting per item.
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 from resources.lib.model import EpisodeData, SeasonData, SeriesData
 from resources.lib.utils import get_listables_from_response
+
+
+@pytest.fixture
+def listable_args():
+    args = MagicMock()
+    args.addon.getSetting.return_value = "false"
+    return args
 
 
 def load_captured_response(name):
@@ -26,35 +36,35 @@ def get_list(response):
 class TestTypeHint:
     """item_type_hint resolves the type when items carry no identifier"""
 
-    def test_seasons_mapped_with_hint(self):
+    def test_seasons_mapped_with_hint(self, listable_args):
         seasons = get_list(load_captured_response("seasons_response"))
 
-        listables = get_listables_from_response(seasons, item_type_hint="season")
+        listables = get_listables_from_response(seasons, item_type_hint="season", args=listable_args)
 
         assert len(listables) == len(seasons)
         assert all(isinstance(item, SeasonData) for item in listables)
 
-    def test_episodes_mapped_with_hint(self):
+    def test_episodes_mapped_with_hint(self, listable_args):
         episodes = get_list(load_captured_response("episodes_response"))
 
-        listables = get_listables_from_response(episodes, item_type_hint="episode")
+        listables = get_listables_from_response(episodes, item_type_hint="episode", args=listable_args)
 
         assert len(listables) == len(episodes)
         assert all(isinstance(item, EpisodeData) for item in listables)
 
-    def test_seasons_without_hint_are_skipped(self):
+    def test_seasons_without_hint_are_skipped(self, listable_args):
         """No type identifier and no hint -> item cannot be mapped"""
         seasons = get_list(load_captured_response("seasons_response"))
 
-        listables = get_listables_from_response(seasons)
+        listables = get_listables_from_response(seasons, args=listable_args)
 
         assert listables == []
 
-    def test_per_item_type_wins_over_hint(self):
+    def test_per_item_type_wins_over_hint(self, listable_args):
         """A present type field must take precedence over the hint"""
         item = {"type": "series", "id": "X", "title": "T", "slug_title": "t"}
 
-        listables = get_listables_from_response([item], item_type_hint="episode")
+        listables = get_listables_from_response([item], item_type_hint="episode", args=listable_args)
 
         assert len(listables) == 1
         assert isinstance(listables[0], SeriesData)
@@ -63,10 +73,10 @@ class TestTypeHint:
 class TestMixedListAutoDetection:
     """browse/search/watchlist still carry type identifiers and must not regress"""
 
-    def test_browse_auto_detected_without_hint(self):
+    def test_browse_auto_detected_without_hint(self, listable_args):
         browse = get_list(load_captured_response("browse_response"))
 
-        listables = get_listables_from_response(browse)
+        listables = get_listables_from_response(browse, args=listable_args)
 
         assert len(listables) > 0
 
