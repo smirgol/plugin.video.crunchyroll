@@ -31,14 +31,18 @@ from .model import CrunchyrollError, ListableItem, EpisodeData, MovieData, Serie
 # @todo we could change the return type and along with the listables return additional data that we preload
 #       like info what is on watchlist, artwork, playhead, ...
 #       for that we should use async requests (asyncio)
-def get_listables_from_response(data: List[dict]) -> List[ListableItem]:
-    """ takes an API response object, determines type of its contents and creates DTOs for further processing """
+def get_listables_from_response(data: List[dict], item_type_hint: Optional[str] = None) -> List[ListableItem]:
+    """ takes an API response object, determines type of its contents and creates DTOs for further processing
+
+    For mixed lists (browse, search, watchlist) the type is detected per item. The newer content/v2 endpoints
+    (seasons, episodes) no longer carry a type identifier, so the caller passes the known type via item_type_hint.
+    """
 
     listable_items = []
 
     for item in data:
         # fetch type, which is always somewhere else, depending on api endpoint *sighs*
-        item_type = item.get('panel', {}).get('type') or item.get('type') or item.get('__class__')
+        item_type = item.get('panel', {}).get('type') or item.get('type') or item.get('__class__') or item_type_hint
         if not item_type:
             crunchy_log(
                 "get_listables_from_response | failed to determine type for response item %s" % (
