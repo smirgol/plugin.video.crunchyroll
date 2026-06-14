@@ -18,13 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import http.server
 import os
-import socketserver
 import sys
-import threading
-import time
-import urllib.parse
 from typing import Any
 
 import requests
@@ -35,6 +30,7 @@ import xbmcvfs
 
 from resources.lib.context import PluginContext
 from resources.lib.model import CrunchyrollError, Object, PlayableItem
+from resources.lib.proxy import get_cloudflare_proxy
 from resources.lib.utils import (
     crunchy_log,
     get_cms_object_data_by_ids,
@@ -42,192 +38,6 @@ from resources.lib.utils import (
     get_playheads_from_api,
     log_error_with_trace,
 )
-
-from ..modules import cloudscraper
-
-
-class CloudflareProxy:
-    """
-    Minimal HTTP proxy to bypass Cloudflare for Kodi manifest access
-
-    Auto-terminates after TTL to prevent zombie processes
-    """
-
-    def __init__(self, api, args, ttl_seconds=30):
-        self.server = None
-        self.server_thread = None
-        self.port = None
-        self.ttl_seconds = ttl_seconds
-        self.start_time = None
-        self.shutdown_timer = None
-        self.api = api
-        self.args = args
-
-    def get_proxied_url(self, original_url: str) -> str:
-        """Get proxied URL for Cloudflare-protected manifest"""
-        try:
-            if not self.server:
-                self._start_server()
-
-            # Verify server is still running
-            if self.server_thread and not self.server_thread.is_alive():
-                crunchy_log("Proxy server thread died, restarting", xbmc.LOGDEBUG)
-                self.restart()
-
-            # Encode original URL as parameter
-            encoded_url = urllib.parse.quote(original_url, safe="")
-            return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
-
-        except Exception as e:
-            crunchy_log(f"Error in get_proxied_url: {e}")
-            # Try to restart proxy and return original URL as fallback
-            try:
-                self.restart()
-                encoded_url = urllib.parse.quote(original_url, safe="")
-                return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
-            except Exception as restart_error:
-                crunchy_log(f"Proxy restart failed: {restart_error}")
-                return original_url  # Fallback to original URL
-
-    def _start_server(self):
-        """Start minimal HTTP server for manifest proxying with auto-shutdown"""
-        try:
-            api = self.api
-
-            class ProxyHandler(http.server.BaseHTTPRequestHandler):
-                def do_GET(self):
-                    if self.path.startswith("/proxy?url="):
-                        # Extract original URL
-                        url_param = self.path.split("url=", 1)[1]
-                        original_url = urllib.parse.unquote(url_param)
-
-                        crunchy_log(f"Proxy request for: {original_url}")
-
-                        try:
-                            # Use CloudScraper to fetch manifest
-                            scraper = cloudscraper.create_scraper(
-                                delay=10,
-                                browser={"custom": api.CRUNCHYROLL_UA},
-                            )
-
-                            headers = {
-                                "Authorization": f"{api.account_data.token_type} {api.account_data.access_token}",
-                                "User-Agent": api.CRUNCHYROLL_UA,
-                            }
-
-                            response = scraper.get(original_url, headers=headers, timeout=30)
-
-                            if response.ok:
-                                # Forward response to Kodi
-                                self.send_response(200)
-                                self.send_header(
-                                    "Content-Type", response.headers.get("Content-Type", "application/dash+xml")
-                                )
-                                self.send_header("Content-Length", str(len(response.content)))
-                                self.end_headers()
-                                self.wfile.write(response.content)
-                                crunchy_log(f"Proxy served: {len(response.content)} bytes", xbmc.LOGDEBUG)
-                            else:
-                                self.send_error(response.status_code, f"Upstream error: {response.status_code}")
-
-                        except Exception as e:
-                            crunchy_log(f"Proxy error: {e}")
-                            self.send_error(500, f"Proxy error: {str(e)}")
-                    else:
-                        self.send_error(404, "Not found")
-
-                def log_message(self, format, *args):
-                    # Suppress default HTTP server logging
-                    pass
-
-            # Start server on random port
-            self.server = socketserver.TCPServer(("127.0.0.1", 0), ProxyHandler)
-            self.port = self.server.server_address[1]
-
-            # Start in background thread
-            self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-            self.server_thread.start()
-
-            # Set start time and schedule auto-shutdown
-            self.start_time = time.time()
-            self._schedule_auto_shutdown()
-
-            crunchy_log(f"CloudFlare proxy started on port {self.port} (TTL: {self.ttl_seconds}s)")
-
-        except Exception as e:
-            crunchy_log(f"Failed to start CloudFlare proxy: {e}")
-            raise
-
-    def stop(self):
-        """Stop proxy server"""
-        # Cancel auto-shutdown timer
-        if self.shutdown_timer:
-            self.shutdown_timer.cancel()
-            self.shutdown_timer = None
-
-        if self.server:
-            self.server.shutdown()
-            self.server.server_close()
-            self.server = None
-            self.server_thread = None
-            self.port = None
-            self.start_time = None
-            crunchy_log("CloudFlare proxy stopped")
-
-    def restart(self):
-        """Restart proxy server if it fails"""
-        crunchy_log("Restarting CloudFlare proxy")
-        self.stop()
-        self._start_server()
-
-    def _schedule_auto_shutdown(self):
-        """Schedule automatic shutdown after TTL"""
-
-        def auto_shutdown():
-            if self.server:  # Check if still running
-                crunchy_log(f"CloudFlare proxy auto-shutdown after {self.ttl_seconds}s TTL")
-                self.stop()
-
-        self.shutdown_timer = threading.Timer(self.ttl_seconds, auto_shutdown)
-        self.shutdown_timer.daemon = True
-        self.shutdown_timer.start()
-
-    def extend_ttl(self, additional_seconds=30):
-        """Extend proxy TTL if needed (for longer operations)"""
-        if self.server and self.start_time:
-            # Cancel current timer
-            if self.shutdown_timer:
-                self.shutdown_timer.cancel()
-
-            crunchy_log(f"Extending proxy TTL by {additional_seconds}s", xbmc.LOGDEBUG)
-            self.shutdown_timer = threading.Timer(additional_seconds, lambda: self.stop())
-            self.shutdown_timer.daemon = True
-            self.shutdown_timer.start()
-
-
-# Global proxy instance (lazy loaded)
-_cloudflare_proxy = None
-
-
-def get_cloudflare_proxy(api=None, args=None) -> CloudflareProxy:
-    """Get global CloudFlare proxy instance"""
-    global _cloudflare_proxy
-    if not _cloudflare_proxy:
-        _cloudflare_proxy = CloudflareProxy(api=api, args=args)
-    return _cloudflare_proxy
-
-
-def cleanup_cloudflare_proxy():
-    """Cleanup global CloudFlare proxy instance"""
-    global _cloudflare_proxy
-    if _cloudflare_proxy:
-        try:
-            _cloudflare_proxy.stop()
-            crunchy_log("CloudFlare proxy cleaned up", xbmc.LOGDEBUG)
-        except Exception as e:
-            crunchy_log(f"Error during proxy cleanup: {e}", xbmc.LOGDEBUG)
-        finally:
-            _cloudflare_proxy = None
 
 
 class VideoPlayerStreamData(Object):
@@ -402,7 +212,11 @@ class VideoStream(Object):
 
             # Proxy Cloudflare-protected manifest URLs
             if url and "www.crunchyroll.com" in url:
-                proxy = get_cloudflare_proxy(api=api, args=args)
+                proxy = get_cloudflare_proxy(
+                    user_agent=api.CRUNCHYROLL_UA,
+                    auth_token=api.account_data.access_token,
+                    token_type=api.account_data.token_type,
+                )
                 proxied_url = proxy.get_proxied_url(url)
                 crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
                 url = proxied_url
@@ -625,3 +439,4 @@ class VideoStream(Object):
             prepared["intro"]["start"] += 2.0
 
         return prepared if len(prepared) > 0 else None
+
