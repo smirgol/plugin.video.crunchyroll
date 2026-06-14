@@ -23,14 +23,19 @@ from typing import TYPE_CHECKING
 import requests
 import xbmc
 
-from ..globals import G
 from ..model import CrunchyrollError, EpisodeData, ListableItem, MovieData, SeasonData, SeriesData
 
 if TYPE_CHECKING:
     from xbmcgui import ListItem
 
 
-def get_listables_from_response(data: list[dict], item_type_hint: str | None = None) -> list[ListableItem]:
+
+
+def get_listables_from_response(
+    data: list[dict],
+    item_type_hint: str | None = None,
+    args=None,
+) -> list[ListableItem]:
     """takes an API response object, determines type of its contents and creates DTOs for further processing
 
     For mixed lists (browse, search, watchlist) the type is detected per item. The newer content/v2 endpoints
@@ -51,11 +56,11 @@ def get_listables_from_response(data: list[dict], item_type_hint: str | None = N
             continue
 
         if item_type == "series":
-            if not filters.filter_series(item):
+            if not filters.filter_series(item, args=args):
                 continue
             listable_items.append(SeriesData(item))
         elif item_type == "season":
-            if not filters.filter_seasons(item):
+            if not filters.filter_seasons(item, args=args):
                 continue
             listable_items.append(SeasonData(item))
         elif item_type == "episode":
@@ -72,19 +77,20 @@ def get_listables_from_response(data: list[dict], item_type_hint: str | None = N
     return listable_items
 
 
-async def get_cms_object_data_by_ids(ids: list) -> dict:
+async def get_cms_object_data_by_ids(ids: list, api, args) -> dict:
     """fetch info from api object endpoint for given ids. Useful to complement missing data"""
+
 
     ids_filtered = [item for item in ids if item != 0 and item is not None]
     if len(ids_filtered) == 0:
         return {}
 
     try:
-        req = G.api.make_request(
+        req = api.make_request(
             method="GET",
-            url=G.api.OBJECTS_BY_ID_LIST_ENDPOINT.format(",".join(ids_filtered)),
+            url=api.OBJECTS_BY_ID_LIST_ENDPOINT.format(",".join(ids_filtered)),
             params={
-                "locale": G.args.subtitle,
+                "locale": args.subtitle,
                 "ratings": "true",
             },
         )
@@ -113,18 +119,19 @@ def get_stream_id_from_item(item: dict) -> str | None:
     return stream_id[1]
 
 
-async def get_playheads_from_api(episode_ids: str | list) -> dict:
+async def get_playheads_from_api(episode_ids: str | list, api, args) -> dict:
     """Retrieve playhead data from API for given episode / movie ids"""
+
 
     if isinstance(episode_ids, str):
         episode_ids = [episode_ids]
 
-    response = G.api.make_scraper_request(
+    response = api.make_scraper_request(
         method="GET",
-        url=G.api.PLAYHEADS_ENDPOINT.format(G.api.account_data.account_id),
+        url=api.PLAYHEADS_ENDPOINT.format(api.account_data.account_id),
         params={
-            "locale": G.args.subtitle,
-            "preferred_audio_language": G.api.account_data.default_audio_language,
+            "locale": args.subtitle,
+            "preferred_audio_language": api.account_data.default_audio_language,
             "content_ids": ",".join(episode_ids),
         },
         auto_refresh=True,
@@ -144,16 +151,17 @@ async def get_playheads_from_api(episode_ids: str | list) -> dict:
     return out
 
 
-async def get_watchlist_status_from_api(ids: list) -> list:
+async def get_watchlist_status_from_api(ids: list, api, args) -> list:
     """retrieve watchlist status for given media ids"""
     from . import logging
 
-    req = G.api.make_scraper_request(
+
+    req = api.make_scraper_request(
         method="GET",
-        url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
+        url=api.WATCHLIST_V2_ENDPOINT.format(api.account_data.account_id),
         params={
             "content_ids": ",".join(ids),
-            "locale": G.args.subtitle,
+            "locale": args.subtitle,
         },
         auto_refresh=True,
     )

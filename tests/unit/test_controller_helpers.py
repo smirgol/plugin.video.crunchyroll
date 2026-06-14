@@ -59,35 +59,35 @@ class TestIsResponseErrorStrict:
 
 class TestRenderErrorDirectory:
     @patch("resources.lib.controller_helpers.view")
-    def test_default_title_id(self, mock_view):
+    def test_default_title_id(self, mock_view, ctx):
         from resources.lib.controller_helpers import render_error_directory
 
-        result = render_error_directory()
+        result = render_error_directory(ctx)
 
-        mock_view.add_item.assert_called_once_with(None, {"title": "String_30061"})
-        mock_view.end_of_directory.assert_called_once_with(None)
+        mock_view.add_item.assert_called_once_with(ctx, {"title": "String_30061"})
+        mock_view.end_of_directory.assert_called_once_with(ctx)
         assert result is False
 
     @patch("resources.lib.controller_helpers.view")
-    def test_custom_title_id(self, mock_view):
+    def test_custom_title_id(self, mock_view, ctx):
         from resources.lib.controller_helpers import render_error_directory
 
-        result = render_error_directory(title_id=30090)
+        result = render_error_directory(ctx, title_id=30090)
 
-        mock_view.add_item.assert_called_once_with(None, {"title": "String_30090"})
-        mock_view.end_of_directory.assert_called_once_with(None)
+        mock_view.add_item.assert_called_once_with(ctx, {"title": "String_30090"})
+        mock_view.end_of_directory.assert_called_once_with(ctx)
         assert result is False
 
 
 class TestAddNextPageItem:
     @patch("resources.lib.controller_helpers.view")
-    def test_basic_call(self, mock_view):
+    def test_basic_call(self, mock_view, ctx):
         from resources.lib.controller_helpers import add_next_page_item
 
-        add_next_page_item(offset=50, mode="search")
+        add_next_page_item(ctx, offset=50, mode="search")
 
         mock_view.add_item.assert_called_once_with(
-            None,
+            ctx,
             {
                 "title": "String_30044",
                 "offset": 50,
@@ -97,13 +97,13 @@ class TestAddNextPageItem:
         )
 
     @patch("resources.lib.controller_helpers.view")
-    def test_with_extra_params(self, mock_view):
+    def test_with_extra_params(self, mock_view, ctx):
         from resources.lib.controller_helpers import add_next_page_item
 
-        add_next_page_item(offset=100, mode="filter", search="naruto", category_filter="action")
+        add_next_page_item(ctx, offset=100, mode="filter", search="naruto", category_filter="action")
 
         mock_view.add_item.assert_called_once_with(
-            None,
+            ctx,
             {
                 "title": "String_30044",
                 "offset": 100,

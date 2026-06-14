@@ -16,20 +16,18 @@
 
 from __future__ import annotations
 
-from ..globals import G
-
 IMG_BACKDROP_WIDE = "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{crid}-backdrop_wide"
 IMG_TITLE_LOGO = "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{crid}-title_logo-en-us"
 
 
-def get_img_from_static(image, image_type="normal") -> str | None:
+
+def get_img_from_static(image, api, image_type="normal") -> str | None:
     if image is None:
         return None
 
-    path = G.api.STATIC_IMG_PROFILE
-
+    path = api.STATIC_IMG_PROFILE
     if image_type == "wallpaper":
-        path = G.api.STATIC_WALLPAPER_PROFILE
+        path = api.STATIC_WALLPAPER_PROFILE
 
     return path + image
 
