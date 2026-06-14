@@ -18,16 +18,14 @@
 
 """Authentication/session management for the Crunchyroll API.
 
-This module isolates login, token refresh, profile switching and device-code
-flows from the rest of the API client.  The public ``API`` class still exposes
-the same methods (via thin wrappers in ``resources.lib.api``) so external
-callers do not need to change.
+This module owns login, token refresh, profile switching and device-code
+flows.  The public ``API`` class delegates auth calls here; callers that only
+need the authentication surface can use ``AuthManager`` directly.
 """
 
 from __future__ import annotations
 
-import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 import xbmc
@@ -37,6 +35,7 @@ from ..modules import cloudscraper
 from .http_utils import default_request_headers
 from .models.account import AccountData, ProfileData
 from .models.exceptions import LoginError
+from .utils.datetime import date_to_str, get_date, str_to_date
 from .utils.logging import crunchy_log
 
 # Authentication credentials - single device-only identity (AndroidTV for device auth)
@@ -55,25 +54,6 @@ DEVICE_CODE_TIMEOUT = 300  # seconds - device code expiration time (5 minutes)
 INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
 PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
 PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
-
-
-def get_date() -> datetime:
-    return datetime.utcnow()
-
-
-def date_to_str(date: datetime) -> str:
-    return f"{date.year}-{date.month}-{date.day}T{date.hour}:{date.minute}:{date.second}Z"
-
-
-def str_to_date(string: str) -> datetime:
-    time_format = "%Y-%m-%dT%H:%M:%SZ"
-
-    try:
-        res = datetime.strptime(string, time_format)
-    except TypeError:
-        res = datetime(*(time.strptime(string, time_format)[0:6]))
-
-    return res
 
 
 class AuthManager:

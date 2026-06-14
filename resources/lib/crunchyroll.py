@@ -133,9 +133,6 @@ def show_main_menu(ctx):
     view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30047), "mode": "resume"})
     view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30041), "mode": "search"})
     view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30042), "mode": "history"})
-    # #view.add_item(ctx, args,
-    # #              {"title": G.args.addon.getLocalizedString(30043),
-    # #               "mode":  "random"})
     view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30050), "mode": "anime"})
     view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30049), "mode": "crunchylists_lists"})
     view.add_item(
@@ -146,20 +143,11 @@ def show_main_menu(ctx):
             "thumb": get_img_from_static(ctx.api.profile_data.avatar),
         },
     )
-    # @TODO: i think there are no longer dramas. should we add music videos and movies?
-    # view.add_item(ctx, args,
-    #              {"title": G.args.addon.getLocalizedString(30051),
-    #               "mode":  "drama"})
     view.end_of_directory(ctx, update_listing=True, cache_to_disc=False)
 
 
 def show_main_category(ctx, genre):
     """Show main category"""
-    # view.add_item(ctx, args,
-    #               {"title": G.args.addon.getLocalizedString(30058),
-    #                "mode": "featured",
-    #                "category_filter": "popular",
-    #                "genre": genre})
     view.add_item(
         ctx,
         {
@@ -169,14 +157,6 @@ def show_main_category(ctx, genre):
             "genre": genre,
         },
     )
-    # view.add_item(ctx, args,
-    #               {"title": "TODO | " + G.args.addon.getLocalizedString(30053),
-    #                "mode": "simulcast",
-    #                "genre": genre})
-    # view.add_item(ctx, args,
-    #               {"title": "TODO | " + G.args.addon.getLocalizedString(30054),
-    #                "mode": "updated",
-    #                "genre": genre})
     view.add_item(
         ctx,
         {
