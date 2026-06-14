@@ -37,8 +37,7 @@ class Globals:
 
     @staticmethod
     def parse(argv):
-        """Decode arguments
-        """
+        """Decode arguments"""
         from resources.lib.model import Args
 
         if argv[2]:

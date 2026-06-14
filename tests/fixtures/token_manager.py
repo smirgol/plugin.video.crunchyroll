@@ -47,6 +47,7 @@ class TokenManager:
         """Refresh access token using refresh_token"""
         try:
             import cloudscraper
+
             scraper = cloudscraper.create_scraper()
             print(f"Using CloudScraper from: {cloudscraper.__file__}")
         except Exception as e:
@@ -56,7 +57,7 @@ class TokenManager:
         headers = {
             "Authorization": self.AUTHORIZATION,
             "User-Agent": self.USER_AGENT,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         data = {
@@ -65,19 +66,13 @@ class TokenManager:
             "scope": "offline_access",
             "device_id": self.device_id,
             "device_name": "Kodi",
-            "device_type": "MediaCenter"
+            "device_type": "MediaCenter",
         }
 
-        response = scraper.post(
-            self.TOKEN_ENDPOINT,
-            headers=headers,
-            data=data
-        )
+        response = scraper.post(self.TOKEN_ENDPOINT, headers=headers, data=data)
 
         if not response.ok:
-            raise RuntimeError(
-                f"Token refresh failed: {response.status_code} - {response.text}"
-            )
+            raise RuntimeError(f"Token refresh failed: {response.status_code} - {response.text}")
 
         token_data = response.json()
 
@@ -93,5 +88,5 @@ class TokenManager:
         """Get authorization headers with valid token"""
         return {
             "Authorization": f"Bearer {self.get_valid_token()}",
-            "User-Agent": self.USER_AGENT
+            "User-Agent": self.USER_AGENT,
         }

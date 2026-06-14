@@ -19,14 +19,11 @@ class TestRefreshFlowExceptionHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer',
-                'access_token': 'test_access_token'
-            })
+            self.api.account_data = AccountData(
+                {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
+            )
 
     def test_refresh_flow_preserves_refresh_token_expired_error(self):
         """Test that REFRESH_TOKEN_EXPIRED error_code is preserved"""
@@ -37,7 +34,7 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_refresh_flow()
 
@@ -53,7 +50,7 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_refresh_flow()
 
@@ -64,7 +61,7 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.side_effect = requests.exceptions.ConnectionError("Network down")
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_refresh_flow()
 
@@ -76,7 +73,7 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.side_effect = ValueError("Unexpected")
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_refresh_flow()
 
@@ -89,7 +86,7 @@ class TestRefreshFlowExceptionHandling:
         login_error = LoginError("Custom error", error_code="CUSTOM_ERROR")
         mock_scraper.post.side_effect = login_error
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_refresh_flow()
 
@@ -102,14 +99,11 @@ class TestProfileRefreshFlowExceptionHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer',
-                'access_token': 'test_access_token'
-            })
+            self.api.account_data = AccountData(
+                {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
+            )
 
     def test_profile_refresh_preserves_login_error(self):
         """Test that LoginError with error_code is preserved during profile refresh"""
@@ -120,7 +114,7 @@ class TestProfileRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
                 self.api._handle_profile_refresh_flow("profile_123")
 
@@ -129,7 +123,7 @@ class TestProfileRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.side_effect = requests.exceptions.Timeout("Timeout")
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_profile_refresh_flow("profile_123")
 
@@ -141,7 +135,7 @@ class TestProfileRefreshFlowExceptionHandling:
         login_error = LoginError("Profile error", error_code="PROFILE_ERROR")
         mock_scraper.post.side_effect = login_error
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
                 self.api._handle_profile_refresh_flow("profile_123")
 
@@ -154,25 +148,20 @@ class TestCreateSessionRefreshTokenExpiredHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer',
-                'access_token': 'test_access_token'
-            })
+            self.api.account_data = AccountData(
+                {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
+            )
 
     def test_create_session_triggers_device_flow_on_expired_refresh_token(self):
         """Test that create_session falls back to device flow when refresh token expires"""
         refresh_error = LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
         mock_login_flow = Mock()
 
-        with patch.object(self.api, '_handle_refresh_flow', side_effect=refresh_error), \
-             patch.object(self.api, '_handle_login_flow', mock_login_flow), \
-             patch('xbmcgui.Dialog') as mock_dialog, \
-             patch.object(self.api.account_data, 'delete_storage'):
-
+        with patch.object(self.api, "_handle_refresh_flow", side_effect=refresh_error), patch.object(
+            self.api, "_handle_login_flow", mock_login_flow
+        ), patch("xbmcgui.Dialog") as mock_dialog, patch.object(self.api.account_data, "delete_storage"):
             self.api.create_session(action="refresh")
 
             mock_dialog.return_value.ok.assert_called_once()
@@ -183,7 +172,7 @@ class TestCreateSessionRefreshTokenExpiredHandling:
         """Test that create_session re-raises LoginError without REFRESH_TOKEN_EXPIRED"""
         refresh_error = LoginError("Network error")
 
-        with patch.object(self.api, '_handle_refresh_flow', side_effect=refresh_error):
+        with patch.object(self.api, "_handle_refresh_flow", side_effect=refresh_error):
             with pytest.raises(LoginError) as exc_info:
                 self.api.create_session(action="refresh")
 

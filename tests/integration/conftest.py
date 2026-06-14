@@ -9,7 +9,7 @@ from resources.lib.api import API
 from resources.lib.model import AccountData
 from tests.fixtures.token_manager import TokenManager
 
-env_path = Path(__file__).parent.parent / '.env'
+env_path = Path(__file__).parent.parent / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
@@ -33,17 +33,14 @@ def test_credentials():
         "refresh_token": refresh_token,
         "device_id": device_id,
         "account_id": account_id,
-        "test_episode_id": test_episode_id
+        "test_episode_id": test_episode_id,
     }
 
 
 @pytest.fixture(scope="session")
 def token_manager(test_credentials):
     """Session-scoped token manager for auto-refreshing tokens"""
-    return TokenManager(
-        refresh_token=test_credentials["refresh_token"],
-        device_id=test_credentials["device_id"]
-    )
+    return TokenManager(refresh_token=test_credentials["refresh_token"], device_id=test_credentials["device_id"])
 
 
 @pytest.fixture(scope="session")
@@ -58,17 +55,18 @@ def api_client(token_manager, test_credentials):
         f"T{expires_at.hour}:{expires_at.minute}:{expires_at.second}Z"
     )
 
-    api.account_data = AccountData({
-        "access_token": token,
-        "refresh_token": test_credentials["refresh_token"],
-        "device_id": test_credentials["device_id"],
-        "account_id": test_credentials.get("account_id", ""),
-        "token_type": "Bearer",
-        "expires": expires_str
-    })
+    api.account_data = AccountData(
+        {
+            "access_token": token,
+            "refresh_token": test_credentials["refresh_token"],
+            "device_id": test_credentials["device_id"],
+            "account_id": test_credentials.get("account_id", ""),
+            "token_type": "Bearer",
+            "expires": expires_str,
+        }
+    )
 
     return api
-
 
 
 @pytest.fixture
@@ -93,8 +91,7 @@ def stream_cleanup(api_client):
     for token, content_id in cleanup_items:
         try:
             api_client.make_request(
-                method="DELETE",
-                url=api_client.STREAMS_ENDPOINT_CLEAR_STREAM.format(content_id, token)
+                method="DELETE", url=api_client.STREAMS_ENDPOINT_CLEAR_STREAM.format(content_id, token)
             )
         except Exception as e:
             print(f"Warning: Failed to cleanup stream {content_id}: {e}")

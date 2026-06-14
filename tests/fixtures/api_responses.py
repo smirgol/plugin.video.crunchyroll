@@ -8,7 +8,7 @@ AUTH_TOKEN_RESPONSE = {
     "scope": "offline_access",
     "country": "US",
     "account_id": "mock_account_12345",
-    "profile_id": "mock_profile_67890"
+    "profile_id": "mock_profile_67890",
 }
 
 DEVICE_CODE_RESPONSE = {
@@ -16,7 +16,7 @@ DEVICE_CODE_RESPONSE = {
     "user_code": "ABCD1234",
     "verification_url": "https://www.crunchyroll.com/activate",
     "expires_in": 300,
-    "interval": 5
+    "interval": 5,
 }
 
 PROFILE_RESPONSE = {
@@ -29,7 +29,7 @@ PROFILE_RESPONSE = {
     "username": "TestUser",
     "account_id": "mock_account_12345",
     "profile_id": "mock_profile_67890",
-    "profile_name": "Main Profile"
+    "profile_name": "Main Profile",
 }
 
 BROWSE_RESPONSE = {
@@ -42,23 +42,31 @@ BROWSE_RESPONSE = {
             "slug": "test-anime-series",
             "description": "A test anime series for testing",
             "images": {
-                "poster_tall": [[{
-                    "source": "https://www.crunchyroll.com/imgsrv/test-poster.jpg",
-                    "type": "poster_tall",
-                    "width": 240,
-                    "height": 360
-                }]],
-                "poster_wide": [[{
-                    "source": "https://www.crunchyroll.com/imgsrv/test-banner.jpg",
-                    "type": "poster_wide",
-                    "width": 1920,
-                    "height": 1080
-                }]]
+                "poster_tall": [
+                    [
+                        {
+                            "source": "https://www.crunchyroll.com/imgsrv/test-poster.jpg",
+                            "type": "poster_tall",
+                            "width": 240,
+                            "height": 360,
+                        }
+                    ]
+                ],
+                "poster_wide": [
+                    [
+                        {
+                            "source": "https://www.crunchyroll.com/imgsrv/test-banner.jpg",
+                            "type": "poster_wide",
+                            "width": 1920,
+                            "height": 1080,
+                        }
+                    ]
+                ],
             },
             "episode_count": 24,
-            "season_count": 2
+            "season_count": 2,
         }
-    ]
+    ],
 }
 
 SEASONS_RESPONSE = {
@@ -74,7 +82,7 @@ SEASONS_RESPONSE = {
             "is_subbed": True,
             "is_dubbed": True,
             "audio_locales": ["ja-JP", "en-US"],
-            "subtitle_locales": ["en-US", "de-DE", "es-ES"]
+            "subtitle_locales": ["en-US", "de-DE", "es-ES"],
         },
         {
             "id": "GRJ0X456Z",
@@ -86,9 +94,9 @@ SEASONS_RESPONSE = {
             "is_subbed": True,
             "is_dubbed": False,
             "audio_locales": ["ja-JP"],
-            "subtitle_locales": ["en-US", "de-DE"]
-        }
-    ]
+            "subtitle_locales": ["en-US", "de-DE"],
+        },
+    ],
 }
 
 EPISODES_RESPONSE = {
@@ -113,41 +121,30 @@ EPISODES_RESPONSE = {
             "is_dubbed": True,
             "is_premium_only": True,
             "images": {
-                "thumbnail": [[{
-                    "source": "https://www.crunchyroll.com/imgsrv/episode-thumb.jpg",
-                    "type": "thumbnail",
-                    "width": 640,
-                    "height": 360
-                }]]
-            }
+                "thumbnail": [
+                    [
+                        {
+                            "source": "https://www.crunchyroll.com/imgsrv/episode-thumb.jpg",
+                            "type": "thumbnail",
+                            "width": 640,
+                            "height": 360,
+                        }
+                    ]
+                ]
+            },
         }
-    ]
+    ],
 }
 
 STREAM_RESPONSE = {
     "audio_locale": "ja-JP",
     "subtitles": {
-        "en-US": {
-            "locale": "en-US",
-            "url": "https://v.vrv.co/evs3/subs/en-US.ass",
-            "format": "ass"
-        },
-        "de-DE": {
-            "locale": "de-DE",
-            "url": "https://v.vrv.co/evs3/subs/de-DE.ass",
-            "format": "ass"
-        }
+        "en-US": {"locale": "en-US", "url": "https://v.vrv.co/evs3/subs/en-US.ass", "format": "ass"},
+        "de-DE": {"locale": "de-DE", "url": "https://v.vrv.co/evs3/subs/de-DE.ass", "format": "ass"},
     },
-    "streams": {
-        "adaptive_hls": {
-            "": {
-                "hardsub_locale": "",
-                "url": "https://v.vrv.co/evs3/stream.m3u8"
-            }
-        }
-    },
+    "streams": {"adaptive_hls": {"": {"hardsub_locale": "", "url": "https://v.vrv.co/evs3/stream.m3u8"}}},
     "token": "mock_stream_token_abc123",
-    "url": "/cms/v2/videos/GRVN1234X/streams"
+    "url": "/cms/v2/videos/GRVN1234X/streams",
 }
 
 SEARCH_RESPONSE = {
@@ -159,13 +156,9 @@ SEARCH_RESPONSE = {
             "type": "series",
             "slug": "test-search-result",
             "description": "A search result",
-            "images": {
-                "poster_tall": [[{
-                    "source": "https://www.crunchyroll.com/imgsrv/search-result.jpg"
-                }]]
-            }
+            "images": {"poster_tall": [[{"source": "https://www.crunchyroll.com/imgsrv/search-result.jpg"}]]},
         }
-    ]
+    ],
 }
 
 WATCHLIST_RESPONSE = {
@@ -178,25 +171,13 @@ WATCHLIST_RESPONSE = {
             "is_favorite": True,
             "new": False,
             "new_content": False,
-            "playhead": 0
+            "playhead": 0,
         }
-    ]
+    ],
 }
 
-ERROR_RESPONSE_401 = {
-    "error": "invalid_grant",
-    "message": "Invalid refresh token",
-    "code": "invalid_credentials"
-}
+ERROR_RESPONSE_401 = {"error": "invalid_grant", "message": "Invalid refresh token", "code": "invalid_credentials"}
 
-ERROR_RESPONSE_429 = {
-    "error": "rate_limit_exceeded",
-    "message": "Too many requests",
-    "code": "too_many_requests"
-}
+ERROR_RESPONSE_429 = {"error": "rate_limit_exceeded", "message": "Too many requests", "code": "too_many_requests"}
 
-ERROR_RESPONSE_500 = {
-    "error": "internal_server_error",
-    "message": "Internal server error",
-    "code": "server_error"
-}
+ERROR_RESPONSE_500 = {"error": "internal_server_error", "message": "Internal server error", "code": "server_error"}

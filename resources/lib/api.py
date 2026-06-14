@@ -54,7 +54,9 @@ class API:
     STREAMS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/videos/{}/streams"
     STREAMS_ENDPOINT_DRM_ANDROID_TV = "https://www.crunchyroll.com/playback/v2/{}/tv/android_tv/play"
     STREAMS_ENDPOINT_CLEAR_STREAM = "https://cr-play-service.prd.crunchyrollsvc.com/v1/token/{}/{}"
-    STREAMS_ENDPOINT_GET_ACTIVE_STREAMS = "https://cr-play-service.prd.crunchyrollsvc.com/playback/v1/sessions/streaming"
+    STREAMS_ENDPOINT_GET_ACTIVE_STREAMS = (
+        "https://cr-play-service.prd.crunchyrollsvc.com/playback/v1/sessions/streaming"
+    )
     SEASONS_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/series/{}/seasons"
     EPISODES_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/seasons/{}/episodes"
     OBJECTS_BY_ID_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/cms/objects/{}"
@@ -88,10 +90,7 @@ class API:
     STATIC_IMG_PROFILE = "https://static.crunchyroll.com/assets/avatar/170x170/"
     STATIC_WALLPAPER_PROFILE = "https://static.crunchyroll.com/assets/wallpaper/720x180/"
 
-    def __init__(
-            self,
-            locale: str = "en-US"
-    ) -> None:
+    def __init__(self, locale: str = "en-US") -> None:
         self.http = requests.Session()
         self.locale: str = locale
         self.account_data: AccountData = AccountData(dict())
@@ -100,7 +99,7 @@ class API:
         self.refresh_attempts = 0
 
     def start(self) -> None:
-        session_restart = G.args.get_arg('session_restart', False)
+        session_restart = G.args.get_arg("session_restart", False)
 
         # restore account data from file (if any)
         account_data = self.account_data.load_from_storage()
@@ -112,7 +111,7 @@ class API:
             # Force re-authentication on first run after the legacy-auth removal,
             # because old mobile/legacy sessions are no longer valid and may appear
             # locally valid while the API rejects the device UA.
-            if 'user_agent_type' in account_data:
+            if "user_agent_type" in account_data:
                 utils.crunchy_log("Legacy session format detected; forcing re-authentication")
                 session_restart = True
             else:
@@ -217,8 +216,8 @@ class API:
             "grant_type": "refresh_token",
             "scope": "offline_access",
             "device_id": G.args.device_id,
-            "device_name": 'Kodi',
-            "device_type": 'MediaCenter',
+            "device_name": "Kodi",
+            "device_type": "MediaCenter",
         }
 
         scraper = self.create_auth_scraper()
@@ -271,7 +270,7 @@ class API:
 
         data = {
             "device_id": G.args.device_id,
-            "device_name": 'Kodi',
+            "device_name": "Kodi",
             "device_type": "MediaCenter",
             "grant_type": "refresh_token_profile_id",
             "profile_id": profile_id,
@@ -318,6 +317,7 @@ class API:
 
             # 2. Show activation dialog (this handles polling internally)
             from .gui import show_device_activation_dialog
+
             dialog_result = show_device_activation_dialog(device_code_data, self)
 
             # 3. Handle dialog result
@@ -350,18 +350,15 @@ class API:
             utils.crunchy_log(f"Unexpected device code flow error: {e}", xbmc.LOGERROR)
             raise LoginError(f"Device authentication error: {str(e)}") from e
 
-
     def close(self) -> None:
-        """Saves cookies and session
-        """
+        """Saves cookies and session"""
         # no longer required, data is saved upon session update already
 
     def delete_account_data(self):
         self.account_data.delete_storage()
 
     def destroy(self) -> None:
-        """Destroys session
-        """
+        """Destroys session"""
         self.account_data.delete_storage()
         self.profile_data.delete_storage()
 
@@ -412,7 +409,7 @@ class API:
         try:
             scraper = cloudscraper.create_scraper(
                 delay=10,
-                browser={'custom': self.CRUNCHYROLL_UA},
+                browser={"custom": self.CRUNCHYROLL_UA},
             )
             utils.crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
             return scraper
@@ -450,10 +447,11 @@ class API:
 
             if r.ok:
                 r_json = r.json()
-                if 'user_code' in r_json and 'device_code' in r_json:
+                if "user_code" in r_json and "device_code" in r_json:
                     utils.crunchy_log(
                         f"Device code received via cloudscraper: {r_json.get('user_code', 'N/A')}",
-                        xbmc.LOGDEBUG)
+                        xbmc.LOGDEBUG,
+                    )
                     return r_json
                 else:
                     utils.crunchy_log("Device code response missing required fields", xbmc.LOGDEBUG)
@@ -486,7 +484,7 @@ class API:
             "User-Agent": self.CRUNCHYROLL_UA,
             "Accept": "application/json",
             "Accept-Charset": "UTF-8",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         scraper = self.create_auth_scraper()
@@ -536,8 +534,8 @@ class API:
                     return {"status": "error", "message": "Empty response from server"}
 
                 # Check content type
-                content_type = r.headers.get('content-type', '').lower()
-                if 'application/json' not in content_type and content_type != '':
+                content_type = r.headers.get("content-type", "").lower()
+                if "application/json" not in content_type and content_type != "":
                     utils.crunchy_log(f"Unexpected content-type: {content_type}", xbmc.LOGDEBUG)
                     return {"status": "error", "message": f"Server returned non-JSON response: {content_type}"}
 
@@ -550,7 +548,7 @@ class API:
                     utils.crunchy_log(f"Raw response text: '{r.text}'", xbmc.LOGDEBUG)
                     return {"status": "error", "message": f"Invalid JSON response: {json_error}"}
 
-                if 'access_token' in r_json:
+                if "access_token" in r_json:
                     utils.crunchy_log("Device token received successfully", xbmc.LOGDEBUG)
                     return {"status": "success", "data": r_json}
                 else:
@@ -561,16 +559,16 @@ class API:
                 # Expected during polling - analyze specific error
                 try:
                     error_json = r.json()
-                    error_code = error_json.get('error', '')
+                    error_code = error_json.get("error", "")
                     utils.crunchy_log(f"Device polling 400 response: {error_json}", xbmc.LOGDEBUG)
 
-                    if 'authorization_pending' in error_code:
+                    if "authorization_pending" in error_code:
                         # Normal polling state - user hasn't activated yet
                         return {"status": "pending"}
-                    elif 'expired_token' in error_code:
+                    elif "expired_token" in error_code:
                         utils.crunchy_log("Device code expired", xbmc.LOGDEBUG)
                         return {"status": "expired", "message": "Device code expired"}
-                    elif 'access_denied' in error_code:
+                    elif "access_denied" in error_code:
                         utils.crunchy_log("User denied device activation", xbmc.LOGDEBUG)
                         return {"status": "error", "message": "User denied device activation"}
                     else:
@@ -600,9 +598,8 @@ class API:
             utils.crunchy_log(f"Exception details: {type(e).__name__}: {str(e)}", xbmc.LOGDEBUG)
             return {"status": "error", "message": f"Response processing error: {str(e)}"}
 
-
     def _finalize_session_from_tokens(
-            self, token_response: dict, action: str = "login", profile_id: str | None = None
+        self, token_response: dict, action: str = "login", profile_id: str | None = None
     ) -> None:
         """
         Finalize session setup after receiving authentication tokens
@@ -616,7 +613,8 @@ class API:
             utils.crunchy_log(f"Finalizing session from tokens (action: {action})", xbmc.LOGDEBUG)
             utils.crunchy_log(
                 f"Token response keys: {list(token_response.keys()) if token_response else 'None'}",
-                xbmc.LOGDEBUG)
+                xbmc.LOGDEBUG,
+            )
 
             # Extract token information
             access_token = token_response["access_token"]
@@ -632,13 +630,11 @@ class API:
             self.api_headers.update(account_auth)
 
             # Log the User-Agent being set for session
-            current_ua = self.api_headers.get('User-Agent', 'Unknown')
+            current_ua = self.api_headers.get("User-Agent", "Unknown")
             utils.crunchy_log(f"Session finalized with User-Agent: {current_ua}", xbmc.LOGDEBUG)
 
             # Calculate and set token expiration
-            account_data["expires"] = date_to_str(
-                get_date() + timedelta(seconds=float(account_data["expires_in"]))
-            )
+            account_data["expires"] = date_to_str(get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
             # Fetch index data (user info, account details)
             utils.crunchy_log("Fetching index data", xbmc.LOGDEBUG)
@@ -702,14 +698,14 @@ class API:
             raise LoginError(f"Failed to finalize session: {str(e)}") from e
 
     def make_request(
-            self,
-            method: str,
-            url: str,
-            headers=None,
-            params=None,
-            data=None,
-            json_data=None,
-            is_retry=False,
+        self,
+        method: str,
+        url: str,
+        headers=None,
+        params=None,
+        data=None,
+        json_data=None,
+        is_retry=False,
     ) -> dict | None:
         """
         Make a request through CloudScraper. All Crunchyroll API calls are routed
@@ -727,15 +723,15 @@ class API:
         )
 
     def make_unauthenticated_request(
-            self,
-            method: str,
-            url: str,
-            headers=None,
-            params=None,
-            data=None,
-            json_data=None,
+        self,
+        method: str,
+        url: str,
+        headers=None,
+        params=None,
+        data=None,
+        json_data=None,
     ) -> dict | None:
-        """ Send a raw request without any session information
+        """Send a raw request without any session information
 
         Crunchyroll domain requests go through cloudscraper; other hosts use
         plain requests to avoid unnecessary challenge-solving overhead.
@@ -764,16 +760,16 @@ class API:
         return get_json_from_response(r)
 
     def make_scraper_request(
-            self,
-            method: str,
-            url: str,
-            headers: dict | None = None,
-            params: dict | None = None,
-            data: dict | None = None,
-            json_data: dict | None = None,
-            timeout: int = 30,
-            auto_refresh: bool = False,
-            is_retry: bool = False
+        self,
+        method: str,
+        url: str,
+        headers: dict | None = None,
+        params: dict | None = None,
+        data: dict | None = None,
+        json_data: dict | None = None,
+        timeout: int = 30,
+        auto_refresh: bool = False,
+        is_retry: bool = False,
     ) -> dict | None:
         """
         Make HTTP request using CloudScraper for Cloudflare-protected endpoints.
@@ -805,7 +801,8 @@ class API:
                 if not self.account_data.refresh_token:
                     utils.crunchy_log(
                         "CRITICAL: Token expired but no refresh token available - session not properly initialized",
-                        xbmc.LOGERROR)
+                        xbmc.LOGERROR,
+                    )
                     raise LoginError("Not authenticated - please restart plugin and login")
 
                 self.refresh_attempts += 1
@@ -813,20 +810,24 @@ class API:
                 if self.refresh_attempts > 3:
                     utils.crunchy_log(
                         "CRITICAL: Too many refresh attempts, stopping to prevent infinite loop",
-                        xbmc.LOGERROR)
+                        xbmc.LOGERROR,
+                    )
                     raise LoginError("Authentication refresh failed repeatedly - please restart addon")
 
                 utils.crunchy_log(
                     f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)",
-                    xbmc.LOGINFO)
+                    xbmc.LOGINFO,
+                )
                 self._handle_refresh_flow()
 
         if self.account_data:
-            params.update({
-                "Policy": self.account_data.cms.policy,
-                "Signature": self.account_data.cms.signature,
-                "Key-Pair-Id": self.account_data.cms.key_pair_id
-            })
+            params.update(
+                {
+                    "Policy": self.account_data.cms.policy,
+                    "Signature": self.account_data.cms.signature,
+                    "Key-Pair-Id": self.account_data.cms.key_pair_id,
+                }
+            )
 
         if not self.account_data.access_token:
             raise LoginError("Not authenticated")
@@ -896,7 +897,7 @@ class API:
 def default_request_headers() -> dict:
     return {
         "User-Agent": API.CRUNCHYROLL_UA,
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
 

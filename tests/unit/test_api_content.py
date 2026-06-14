@@ -23,14 +23,11 @@ class TestAPIContentUnit:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'access_token': 'test_access_token',
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer'
-            })
+            self.api.account_data = AccountData(
+                {"access_token": "test_access_token", "refresh_token": "test_refresh_token", "token_type": "Bearer"}
+            )
             self.api.account_data.cms = Mock()
             self.api.account_data.cms.policy = "test_policy"
             self.api.account_data.cms.signature = "test_sig"
@@ -49,14 +46,10 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
-
-            result = self.api.make_request(
-                method="GET",
-                url=self.api.BROWSE_ENDPOINT,
-                params={"start": 0, "n": 20}
-            )
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
+            result = self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 0, "n": 20})
 
             assert "items" in result
             assert result["total"] == 50
@@ -75,13 +68,11 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(search_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
-
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
             result = self.api.make_request(
-                method="GET",
-                url=self.api.SEARCH_ENDPOINT,
-                params={"q": "test anime", "n": 10}
+                method="GET", url=self.api.SEARCH_ENDPOINT, params={"q": "test anime", "n": 10}
             )
 
             assert "items" in result
@@ -97,17 +88,14 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(SEASONS_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
-
-            series_id = 'GRVN8VK8R'
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
+            series_id = "GRVN8VK8R"
             result = self.api.make_request(
                 method="GET",
                 url=self.api.SEASONS_ENDPOINT.format(series_id),
-                params={
-                    "force_locale": "ja-JP",
-                    "locale": "de-DE"
-                }
+                params={"force_locale": "ja-JP", "locale": "de-DE"},
             )
 
             assert "data" in result
@@ -124,14 +112,12 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(EPISODES_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
-
-            season_id = 'GRJ0X123Y'
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
+            season_id = "GRJ0X123Y"
             result = self.api.make_request(
-                method="GET",
-                url=self.api.EPISODES_ENDPOINT.format(season_id),
-                params={"locale": "de-DE"}
+                method="GET", url=self.api.EPISODES_ENDPOINT.format(season_id), params={"locale": "de-DE"}
             )
 
             assert "data" in result
@@ -147,14 +133,11 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(WATCHLIST_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
-
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
             account_id = "test_account_123"
-            result = self.api.make_request(
-                method="GET",
-                url=self.api.WATCHLIST_LIST_ENDPOINT.format(account_id)
-            )
+            result = self.api.make_request(method="GET", url=self.api.WATCHLIST_LIST_ENDPOINT.format(account_id))
 
             assert "data" in result
             assert result["total"] == 3
@@ -172,14 +155,10 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)) as mock_create:
-
-            self.api.make_request(
-                method="GET",
-                url=self.api.BROWSE_ENDPOINT,
-                params={"start": 0}
-            )
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ) as mock_create:
+            self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 0})
 
             scraper = mock_create.return_value
             call_args = scraper.request.call_args
@@ -200,14 +179,10 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)) as mock_create:
-
-            self.api.make_request(
-                method="GET",
-                url=self.api.BROWSE_ENDPOINT,
-                params={"start": 20, "n": 50}
-            )
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ) as mock_create:
+            self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 20, "n": 50})
 
             scraper = mock_create.return_value
             call_args = scraper.request.call_args
@@ -228,14 +203,10 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)) as mock_create:
-
-            self.api.make_request(
-                method="GET",
-                url=self.api.BROWSE_ENDPOINT,
-                params={"locale": "de-DE"}
-            )
+        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
+            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ) as mock_create:
+            self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"locale": "de-DE"})
 
             scraper = mock_create.return_value
             call_args = scraper.request.call_args

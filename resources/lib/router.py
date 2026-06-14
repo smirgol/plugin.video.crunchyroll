@@ -22,56 +22,56 @@ import re
 # The "mode" option will be passed to args if set.
 plugin_routes: dict = {
     "main_submenu": {
-        "url": "/menu/{mode}"
+        "url": "/menu/{mode}",
     },
     "main_submenu_with_offset": {
-        "url": "/menu/{mode}/offset/{offset}"
+        "url": "/menu/{mode}/offset/{offset}",
     },
     "genre_submenu": {
-        "url": "/menu/{mode}/{genre}"
+        "url": "/menu/{mode}/{genre}",
     },
     "genre_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/offset/{offset}",
     },
     "category_submenu": {
-        "url": "/menu/{mode}/{genre}/category/{category_filter}"
+        "url": "/menu/{mode}/{genre}/category/{category_filter}",
     },
     "category_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}",
     },
     "season_submenu": {
-        "url": "/menu/{mode}/{genre}/season/{season_filter}"
+        "url": "/menu/{mode}/{genre}/season/{season_filter}",
     },
     "season_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}",
     },
     "crunchylist_view": {
         "url": "/crunchylist/{crunchylists_item_id}",
-        "mode": "crunchylists_item"
+        "mode": "crunchylists_item",
     },
     "series_view": {
         "url": "/series/{series_id}",
-        "mode": "seasons"
+        "mode": "seasons",
     },
     "season_view": {
         "url": "/series/{series_id}/{season_id}",
-        "mode": "episodes"
+        "mode": "episodes",
     },
     "season_view_with_offset": {
         "url": "/series/{series_id}/{season_id}/offset/{offset}",
-        "mode": "episodes"
+        "mode": "episodes",
     },
     "video_episode_play": {
         "url": "/video/{series_id}/{episode_id}/{stream_id}",
-        "mode": "videoplay"
+        "mode": "videoplay",
     },
     "video_movie_play": {
         "url": "/video/{episode_id}/{stream_id}",
-        "mode": "videoplay"
+        "mode": "videoplay",
     },
     "profiles_view": {
         "url": "/profiles/{mode}",
-        "mode": "profiles_list"
+        "mode": "profiles_list",
     },
 }
 

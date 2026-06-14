@@ -16,7 +16,7 @@
 import re
 import sys
 
-sys.modules['_asyncio'] = None  # @see: https://kodi.wiki/view/Python_Problems#asyncio
+sys.modules["_asyncio"] = None  # @see: https://kodi.wiki/view/Python_Problems#asyncio
 
 import xbmc  # noqa: E402
 import xbmcaddon  # noqa: E402
