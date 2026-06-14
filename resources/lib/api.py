@@ -39,8 +39,8 @@ class API:
 
     # User Agent - single device-only identity
     CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
-    # Authentication credentials - single device-only identity
-    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="  # AndroidTV for device auth
+    # Authentication credentials - single device-only identity (AndroidTV for device auth)
+    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
@@ -451,7 +451,9 @@ class API:
             if r.ok:
                 r_json = r.json()
                 if 'user_code' in r_json and 'device_code' in r_json:
-                    utils.crunchy_log(f"Device code received via cloudscraper: {r_json.get('user_code', 'N/A')}", xbmc.LOGDEBUG)
+                    utils.crunchy_log(
+                        f"Device code received via cloudscraper: {r_json.get('user_code', 'N/A')}",
+                        xbmc.LOGDEBUG)
                     return r_json
                 else:
                     utils.crunchy_log("Device code response missing required fields", xbmc.LOGDEBUG)
@@ -599,7 +601,9 @@ class API:
             return {"status": "error", "message": f"Response processing error: {str(e)}"}
 
 
-    def _finalize_session_from_tokens(self, token_response: dict, action: str = "login", profile_id: str | None = None) -> None:
+    def _finalize_session_from_tokens(
+            self, token_response: dict, action: str = "login", profile_id: str | None = None
+    ) -> None:
         """
         Finalize session setup after receiving authentication tokens
 
@@ -610,7 +614,9 @@ class API:
         """
         try:
             utils.crunchy_log(f"Finalizing session from tokens (action: {action})", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Token response keys: {list(token_response.keys()) if token_response else 'None'}", xbmc.LOGDEBUG)
+            utils.crunchy_log(
+                f"Token response keys: {list(token_response.keys()) if token_response else 'None'}",
+                xbmc.LOGDEBUG)
 
             # Extract token information
             access_token = token_response["access_token"]
@@ -797,16 +803,22 @@ class API:
         if auto_refresh and self.account_data:
             if not self.is_token_valid():
                 if not self.account_data.refresh_token:
-                    utils.crunchy_log("CRITICAL: Token expired but no refresh token available - session not properly initialized", xbmc.LOGERROR)
+                    utils.crunchy_log(
+                        "CRITICAL: Token expired but no refresh token available - session not properly initialized",
+                        xbmc.LOGERROR)
                     raise LoginError("Not authenticated - please restart plugin and login")
 
                 self.refresh_attempts += 1
 
                 if self.refresh_attempts > 3:
-                    utils.crunchy_log("CRITICAL: Too many refresh attempts, stopping to prevent infinite loop", xbmc.LOGERROR)
+                    utils.crunchy_log(
+                        "CRITICAL: Too many refresh attempts, stopping to prevent infinite loop",
+                        xbmc.LOGERROR)
                     raise LoginError("Authentication refresh failed repeatedly - please restart addon")
 
-                utils.crunchy_log(f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)", xbmc.LOGINFO)
+                utils.crunchy_log(
+                    f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)",
+                    xbmc.LOGINFO)
                 self._handle_refresh_flow()
 
         if self.account_data:

@@ -150,7 +150,8 @@ def check_mode():
     elif mode == "drama":
         show_main_category("drama")
 
-    # elif mode == "featured":  # https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
+    # elif mode == "featured":
+    #     https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
     #     controller.list_series("featured", api)
     elif mode == "popular":  # DONE
         controller.list_filter()

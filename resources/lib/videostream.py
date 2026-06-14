@@ -116,7 +116,9 @@ class CloudflareProxy:
                             if response.ok:
                                 # Forward response to Kodi
                                 self.send_response(200)
-                                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/dash+xml'))
+                                self.send_header(
+                                    'Content-Type',
+                                    response.headers.get('Content-Type', 'application/dash+xml'))
                                 self.send_header('Content-Length', str(len(response.content)))
                                 self.end_headers()
                                 self.wfile.write(response.content)
@@ -233,7 +235,8 @@ class VideoPlayerStreamData(Object):
         self.playheads_data: dict = {}
         # PlayableItem which is about to be played, that contains cms object data
         self.playable_item: PlayableItem | None = None
-        # PlayableItem which contains cms obj data of playable_item's parent, if exists (Episodes, not Movies). currently not used.
+        # PlayableItem which contains cms obj data of playable_item's parent, if exists
+        # (Episodes, not Movies). currently not used.
         self.playable_item_parent: PlayableItem | None = None
         self.token: str | None = None
 
@@ -294,7 +297,8 @@ class VideoStream(Object):
         t_playheads = asyncio.create_task(get_playheads_from_api(G.args.get_arg('episode_id')))
         t_item_data = asyncio.create_task(
             get_cms_object_data_by_ids([G.args.get_arg('episode_id')]))
-        # t_item_parent_data = asyncio.create_task(get_cms_object_data_by_ids(G.args, G.api, G.args.get_arg('series_id')))
+        # t_item_parent_data = asyncio.create_task(
+        #     get_cms_object_data_by_ids(G.args, G.api, G.args.get_arg('series_id')))
 
         # start async requests and fetch results
         results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data)
