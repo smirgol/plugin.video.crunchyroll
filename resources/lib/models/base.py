@@ -136,52 +136,13 @@ class ListableItem(Object):
         pass
 
     def to_item(self) -> xbmcgui.ListItem:
-        """Convert ourselves to a Kodi ListItem"""
+        """Convert ourselves to a Kodi ListItem via the presentation layer."""
 
-        from resources.lib.view import types
+        from resources.lib.globals import G
+        from resources.lib.presentation import present_listable
 
-        info = self.get_info()
-        # filter out items not known to kodi
-        list_info = {key: info[key] for key in types if key in info}
-
-        # only allow to overwrite the local playcount if we sync the playtime with the server
-        if G.args.addon.getSetting("sync_playtime") == "true" and hasattr(self, "playcount"):
-            list_info["playcount"] = self.playcount
-
-        li = xbmcgui.ListItem()
-        li.setLabel(self.title)
-
-        # if is a playable item, set some things
-        if hasattr(self, "duration"):
-            li.setProperty("IsPlayable", "true")
-            li.setProperty("TotalTime", str(float(self.duration)))
-            # set resume if not fully watched and playhead > x
-            if hasattr(self, "playcount") and self.playcount == 0:
-                if hasattr(self, "playhead") and self.playhead > 0:
-                    resume = int(self.playhead / self.duration * 100)
-                    if 5 <= resume <= 90:
-                        li.setProperty("ResumeTime", str(float(self.playhead)))
-
-        li.setInfo("video", list_info)
-        artworks = {}
-        # Do not add an artwork if it is empty here,
-        # otherwise, you will override the inherited one (from series or season for example).
-        if self.thumb is not None:
-            artworks["thumb"] = self.thumb
-        if self.poster is not None:
-            artworks["poster"] = self.poster
-            artworks["banner"] = self.poster
-        if self.fanart is not None:
-            artworks["fanart"] = self.fanart
-        if self.landscape is not None:
-            artworks["landscape"] = self.landscape
-        if self.clearart is not None:
-            artworks["clearart"] = self.clearart
-        if self.clearlogo is not None:
-            artworks["clearlogo"] = self.clearlogo
-        li.setArt(artworks)
-
-        return li
+        sync_playtime = G.args.addon.getSetting("sync_playtime") == "true"
+        return present_listable(self, sync_playtime=sync_playtime)
 
     def update_playcount_from_playhead(self, playhead_data: dict):
         from .content import EpisodeData, MovieData
