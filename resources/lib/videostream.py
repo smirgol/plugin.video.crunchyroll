@@ -192,10 +192,6 @@ class CloudflareProxy:
             if self.shutdown_timer:
                 self.shutdown_timer.cancel()
 
-            # Calculate new TTL
-            elapsed = time.time() - self.start_time
-            new_ttl = elapsed + additional_seconds
-
             crunchy_log(f"Extending proxy TTL by {additional_seconds}s", xbmc.LOGDEBUG)
             self.shutdown_timer = threading.Timer(additional_seconds, lambda: self.stop())
             self.shutdown_timer.daemon = True

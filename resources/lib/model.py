@@ -137,7 +137,7 @@ class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
 
 class Object(metaclass=Meta):
     @staticmethod
-    def default(obj: "Object"):
+    def default(obj: Object):
         return {
             "_": obj.__class__.__name__,
             **{

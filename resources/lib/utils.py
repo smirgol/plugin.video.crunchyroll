@@ -191,7 +191,7 @@ def get_img_from_struct(item: dict, image_type: str, depth: int = 2) -> str | No
     # @todo: add option to specify quality / max size
     if item.get("images") and item.get("images").get(image_type):
         src = item.get("images").get(image_type)
-        for i in range(0, depth):
+        for _ in range(depth):
             if src[-1]:
                 src = src[-1]
             else:
