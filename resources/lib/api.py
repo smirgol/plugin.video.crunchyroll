@@ -17,8 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 import xbmc
@@ -27,25 +26,25 @@ from .auth import AuthManager
 from .http_utils import default_request_headers, get_json_from_response
 from .models.account import AccountData, ProfileData
 from .models.exceptions import CrunchyrollError, LoginError
+from .utils.datetime import date_to_str, get_date
 from .utils.logging import crunchy_log
 
 
 class API:
-    """Api documentation
-    https://github.com/CloudMax94/crunchyroll-api/wiki/Api
+    """Crunchyroll API client.
+
+    Content endpoints are implemented here; authentication is delegated to
+    ``AuthManager``.  Public auth helpers remain on this class for backward
+    compatibility with callers that expect ``api.is_token_valid()`` etc.
     """
 
     # User Agent - single device-only identity
     CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
-
+    INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
     PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
-
-    # Authentication endpoints (www) - Required for device code flow with cloudscraper
-    TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
-    DEVICE_CODE_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/code"
-    DEVICE_TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/token"
+    PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
     SEARCH_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/search"
     STREAMS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/videos/{}/streams"
     STREAMS_ENDPOINT_DRM_ANDROID_TV = "https://www.crunchyroll.com/playback/v2/{}/tv/android_tv/play"
@@ -82,7 +81,6 @@ class API:
 
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
-    PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
     STATIC_IMG_PROFILE = "https://static.crunchyroll.com/assets/avatar/170x170/"
     STATIC_WALLPAPER_PROFILE = "https://static.crunchyroll.com/assets/wallpaper/720x180/"
 
@@ -324,22 +322,3 @@ class API:
         except Exception as e:
             crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
             raise LoginError(f"Unexpected error: {str(e)}") from e
-
-
-def get_date() -> datetime:
-    return datetime.utcnow()
-
-
-def date_to_str(date: datetime) -> str:
-    return f"{date.year}-{date.month}-{date.day}T{date.hour}:{date.minute}:{date.second}Z"
-
-
-def str_to_date(string: str) -> datetime:
-    time_format = "%Y-%m-%dT%H:%M:%SZ"
-
-    try:
-        res = datetime.strptime(string, time_format)
-    except TypeError:
-        res = datetime(*(time.strptime(string, time_format)[0:6]))
-
-    return res

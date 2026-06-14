@@ -14,13 +14,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Backward-compatibility facade for the refactored utils package.
-
-All implementation has moved to resources.lib.utils.{api_data,images,formatting,filters,logging}.
-New code should import directly from the submodules; this module is retained during the transition
-and will be removed in Phase 9a.
-"""
+"""Shared datetime helpers used across the addon."""
 
 from __future__ import annotations
 
-from .utils import *  # noqa: F401,F403
+import time
+from datetime import datetime
+
+
+def get_date() -> datetime:
+    """Return current UTC time."""
+    return datetime.utcnow()
+
+
+def date_to_str(date: datetime) -> str:
+    """Serialize a datetime as the addon's canonical string format."""
+    return f"{date.year}-{date.month}-{date.day}T{date.hour}:{date.minute}:{date.second}Z"
+
+
+def str_to_date(string: str) -> datetime:
+    """Parse a canonical-format datetime string."""
+    time_format = "%Y-%m-%dT%H:%M:%SZ"
+
+    try:
+        res = datetime.strptime(string, time_format)
+    except TypeError:
+        res = datetime(*(time.strptime(string, time_format)[0:6]))
+
+    return res

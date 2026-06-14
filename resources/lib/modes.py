@@ -28,7 +28,8 @@ circular imports.
 
 from . import controller
 
-# Modes that are referenced in legacy code but currently disabled.
+# Disabled modes that were once exposed in the menu but have no backend support
+# at the moment. Kept here so they do not accidentally get re-registered.
 DEPRECATED_MODES = [
     "random",
     "featured",
