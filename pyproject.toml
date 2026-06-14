@@ -2,7 +2,7 @@
 name = "plugin-video-crunchyroll"
 version = "0.2.0"
 description = "Test-Suite for plugin-video-crunchyroll"
-requires-python = ">=3.12"
+requires-python = ">=3.8"
 dependencies = [
     "kodistubs>=21.0.0",
 ]
@@ -21,7 +21,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py38"
 line-length = 120
 extend-exclude = ["resources/modules"]
 

@@ -4,6 +4,7 @@ pytest configuration for Crunchyroll plugin tests
 Configures Python path and common fixtures for testing.
 """
 
+import importlib
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -33,3 +34,10 @@ mock_g.args = mock_args
 fake_globals = type(sys)('globals')
 fake_globals.G = mock_g
 sys.modules['resources.lib.globals'] = fake_globals
+
+# Bind the fake module as an attribute on the parent package as well.
+# On Python 3.8, unittest.mock._dot_lookup resolves patch targets via getattr on
+# the parent package; without this binding, patch('resources.lib.globals.G') fails
+# with AttributeError even though the module is present in sys.modules.
+resources_lib = importlib.import_module('resources.lib')
+resources_lib.globals = fake_globals
