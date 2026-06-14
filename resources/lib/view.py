@@ -302,9 +302,9 @@ def add_listables(
 
     args = ctx.args
 
-    crunchy_log("add_listables: Starting to retrieve data async")
+    crunchy_log("add_listables: Starting to retrieve data async", addon=args.addon)
     complement_data = asyncio.run(complement_listables(listables))
-    crunchy_log("add_listables: Finished to retrieve data async")
+    crunchy_log("add_listables: Finished to retrieve data async", addon=args.addon)
 
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
         from .utils.formatting import sort_episodes
@@ -317,7 +317,7 @@ def add_listables(
         u = presentation.build_url(listable.get_info(), args.addonurl)
 
         # get xbmc list item
-        list_item = listable.to_item()
+        list_item = listable.to_item(args.addon)
 
         # call any callbacks
         if callbacks:

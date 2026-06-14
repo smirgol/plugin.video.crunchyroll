@@ -84,9 +84,13 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         Required kwargs:
             device_code_data: Dict with user_code, device_code, verification_uri, expires_in
             api_instance: API instance for polling device token
+            addon: xbmcaddon.Addon instance for localized strings and paths
+            addon_path: str path to the addon root directory
         """
         self.device_code_data = kwargs.get("device_code_data")
         self.api_instance = kwargs.get("api_instance")
+        self.addon = kwargs.get("addon")
+        self.addon_path = kwargs.get("addon_path")
 
         # Dialog state
         self.return_value = None  # 'success', 'cancelled', 'expired', 'error'
@@ -105,20 +109,20 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
     def onInit(self):
         """Initialize dialog UI elements"""
-        try:
-            from .globals import G
+        from .utils.logging import crunchy_log
 
+        try:
             # Set translated static labels
-            title_text = G.args.addon.getLocalizedString(30309)
+            title_text = self.addon.getLocalizedString(30309)
             self.getControl(self.LABEL_TITLE).setLabel(title_text)
 
-            instruction_text = G.args.addon.getLocalizedString(30310)
+            instruction_text = self.addon.getLocalizedString(30310)
             self.getControl(self.LABEL_INSTRUCTION).setLabel(instruction_text)
 
-            refresh_text = G.args.addon.getLocalizedString(30311)
+            refresh_text = self.addon.getLocalizedString(30311)
             self.getControl(self.BUTTON_REFRESH).setLabel(refresh_text)
 
-            cancel_text = G.args.addon.getLocalizedString(30312)
+            cancel_text = self.addon.getLocalizedString(30312)
             self.getControl(self.BUTTON_CANCEL).setLabel(cancel_text)
 
             # Set user code display
@@ -127,24 +131,23 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
             # Set verification URL
             verification_uri = self.device_code_data.get("verification_uri", "https://www.crunchyroll.com/activate")
-            visit_text = G.args.addon.getLocalizedString(30300) % verification_uri
+            visit_text = self.addon.getLocalizedString(30300) % verification_uri
             self.getControl(self.LABEL_VERIFICATION_URL).setLabel(visit_text)
 
             # Generate QR code for verification URL with user code
             user_code = self.device_code_data.get("user_code", "")
             if user_code:
-                # Create URL with embedded user code for better mobile experience
                 qr_url = f"{verification_uri}?code={user_code}&device=Android%20TV"
             else:
                 qr_url = verification_uri
             self.set_qr(qr_url)
 
             # Set initial status
-            status_text = G.args.addon.getLocalizedString(30301)
+            status_text = self.addon.getLocalizedString(30301)
             self.getControl(self.LABEL_STATUS).setLabel(status_text)
 
             # set qr code header translation
-            qr_header_text = G.args.addon.getLocalizedString(30313)
+            qr_header_text = self.addon.getLocalizedString(30313)
             self.getControl(self.LABEL_QR_HEADER).setLabel(qr_header_text)
 
             # Set initial countdown
@@ -155,9 +158,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             self._start_polling()
 
         except Exception as e:
-            from .utils.logging import crunchy_log
-
-            crunchy_log(f"DeviceActivationDialog onInit error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"DeviceActivationDialog onInit error: {e}", xbmc.LOGERROR, addon=self.addon)
             self.return_value = "error"
             self.close()
 
@@ -230,7 +231,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     poll_interval = min(poll_interval * 1.2, 30)
 
                 except Exception as e:
-                    crunchy_log(f"Device token polling error: {e}")
+                    crunchy_log(f"Device token polling error: {e}", addon=self.addon)
                     # Continue polling, network errors are recoverable
 
         self.polling_thread = threading.Thread(target=polling_worker, daemon=True)
@@ -239,20 +240,18 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
     def _update_countdown_display(self):
         """Update countdown timer display"""
         try:
-            from .globals import G
-
             minutes = self.countdown_time // 60
             seconds = self.countdown_time % 60
-            countdown_text = G.args.addon.getLocalizedString(30302) % (minutes, seconds)
+            countdown_text = self.addon.getLocalizedString(30302) % (minutes, seconds)
             self.getControl(self.LABEL_COUNTDOWN).setLabel(countdown_text)
         except Exception:
             pass  # UI might not be ready yet
 
     def _refresh_device_code(self):
         """Request new device code"""
-        try:
-            from .globals import G
+        from .utils.logging import crunchy_log
 
+        try:
             # Stop current operations
             self.stop_polling.set()
 
@@ -276,7 +275,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
                 # Update UI
                 self.getControl(self.LABEL_USER_CODE).setLabel(new_code_data.get("user_code", "ERROR"))
-                refresh_status = G.args.addon.getLocalizedString(30303)
+                refresh_status = self.addon.getLocalizedString(30303)
                 self.getControl(self.LABEL_STATUS).setLabel(refresh_status)
 
                 # Regenerate QR code with new data
@@ -292,14 +291,12 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                 self._start_countdown_timer()
                 self._start_polling()
             else:
-                error_text = G.args.addon.getLocalizedString(30307)
+                error_text = self.addon.getLocalizedString(30307)
                 self._handle_error(error_text)
 
         except Exception as e:
-            from .utils.logging import crunchy_log
-
-            crunchy_log(f"Refresh device code error: {e}")
-            error_text = G.args.addon.getLocalizedString(30308)
+            crunchy_log(f"Refresh device code error: {e}", addon=self.addon)
+            error_text = self.addon.getLocalizedString(30308)
             self._handle_error(error_text)
 
     def _cancel_activation(self):
@@ -312,9 +309,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         """Handle successful authentication"""
         self.stop_polling.set()
         try:
-            from .globals import G
-
-            success_text = G.args.addon.getLocalizedString(30304)
+            success_text = self.addon.getLocalizedString(30304)
             self.getControl(self.LABEL_STATUS).setLabel(success_text)
         except Exception:
             pass  # UI might be closing
@@ -326,27 +321,21 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
     def _handle_timeout(self):
         """Handle code expiration timeout"""
         self.stop_polling.set()
-        from .globals import G
-
-        expired_text = G.args.addon.getLocalizedString(30305)
+        expired_text = self.addon.getLocalizedString(30305)
         self.getControl(self.LABEL_STATUS).setLabel(expired_text)
         self.return_value = "expired"
 
     def _handle_expired(self):
         """Handle expired code from server"""
         self.stop_polling.set()
-        from .globals import G
-
-        expired_text = G.args.addon.getLocalizedString(30305)
+        expired_text = self.addon.getLocalizedString(30305)
         self.getControl(self.LABEL_STATUS).setLabel(expired_text)
         self.return_value = "expired"
 
     def _handle_error(self, error_message):
         """Handle authentication errors"""
         self.stop_polling.set()
-        from .globals import G
-
-        error_text = G.args.addon.getLocalizedString(30306) % error_message
+        error_text = self.addon.getLocalizedString(30306) % error_message
         self.getControl(self.LABEL_STATUS).setLabel(error_text)
         self.return_value = "error"
 
@@ -356,6 +345,8 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             self._update_qr_status("No URL provided for QR code")
             return
 
+        from .utils.logging import crunchy_log
+
         try:
             import os
             import struct
@@ -363,8 +354,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             import zlib
 
             import xbmc
-
-            from .utils.logging import crunchy_log
+            import xbmcvfs
 
             # Try to import pyqrcode module
             _pyqrcode = None
@@ -382,7 +372,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                             sys.path.insert(0, addon_root)
                         from resources.modules import pyqrcode as _pyqrcode
                     except Exception:
-                        crunchy_log("[Crunchyroll] Failed to import pyqrcode module", xbmc.LOGERROR)
+                        crunchy_log("[Crunchyroll] Failed to import pyqrcode module", xbmc.LOGERROR, addon=self.addon)
                         self._update_qr_status("PyQRCode module not found. Use the code above.")
                         return
 
@@ -397,8 +387,6 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
             def _write_png_gray(path, qr_rows, width, height):
                 """Write grayscale PNG file for QR code"""
-                import xbmcvfs
-
                 with xbmcvfs.File(path, "wb") as fh:
                     # PNG signature
                     fh.write(b"\x89PNG\r\n\x1a\n")
@@ -438,10 +426,6 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                         rows.append(pixel_row)
 
                 # Generate temporary file path
-                import xbmc
-                import xbmcvfs
-
-                # Use Kodi's temp directory
                 temp_dir = xbmcvfs.translatePath("special://temp/")
                 qr_filename = f"crunchyroll_qr_{int(_t.time())}.png"
                 qr_path = os.path.join(temp_dir, qr_filename)
@@ -450,7 +434,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                 _write_png_gray(qr_path, rows, img_size, img_size)
 
             except Exception as e_gen:
-                crunchy_log(f"[Crunchyroll] QR code generation failed: {e_gen}", xbmc.LOGERROR)
+                crunchy_log(f"[Crunchyroll] QR code generation failed: {e_gen}", xbmc.LOGERROR, addon=self.addon)
                 self._update_qr_status("Unable to generate QR code. Use the code above.")
                 return
 
@@ -460,7 +444,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     # Set QR image in UI
                     self.getControl(self.IMAGE_QR_CODE).setImage(qr_path)
                     self._update_qr_status("QR code ready")
-                    crunchy_log(f"[Crunchyroll] QR code generated: {qr_path}")
+                    crunchy_log(f"[Crunchyroll] QR code generated: {qr_path}", addon=self.addon)
 
                     # Store path for cleanup
                     if not hasattr(self, "_qr_temp_files"):
@@ -468,18 +452,18 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     self._qr_temp_files.append(qr_path)
 
                 except Exception as e_ui:
-                    crunchy_log(f"[Crunchyroll] Failed to set QR image: {e_ui}", xbmc.LOGERROR)
+                    crunchy_log(f"[Crunchyroll] Failed to set QR image: {e_ui}", xbmc.LOGERROR, addon=self.addon)
                     self._update_qr_status("QR code generated but display failed")
                     try:
                         xbmcvfs.delete(qr_path)
                     except Exception:
                         pass
             else:
-                crunchy_log("[Crunchyroll] QR file does not exist!", xbmc.LOGERROR)
+                crunchy_log("[Crunchyroll] QR file does not exist!", xbmc.LOGERROR, addon=self.addon)
                 self._update_qr_status("QR file missing")
 
         except Exception as e:
-            crunchy_log(f"[Crunchyroll] Error setting QR code: {e}", xbmc.LOGERROR)
+            crunchy_log(f"[Crunchyroll] Error setting QR code: {e}", xbmc.LOGERROR, addon=self.addon)
             self._update_qr_status("QR code error")
 
     def _update_qr_status(self, status):
@@ -523,13 +507,15 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         super().close()
 
 
-def show_device_activation_dialog(device_code_data, api_instance):
+def show_device_activation_dialog(device_code_data, api_instance, addon, addon_path):
     """
     Show device activation dialog for Crunchyroll authentication
 
     Args:
         device_code_data: Dict with user_code, device_code, verification_uri, expires_in
         api_instance: API instance for device token polling
+        addon: xbmcaddon.Addon instance for localized strings and paths
+        addon_path: str path to the addon root directory
 
     Returns:
         Dict with status and data:
@@ -538,17 +524,19 @@ def show_device_activation_dialog(device_code_data, api_instance):
         - {"status": "expired"} - Code expired
         - {"status": "error", "message": "..."} - Error occurred
     """
-    try:
-        from .globals import G
+    from .utils.logging import crunchy_log, log_error_with_trace
 
+    try:
         # Create and show dialog
         dialog = DeviceActivationDialog(
             "plugin-video-crunchyroll-activation.xml",
-            G.args.addon.getAddonInfo("path"),
+            addon_path,
             "default",
             "1080i",
             device_code_data=device_code_data,
             api_instance=api_instance,
+            addon=addon,
+            addon_path=addon_path,
         )
 
         dialog.doModal()
@@ -571,10 +559,8 @@ def show_device_activation_dialog(device_code_data, api_instance):
             return {"status": "error", "message": "Dialog returned unexpected status"}
 
     except Exception as e:
-        from .utils.logging import crunchy_log, log_error_with_trace
-
-        crunchy_log(f"Device activation dialog error: {e}", xbmc.LOGERROR)
-        log_error_with_trace("Device activation dialog failed", show_notification=True)
+        crunchy_log(f"Device activation dialog error: {e}", xbmc.LOGERROR, addon=addon)
+        log_error_with_trace("Device activation dialog failed", show_notification=True, addon=addon)
         return {"status": "error", "message": f"Dialog error: {str(e)}"}
 
 

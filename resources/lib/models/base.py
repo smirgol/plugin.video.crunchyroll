@@ -19,12 +19,13 @@ from __future__ import annotations
 import json
 from abc import abstractmethod
 from json import dumps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import xbmcgui
 import xbmcvfs
 
-from resources.lib.globals import G
+if TYPE_CHECKING:
+    import xbmcaddon
 
 
 class Meta(type, metaclass=type("", (type,), {"__str__": lambda _: "~hi"})):
@@ -70,14 +71,14 @@ class Cacheable(Object):
         pass
 
     @staticmethod
-    def get_storage_path() -> str:
+    def get_storage_path(addon: xbmcaddon.Addon) -> str:
         """Get cookie file path"""
-        profile_path = xbmcvfs.translatePath(G.args.addon.getAddonInfo("profile"))
+        profile_path = xbmcvfs.translatePath(addon.getAddonInfo("profile"))
 
         return profile_path
 
-    def load_from_storage(self) -> dict:
-        storage_file = self.get_storage_path() + self.get_cache_file_name()
+    def load_from_storage(self, addon: xbmcaddon.Addon) -> dict:
+        storage_file = self.get_storage_path(addon) + self.get_cache_file_name()
 
         if not xbmcvfs.exists(storage_file):
             return {}
@@ -90,16 +91,16 @@ class Cacheable(Object):
 
         return d
 
-    def delete_storage(self) -> None:
-        storage_file = self.get_storage_path() + self.get_cache_file_name()
+    def delete_storage(self, addon: xbmcaddon.Addon) -> None:
+        storage_file = self.get_storage_path(addon) + self.get_cache_file_name()
 
         if not xbmcvfs.exists(storage_file):
             return None
 
         xbmcvfs.delete(storage_file)
 
-    def write_to_storage(self) -> bool:
-        storage_file = self.get_storage_path() + self.get_cache_file_name()
+    def write_to_storage(self, addon: xbmcaddon.Addon) -> bool:
+        storage_file = self.get_storage_path(addon) + self.get_cache_file_name()
 
         # serialize (Object has a to_str serializer)
         json_string = str(self)
@@ -135,13 +136,12 @@ class ListableItem(Object):
 
         pass
 
-    def to_item(self) -> xbmcgui.ListItem:
+    def to_item(self, addon: xbmcaddon.Addon | None = None) -> xbmcgui.ListItem:
         """Convert ourselves to a Kodi ListItem via the presentation layer."""
 
-        from resources.lib.globals import G
         from resources.lib.presentation import present_listable
 
-        sync_playtime = G.args.addon.getSetting("sync_playtime") == "true"
+        sync_playtime = addon.getSetting("sync_playtime") == "true" if addon is not None else False
         return present_listable(self, sync_playtime=sync_playtime)
 
     def update_playcount_from_playhead(self, playhead_data: dict):

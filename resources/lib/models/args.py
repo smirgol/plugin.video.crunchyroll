@@ -29,6 +29,18 @@ class Args:
     script.
     """
 
+    @classmethod
+    def from_argv(cls, argv):
+        """Create an Args instance from Kodi's sys.argv."""
+        try:
+            from urlparse import parse_qs
+        except ImportError:
+            from urllib.parse import parse_qs
+
+        if argv[2]:
+            return cls(argv, parse_qs(argv[2][1:]))
+        return cls(argv, {})
+
     def __init__(self, argv, kwargs):
         """Initialize arguments object
         Hold also references to the addon which can't be kept at module level.

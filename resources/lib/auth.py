@@ -34,7 +34,6 @@ import xbmc
 import xbmcgui
 
 from ..modules import cloudscraper
-from .globals import G
 from .http_utils import default_request_headers
 from .models.account import AccountData, ProfileData
 from .models.exceptions import LoginError
@@ -91,13 +90,13 @@ class AuthManager:
         self.api = api_instance
 
     def start(self) -> None:
-        session_restart = G.args.get_arg("session_restart", False)
+        session_restart = self.api.args.get_arg("session_restart", False)
 
         # restore account data from file (if any)
-        account_data = self.api.account_data.load_from_storage()
+        account_data = self.api.account_data.load_from_storage(self.api.args.addon)
 
         # restore profile data from file (if any)
-        self.api.profile_data = ProfileData(self.api.profile_data.load_from_storage())
+        self.api.profile_data = ProfileData(self.api.profile_data.load_from_storage(self.api.args.addon))
 
         if account_data and not session_restart:
             # Force re-authentication on first run after the legacy-auth removal,
@@ -146,10 +145,10 @@ class AuthManager:
             except LoginError as e:
                 if e.error_code == "REFRESH_TOKEN_EXPIRED":
                     xbmcgui.Dialog().ok(
-                        G.args.addon_name,
-                        G.args.addon.getLocalizedString(30401),
+                        self.api.args.addon_name,
+                        self.api.args.addon.getLocalizedString(30401),
                     )
-                    self.api.account_data.delete_storage()
+                    self.api.account_data.delete_storage(self.api.args.addon)
                     return self._handle_login_flow()
                 else:
                     raise
@@ -181,7 +180,7 @@ class AuthManager:
             except LoginError as e:
                 crunchy_log(f"Token refresh failed: {e}, continuing to device flow", xbmc.LOGDEBUG)
                 # Clear invalid tokens - this is expected behavior, no user notification needed
-                self.api.account_data.delete_storage()
+                self.api.account_data.delete_storage(self.api.args.addon)
 
         # 3. Start device code authentication flow
         try:
@@ -209,7 +208,7 @@ class AuthManager:
             "refresh_token": self.api.account_data.refresh_token,
             "grant_type": "refresh_token",
             "scope": "offline_access",
-            "device_id": G.args.device_id,
+            "device_id": self.api.args.device_id,
             "device_name": "Kodi",
             "device_type": "MediaCenter",
         }
@@ -263,7 +262,7 @@ class AuthManager:
         }
 
         data = {
-            "device_id": G.args.device_id,
+            "device_id": self.api.args.device_id,
             "device_name": "Kodi",
             "device_type": "MediaCenter",
             "grant_type": "refresh_token_profile_id",
@@ -312,7 +311,9 @@ class AuthManager:
             # 2. Show activation dialog (this handles polling internally)
             from .gui import show_device_activation_dialog
 
-            dialog_result = show_device_activation_dialog(device_code_data, self.api)
+            dialog_result = show_device_activation_dialog(
+                device_code_data, self.api, self.api.args.addon, self.api.args.addon.getAddonInfo("path")
+            )
 
             # 3. Handle dialog result
             if dialog_result["status"] == "success":
@@ -658,11 +659,11 @@ class AuthManager:
                 self.api.profile_data = ProfileData(profile_data)
 
                 # Cache profile to file
-                self.api.profile_data.write_to_storage()
+                self.api.profile_data.write_to_storage(self.api.args.addon)
 
             # Store account data
             self.api.account_data = AccountData(account_data)
-            self.api.account_data.write_to_storage()
+            self.api.account_data.write_to_storage(self.api.args.addon)
 
             # Reset refresh attempts counter on successful session finalization
             self.api.refresh_attempts = 0

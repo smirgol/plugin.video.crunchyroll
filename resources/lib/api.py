@@ -86,9 +86,10 @@ class API:
     STATIC_IMG_PROFILE = "https://static.crunchyroll.com/assets/avatar/170x170/"
     STATIC_WALLPAPER_PROFILE = "https://static.crunchyroll.com/assets/wallpaper/720x180/"
 
-    def __init__(self, locale: str = "en-US") -> None:
+    def __init__(self, locale: str = "en-US", args=None) -> None:
         self.http = requests.Session()
         self.locale: str = locale
+        self.args = args
         self.account_data: AccountData = AccountData(dict())
         self.profile_data: ProfileData = ProfileData(dict())
         self.api_headers: dict = default_request_headers()
@@ -106,12 +107,12 @@ class API:
         # no longer required, data is saved upon session update already
 
     def delete_account_data(self):
-        self.account_data.delete_storage()
+        self.account_data.delete_storage(self.args.addon if self.args else None)
 
     def destroy(self) -> None:
         """Destroys session"""
-        self.account_data.delete_storage()
-        self.profile_data.delete_storage()
+        self.account_data.delete_storage(self.args.addon if self.args else None)
+        self.profile_data.delete_storage(self.args.addon if self.args else None)
 
     # Auth surface is delegated entirely to ``AuthManager``.  Public auth helpers
     # stay here for backward compatibility with external callers/tests.

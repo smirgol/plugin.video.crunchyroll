@@ -152,7 +152,7 @@ class VideoPlayer(Object):
                 self._stream_data.playheads_data.get(args.get_arg("episode_id"))
             )
 
-        item = self._stream_data.playable_item.to_item()
+        item = self._stream_data.playable_item.to_item(self._addon)
         item.setPath(self._stream_data.stream_url)
         item.setMimeType("application/dash+xml")
         item.setContentLookup(False)

@@ -1,11 +1,13 @@
-"""
-Focused unit tests for resources.lib.auth.AuthManager.
+"""Focused unit tests for resources.lib.auth.AuthManager.
 
 These tests exercise AuthManager directly using a lightweight fake API that
 provides the same attributes/methods the real API exposes to AuthManager.
 This avoids the circular pass-through that existed before Phase 9b.
 """
 
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,6 +27,7 @@ class FakeAPI:
         self.profile_data = ProfileData({})
         self.api_headers = {}
         self.refresh_attempts = 0
+        self.args: Any = None
 
     def make_unauthenticated_request(self, method, url, headers=None, **kwargs):
         return kwargs.get("json_data") or kwargs.get("data") or {}
@@ -32,6 +35,10 @@ class FakeAPI:
 
 def make_manager(**overrides):
     api = FakeAPI()
+    api.args = MagicMock()
+    api.args.device_id = "test-device-id"
+    api.args.addon_name = "TestCrunchyroll"
+    api.args.addon.getLocalizedString.return_value = "localized"
     for key, value in overrides.items():
         setattr(api, key, value)
     return AuthManager(api_instance=api), api

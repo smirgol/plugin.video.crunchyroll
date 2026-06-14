@@ -51,7 +51,7 @@ def show_profiles(ctx):
         return render_error_directory(ctx)
 
     profiles = req.get("profiles")
-    profile_list_items = list(map(lambda profile: ProfileData(profile).to_item(), profiles))
+    profile_list_items = list(map(lambda profile: ProfileData(profile).to_item(ctx.args.addon), profiles))
     current_profile = 0
 
     if bool(ctx.api.profile_data.profile_id):

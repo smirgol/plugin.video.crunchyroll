@@ -23,7 +23,7 @@ class TestAPIContentUnit:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
+        with patch("resources.lib.api.default_request_headers"):
             self.api = API()
             self.api.account_data = AccountData(
                 {"access_token": "test_access_token", "refresh_token": "test_refresh_token", "token_type": "Bearer"}
