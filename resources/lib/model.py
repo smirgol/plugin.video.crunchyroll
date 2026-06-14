@@ -150,6 +150,19 @@ class Object(metaclass=Meta):
     def __str__(self) -> str:
         return dumps(self, indent=4, default=Object.default, ensure_ascii=False)
 
+    @staticmethod
+    def _read(data: dict, *keys: str) -> Any:
+        """Read a value by trying multiple keys in order.
+
+        Serialization stores attributes under their attribute name, while API
+        responses use different keys. Passing both keeps the storage round-trip
+        symmetric for renamed fields.
+        """
+        for key in keys:
+            if key in data:
+                return data[key]
+        return None
+
 
 class Cacheable(Object):
     def __init__(self):
@@ -221,13 +234,17 @@ class AccountData(Cacheable):
         self.cms: CMS = CMS(data.get("cms", {}))
         self.service_available: bool = data.get("service_available")
         self.avatar: str = data.get("avatar")
-        self.has_beta: bool = data.get("cr_beta_opt_in")
-        self.email_verified: bool = data.get("crleg_email_verified")
+        self.has_beta: bool = self._read(data, "cr_beta_opt_in", "has_beta")
+        self.email_verified: bool = self._read(data, "crleg_email_verified", "email_verified")
         self.email: str = data.get("email")
         self.maturity_rating: str = data.get("maturity_rating")
-        self.account_language: str = data.get("preferred_communication_language")
-        self.default_subtitles_language: str = data.get("preferred_content_subtitle_language")
-        self.default_audio_language: str = data.get("preferred_content_audio_language")
+        self.account_language: str = self._read(data, "preferred_communication_language", "account_language")
+        self.default_subtitles_language: str = self._read(
+            data, "preferred_content_subtitle_language", "default_subtitles_language"
+        )
+        self.default_audio_language: str = self._read(
+            data, "preferred_content_audio_language", "default_audio_language"
+        )
         self.username: str = data.get("username")
 
     def get_cache_file_name(self) -> str:
@@ -611,9 +628,13 @@ class ProfileData(ListableItem, Cacheable):
         self.username: str = data.get("username")
         self.profile_name: str = data.get("profile_name")
 
-        self.account_language: str = data.get("preferred_communication_language")
-        self.default_subtitles_language: str = data.get("preferred_content_subtitle_language")
-        self.default_audio_language: str = data.get("preferred_content_audio_language")
+        self.account_language: str = self._read(data, "preferred_communication_language", "account_language")
+        self.default_subtitles_language: str = self._read(
+            data, "preferred_content_subtitle_language", "default_subtitles_language"
+        )
+        self.default_audio_language: str = self._read(
+            data, "preferred_content_audio_language", "default_audio_language"
+        )
 
         self.avatar: str = data.get("avatar")
         self.wallpaper: str = data.get("wallpaper")
