@@ -234,10 +234,10 @@ class API:
             raise
         except requests.exceptions.RequestException as e:
             utils.crunchy_log(f"Network error during token refresh: {e}", xbmc.LOGERROR)
-            raise LoginError("Network error")
+            raise LoginError("Network error") from e
         except Exception as e:
             utils.crunchy_log(f"Unexpected token refresh error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error during token refresh: {str(e)}")
+            raise LoginError(f"Unexpected error during token refresh: {str(e)}") from e
 
         if r.ok:
             self._finalize_session_from_tokens(r.json(), action="refresh")
@@ -290,10 +290,10 @@ class API:
             raise
         except requests.exceptions.RequestException as e:
             utils.crunchy_log(f"Network error during profile refresh: {e}", xbmc.LOGERROR)
-            raise LoginError("Network connection failed during profile switch")
+            raise LoginError("Network connection failed during profile switch") from e
         except Exception as e:
             utils.crunchy_log(f"Unexpected profile refresh error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error during profile refresh: {str(e)}")
+            raise LoginError(f"Unexpected error during profile refresh: {str(e)}") from e
 
         if r.ok:
             self._finalize_session_from_tokens(r.json(), action="refresh_profile", profile_id=profile_id)
@@ -345,7 +345,7 @@ class API:
         except Exception as e:
             # Unexpected errors during device flow
             utils.crunchy_log(f"Unexpected device code flow error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Device authentication error: {str(e)}")
+            raise LoginError(f"Device authentication error: {str(e)}") from e
 
 
     def close(self) -> None:
@@ -460,7 +460,7 @@ class API:
             raise
         except Exception as e:
             utils.crunchy_log(f"Device code request via cloudscraper failed: {e}", xbmc.LOGDEBUG)
-            raise LoginError(f"Device code request error: {str(e)}")
+            raise LoginError(f"Device code request error: {str(e)}") from e
 
     def poll_device_token(self, device_code: str) -> dict:
         """
@@ -686,11 +686,11 @@ class API:
             # Missing required token fields
             error_msg = f"Invalid token response - missing field: {e}"
             utils.crunchy_log(error_msg, xbmc.LOGERROR)
-            raise LoginError(f"Invalid authentication response: missing {e}")
+            raise LoginError(f"Invalid authentication response: missing {e}") from e
         except Exception as e:
             # Unexpected errors during session setup
             utils.crunchy_log(f"Session finalization failed: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Failed to finalize session: {str(e)}")
+            raise LoginError(f"Failed to finalize session: {str(e)}") from e
 
     def make_request(
             self,
@@ -864,18 +864,18 @@ class API:
 
         except (LoginError, CrunchyrollError):
             raise
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             utils.crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
-            raise LoginError("Request timeout - check your network connection")
+            raise LoginError("Request timeout - check your network connection") from e
         except requests.exceptions.ConnectionError as e:
             utils.crunchy_log(f"CloudScraper connection error: {e}", xbmc.LOGERROR)
-            raise LoginError("Network connection failed")
+            raise LoginError("Network connection failed") from e
         except requests.exceptions.RequestException as e:
             utils.crunchy_log(f"CloudScraper request error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Request failed: {str(e)}")
+            raise LoginError(f"Request failed: {str(e)}") from e
         except Exception as e:
             utils.crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error: {str(e)}")
+            raise LoginError(f"Unexpected error: {str(e)}") from e
 
 
 def default_request_headers() -> dict:

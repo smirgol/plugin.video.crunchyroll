@@ -416,11 +416,11 @@ class VideoStream(Object):
                 method="GET",
                 url=subtitle_url
             )
-        except Exception:
+        except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
             raise CrunchyrollError(
                 "Failed to download subtitle for language %s from url %s" % (subtitle_language, subtitle_url)
-            )
+            ) from e
 
         if not subtitles_req.get('data', None):
             # error
