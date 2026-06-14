@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 from __future__ import annotations
 
 import time
@@ -23,12 +22,11 @@ from datetime import datetime, timedelta
 
 import requests
 import xbmc
-import xbmcgui
-from requests import HTTPError, Response
 
 from ..modules import cloudscraper
 from . import utils
-from .globals import G
+from .auth import AuthManager
+from .http_utils import default_request_headers, get_json_from_response
 from .model import AccountData, CrunchyrollError, LoginError, ProfileData
 
 
@@ -97,258 +95,13 @@ class API:
         self.profile_data: ProfileData = ProfileData(dict())
         self.api_headers: dict = default_request_headers()
         self.refresh_attempts = 0
+        self.auth_manager = AuthManager(self)
 
     def start(self) -> None:
-        session_restart = G.args.get_arg("session_restart", False)
-
-        # restore account data from file (if any)
-        account_data = self.account_data.load_from_storage()
-
-        # restore profile data from file (if any)
-        self.profile_data = ProfileData(self.profile_data.load_from_storage())
-
-        if account_data and not session_restart:
-            # Force re-authentication on first run after the legacy-auth removal,
-            # because old mobile/legacy sessions are no longer valid and may appear
-            # locally valid while the API rejects the device UA.
-            if "user_agent_type" in account_data:
-                utils.crunchy_log("Legacy session format detected; forcing re-authentication")
-                session_restart = True
-            else:
-                self.account_data = AccountData(account_data)
-                account_auth = {"Authorization": f"{self.account_data.token_type} {self.account_data.access_token}"}
-                self.api_headers = default_request_headers()
-                self.api_headers.update(account_auth)
-
-                # Use new token validation method
-                if self.is_token_valid():
-                    utils.crunchy_log("Existing session is valid, skipping authentication")
-                    return
-                else:
-                    utils.crunchy_log("Existing session expired, will attempt refresh")
-                    session_restart = True
-
-        # session management
-        self.create_session(action="refresh" if session_restart else "login")
+        self.auth_manager.start()
 
     def create_session(self, action: str = "login", profile_id: str | None = None) -> None:
-        """
-        Create or refresh authentication session
-
-        Args:
-            action: "login" (auto device flow), "refresh" (refresh token), "refresh_profile" (profile switch)
-            profile_id: Profile ID for profile refresh action
-        """
-        utils.crunchy_log(f"Creating session with action: {action}", xbmc.LOGDEBUG)
-
-        if action == "login":
-            # Modern device code authentication flow
-            return self._handle_login_flow()
-
-        elif action == "refresh":
-            # Refresh existing token, fall back to device auth if refresh token expired
-            try:
-                return self._handle_refresh_flow()
-            except LoginError as e:
-                if e.error_code == "REFRESH_TOKEN_EXPIRED":
-                    xbmcgui.Dialog().ok(
-                        G.args.addon_name,
-                        G.args.addon.getLocalizedString(30401),
-                    )
-                    self.account_data.delete_storage()
-                    return self._handle_login_flow()
-                else:
-                    raise
-
-        elif action == "refresh_profile":
-            # Switch profile using existing refresh token
-            return self._handle_profile_refresh_flow(profile_id)
-
-        else:
-            raise LoginError(f"Unknown action: {action}")
-
-    def _handle_login_flow(self) -> None:
-        """
-        Handle login flow: check existing token → try refresh → device code
-        """
-        utils.crunchy_log("Starting device login flow", xbmc.LOGDEBUG)
-
-        # 1. Check if we already have a valid token
-        if self.account_data.access_token and self.is_token_valid():
-            utils.crunchy_log("Existing token is still valid, skipping authentication")
-            return
-
-        # 2. Try refresh if we have a refresh token
-        if self.account_data.refresh_token:
-            try:
-                utils.crunchy_log("Attempting token refresh", xbmc.LOGDEBUG)
-                self._handle_refresh_flow()
-                return  # Success, exit flow
-            except LoginError as e:
-                utils.crunchy_log(f"Token refresh failed: {e}, continuing to device flow", xbmc.LOGDEBUG)
-                # Clear invalid tokens - this is expected behavior, no user notification needed
-                self.account_data.delete_storage()
-
-        # 3. Start device code authentication flow
-        try:
-            utils.crunchy_log("Starting device code authentication", xbmc.LOGDEBUG)
-            self._handle_device_code_flow()
-            return  # Success, exit flow
-        except LoginError as e:
-            utils.crunchy_log(f"Device code authentication failed: {e}", xbmc.LOGERROR)
-            raise
-
-    def _handle_refresh_flow(self) -> None:
-        """Handle token refresh using existing refresh token"""
-        if not self.account_data.refresh_token:
-            raise LoginError("No refresh token available")
-
-        utils.crunchy_log("Refreshing authentication token", xbmc.LOGDEBUG)
-
-        headers = {
-            "Authorization": self.AUTHORIZATION,
-            "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        data = {
-            "refresh_token": self.account_data.refresh_token,
-            "grant_type": "refresh_token",
-            "scope": "offline_access",
-            "device_id": G.args.device_id,
-            "device_name": "Kodi",
-            "device_type": "MediaCenter",
-        }
-
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            utils.crunchy_log("CloudScraper initialization failed, cannot refresh token", xbmc.LOGERROR)
-            raise LoginError("CloudScraper initialization failed")
-
-        try:
-            r = scraper.post(
-                url=self.TOKEN_ENDPOINT,
-                headers=headers,
-                data=data,
-                timeout=30,
-            )
-        except LoginError:
-            raise
-        except requests.exceptions.RequestException as e:
-            utils.crunchy_log(f"Network error during token refresh: {e}", xbmc.LOGERROR)
-            raise LoginError("Network error") from e
-        except Exception as e:
-            utils.crunchy_log(f"Unexpected token refresh error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error during token refresh: {str(e)}") from e
-
-        if r.ok:
-            self._finalize_session_from_tokens(r.json(), action="refresh")
-            return
-
-        if r.status_code == 400:
-            raise LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
-        elif r.status_code >= 500:
-            raise LoginError("Server error", error_code="SERVER_ERROR")
-
-        raise LoginError("Token refresh failed")
-
-    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
-        """Handle profile refresh using existing refresh token"""
-        if not profile_id:
-            raise LoginError("Profile ID required for profile refresh")
-
-        if not self.account_data.refresh_token:
-            raise LoginError("No refresh token available for profile refresh")
-
-        utils.crunchy_log(f"Refreshing profile: {profile_id}", xbmc.LOGDEBUG)
-
-        headers = {
-            "Authorization": self.AUTHORIZATION,
-            "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        data = {
-            "device_id": G.args.device_id,
-            "device_name": "Kodi",
-            "device_type": "MediaCenter",
-            "grant_type": "refresh_token_profile_id",
-            "profile_id": profile_id,
-            "refresh_token": self.account_data.refresh_token,
-        }
-
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            raise LoginError("CloudScraper initialization failed")
-
-        try:
-            r = scraper.post(
-                url=self.TOKEN_ENDPOINT,
-                headers=headers,
-                data=data,
-                timeout=30,
-            )
-        except LoginError:
-            raise
-        except requests.exceptions.RequestException as e:
-            utils.crunchy_log(f"Network error during profile refresh: {e}", xbmc.LOGERROR)
-            raise LoginError("Network connection failed during profile switch") from e
-        except Exception as e:
-            utils.crunchy_log(f"Unexpected profile refresh error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error during profile refresh: {str(e)}") from e
-
-        if r.ok:
-            self._finalize_session_from_tokens(r.json(), action="refresh_profile", profile_id=profile_id)
-            return
-
-        raise LoginError("Profile refresh failed")
-
-    def _handle_device_code_flow(self) -> None:
-        """Handle device code authentication flow with UI dialog"""
-        utils.crunchy_log("Starting device code authentication flow", xbmc.LOGDEBUG)
-
-        try:
-            # 1. Request device code
-            device_code_data = self.request_device_code()
-            if not device_code_data:
-                raise LoginError("Failed to request device code")
-
-            utils.crunchy_log(f"Device code received: {device_code_data.get('user_code', 'N/A')}", xbmc.LOGDEBUG)
-
-            # 2. Show activation dialog (this handles polling internally)
-            from .gui import show_device_activation_dialog
-
-            dialog_result = show_device_activation_dialog(device_code_data, self)
-
-            # 3. Handle dialog result
-            if dialog_result["status"] == "success":
-                # Authentication successful - finalize session
-                auth_result = dialog_result["auth_result"]
-                utils.crunchy_log("Device authentication successful, finalizing session")
-                self._finalize_session_from_tokens(auth_result, action="login")
-                return  # Success
-
-            elif dialog_result["status"] == "cancelled":
-                utils.crunchy_log("Device authentication cancelled by user", xbmc.LOGDEBUG)
-                raise LoginError("Device authentication cancelled by user")
-
-            elif dialog_result["status"] == "expired":
-                utils.crunchy_log("Device code expired during authentication", xbmc.LOGDEBUG)
-                raise LoginError("Device code expired - please try again")
-
-            else:
-                # Error case
-                error_msg = dialog_result.get("message", "Unknown dialog error")
-                utils.crunchy_log(f"Device authentication dialog error: {error_msg}", xbmc.LOGDEBUG)
-                raise LoginError(f"Device authentication failed: {error_msg}")
-
-        except LoginError:
-            # Re-raise LoginErrors as-is (expected flow control)
-            raise
-        except Exception as e:
-            # Unexpected errors during device flow
-            utils.crunchy_log(f"Unexpected device code flow error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Device authentication error: {str(e)}") from e
+        self.auth_manager.create_session(action=action, profile_id=profile_id)
 
     def close(self) -> None:
         """Saves cookies and session"""
@@ -363,49 +116,9 @@ class API:
         self.profile_data.delete_storage()
 
     def is_token_valid(self) -> bool:
-        """
-        Check if current access token is valid and not expired
-
-        Returns:
-            bool: True if token exists and is not expired (with 60s buffer)
-        """
-        utils.crunchy_log("Checking token validity", xbmc.LOGDEBUG)
-
-        if not self.account_data.access_token:
-            utils.crunchy_log("Token validation failed - no access token", xbmc.LOGDEBUG)
-            return False
-
-        if not self.account_data.expires:
-            utils.crunchy_log("Token validation failed - no expiration date", xbmc.LOGDEBUG)
-            return False
-
-        try:
-            current_time = get_date()
-            expiry_time = str_to_date(self.account_data.expires)
-            time_until_expiry = expiry_time - current_time
-
-            utils.crunchy_log(f"Current time: {current_time}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Expiry time: {expiry_time}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Time until expiry: {time_until_expiry}", xbmc.LOGDEBUG)
-
-            # Add 60 second buffer to avoid edge cases (network delays, clock skew)
-            is_valid = current_time < (expiry_time - timedelta(seconds=60))
-            utils.crunchy_log(f"Token is valid (with 60s buffer): {is_valid}", xbmc.LOGDEBUG)
-
-            return is_valid
-        except Exception as e:
-            # If we can't parse expiration date, assume token is invalid
-            utils.crunchy_log(f"Token validation exception: {e}", xbmc.LOGDEBUG)
-            return False
+        return self.auth_manager.is_token_valid()
 
     def create_auth_scraper(self):
-        """
-        Create cloudscraper instance for www auth endpoints
-
-        Returns:
-            CloudScraper instance configured for Crunchyroll auth endpoints
-            None if cloudscraper initialization fails
-        """
         try:
             scraper = cloudscraper.create_scraper(
                 delay=10,
@@ -418,284 +131,30 @@ class API:
             return None
 
     def request_device_code(self) -> dict | None:
-        """
-        Request device code for activation flow
-
-        Returns:
-            Dict with device_code, user_code, verification_uri, expires_in, interval
-            None if request fails
-        """
-        headers = {
-            "Authorization": self.AUTHORIZATION,
-            "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            utils.crunchy_log("CloudScraper initialization failed, cannot request device code", xbmc.LOGERROR)
-            raise LoginError("CloudScraper initialization failed")
-
-        try:
-            utils.crunchy_log("Requesting device code with cloudscraper", xbmc.LOGDEBUG)
-            r = scraper.post(
-                url=self.DEVICE_CODE_ENDPOINT,
-                headers=headers,
-                data={},
-                timeout=30,
-            )
-
-            if r.ok:
-                r_json = r.json()
-                if "user_code" in r_json and "device_code" in r_json:
-                    utils.crunchy_log(
-                        f"Device code received via cloudscraper: {r_json.get('user_code', 'N/A')}",
-                        xbmc.LOGDEBUG,
-                    )
-                    return r_json
-                else:
-                    utils.crunchy_log("Device code response missing required fields", xbmc.LOGDEBUG)
-                    raise LoginError("Invalid device code response")
-            else:
-                utils.crunchy_log(f"Device code request failed via cloudscraper: {r.status_code}", xbmc.LOGDEBUG)
-                raise LoginError(f"Device code request failed: HTTP {r.status_code}")
-        except LoginError:
-            raise
-        except Exception as e:
-            utils.crunchy_log(f"Device code request via cloudscraper failed: {e}", xbmc.LOGDEBUG)
-            raise LoginError(f"Device code request error: {str(e)}") from e
+        return self.auth_manager.request_device_code()
 
     def poll_device_token(self, device_code: str) -> dict:
-        """
-        Poll for device token after user activation
+        return self.auth_manager.poll_device_token(device_code)
 
-        Args:
-            device_code: Device code from request_device_code()
+    def _handle_login_flow(self) -> None:
+        self.auth_manager._handle_login_flow()
 
-        Returns:
-            Dict with status and data:
-            - {"status": "success", "data": {...}} - Token received
-            - {"status": "pending"} - User hasn't activated yet, continue polling
-            - {"status": "expired"} - Device code expired, need new code
-            - {"status": "error", "message": "..."} - Unrecoverable error
-        """
-        headers = {
-            "Authorization": self.AUTHORIZATION,
-            "User-Agent": self.CRUNCHYROLL_UA,
-            "Accept": "application/json",
-            "Accept-Charset": "UTF-8",
-            "Content-Type": "application/json",
-        }
+    def _handle_refresh_flow(self) -> None:
+        self.auth_manager._handle_refresh_flow()
 
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            utils.crunchy_log("CloudScraper initialization failed, cannot poll device token", xbmc.LOGERROR)
-            return {"status": "error", "message": "CloudScraper initialization failed"}
+    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
+        self.auth_manager._handle_profile_refresh_flow(profile_id)
 
-        try:
-            r = scraper.post(
-                url=self.DEVICE_TOKEN_ENDPOINT,
-                headers=headers,
-                json={"device_code": device_code},
-                timeout=30,
-            )
-            return self._process_device_token_response(r)
-        except Exception as e:
-            utils.crunchy_log(f"Device token poll via cloudscraper failed: {e}", xbmc.LOGDEBUG)
-            return {"status": "error", "message": f"Network error: {str(e)}"}
+    def _handle_device_code_flow(self) -> None:
+        self.auth_manager._handle_device_code_flow()
 
     def _process_device_token_response(self, r) -> dict:
-        """
-        Process device token response from cloudscraper
-
-        Args:
-            r: Response object
-
-        Returns:
-            Status dict as defined in poll_device_token
-        """
-        try:
-            # Enhanced logging for debugging
-            utils.crunchy_log(f"Device token response: HTTP {r.status_code}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Response headers: {dict(r.headers)}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Response content length: {len(r.text)}", xbmc.LOGDEBUG)
-            utils.crunchy_log(f"Response content (first 500 chars): {r.text[:500]}", xbmc.LOGDEBUG)
-
-            if r.ok:
-                # Handle HTTP 204 No Content (authentication acknowledged but may need retry)
-                if r.status_code == 204:
-                    utils.crunchy_log("Device authentication acknowledged (HTTP 204)", xbmc.LOGDEBUG)
-                    # HTTP 204 means server acknowledged but tokens not ready yet
-                    return {"status": "pending"}
-
-                # Check if we have content to parse
-                if len(r.text.strip()) == 0:
-                    utils.crunchy_log("Empty response body", xbmc.LOGDEBUG)
-                    return {"status": "error", "message": "Empty response from server"}
-
-                # Check content type
-                content_type = r.headers.get("content-type", "").lower()
-                if "application/json" not in content_type and content_type != "":
-                    utils.crunchy_log(f"Unexpected content-type: {content_type}", xbmc.LOGDEBUG)
-                    return {"status": "error", "message": f"Server returned non-JSON response: {content_type}"}
-
-                # Try to parse JSON
-                try:
-                    r_json = r.json()
-                    utils.crunchy_log(f"Parsed JSON response: {r_json}", xbmc.LOGDEBUG)
-                except ValueError as json_error:
-                    utils.crunchy_log(f"JSON parsing failed: {json_error}", xbmc.LOGDEBUG)
-                    utils.crunchy_log(f"Raw response text: '{r.text}'", xbmc.LOGDEBUG)
-                    return {"status": "error", "message": f"Invalid JSON response: {json_error}"}
-
-                if "access_token" in r_json:
-                    utils.crunchy_log("Device token received successfully", xbmc.LOGDEBUG)
-                    return {"status": "success", "data": r_json}
-                else:
-                    utils.crunchy_log(f"Device token response missing access_token: {r_json}", xbmc.LOGDEBUG)
-                    return {"status": "error", "message": "Invalid token response - missing access_token"}
-
-            elif r.status_code == 400:
-                # Expected during polling - analyze specific error
-                try:
-                    error_json = r.json()
-                    error_code = error_json.get("error", "")
-                    utils.crunchy_log(f"Device polling 400 response: {error_json}", xbmc.LOGDEBUG)
-
-                    if "authorization_pending" in error_code:
-                        # Normal polling state - user hasn't activated yet
-                        return {"status": "pending"}
-                    elif "expired_token" in error_code:
-                        utils.crunchy_log("Device code expired", xbmc.LOGDEBUG)
-                        return {"status": "expired", "message": "Device code expired"}
-                    elif "access_denied" in error_code:
-                        utils.crunchy_log("User denied device activation", xbmc.LOGDEBUG)
-                        return {"status": "error", "message": "User denied device activation"}
-                    else:
-                        utils.crunchy_log(f"Device token polling error: {error_json}", xbmc.LOGDEBUG)
-                        return {"status": "error", "message": f"Authentication error: {error_code}"}
-
-                except ValueError as json_error:
-                    utils.crunchy_log(f"Device token 400 response - JSON parsing failed: {json_error}", xbmc.LOGDEBUG)
-                    utils.crunchy_log(f"Raw 400 response: '{r.text}'", xbmc.LOGDEBUG)
-                    return {"status": "error", "message": f"Server error {r.status_code}: malformed response"}
-
-            elif r.status_code == 403:
-                # Cloudflare protection (should not happen with cloudscraper)
-                utils.crunchy_log(f"Cloudflare protection detected: {r.text}", xbmc.LOGDEBUG)
-                return {"status": "error", "message": "Cloudflare protection detected"}
-            elif r.status_code == 404:
-                # Endpoint not found
-                utils.crunchy_log(f"Device token endpoint not found: {r.text}", xbmc.LOGDEBUG)
-                return {"status": "error", "message": "Device token endpoint not found"}
-            else:
-                utils.crunchy_log(f"Device token poll failed: HTTP {r.status_code}", xbmc.LOGDEBUG)
-                utils.crunchy_log(f"Error response text: {r.text}", xbmc.LOGDEBUG)
-                return {"status": "error", "message": f"HTTP error: {r.status_code}"}
-
-        except Exception as e:
-            utils.crunchy_log(f"Device token response processing error: {e}", xbmc.LOGERROR)
-            utils.crunchy_log(f"Exception details: {type(e).__name__}: {str(e)}", xbmc.LOGDEBUG)
-            return {"status": "error", "message": f"Response processing error: {str(e)}"}
+        return self.auth_manager._process_device_token_response(r)
 
     def _finalize_session_from_tokens(
         self, token_response: dict, action: str = "login", profile_id: str | None = None
     ) -> None:
-        """
-        Finalize session setup after receiving authentication tokens
-
-        Args:
-            token_response: Dict containing access_token, token_type, refresh_token, expires_in
-            action: The action that led to this finalization ("login", "refresh", "refresh_profile")
-            profile_id: Optional profile ID for profile refresh
-        """
-        try:
-            utils.crunchy_log(f"Finalizing session from tokens (action: {action})", xbmc.LOGDEBUG)
-            utils.crunchy_log(
-                f"Token response keys: {list(token_response.keys()) if token_response else 'None'}",
-                xbmc.LOGDEBUG,
-            )
-
-            # Extract token information
-            access_token = token_response["access_token"]
-            token_type = token_response["token_type"]
-            account_auth = {"Authorization": f"{token_type} {access_token}"}
-
-            # Setup account data dictionary
-            account_data = dict()
-            account_data.update(token_response)
-
-            # Update API headers with authentication and device UA
-            self.api_headers = default_request_headers()
-            self.api_headers.update(account_auth)
-
-            # Log the User-Agent being set for session
-            current_ua = self.api_headers.get("User-Agent", "Unknown")
-            utils.crunchy_log(f"Session finalized with User-Agent: {current_ua}", xbmc.LOGDEBUG)
-
-            # Calculate and set token expiration
-            account_data["expires"] = date_to_str(get_date() + timedelta(seconds=float(account_data["expires_in"])))
-
-            # Fetch index data (user info, account details)
-            utils.crunchy_log("Fetching index data", xbmc.LOGDEBUG)
-            r = self.make_unauthenticated_request(
-                method="GET",
-                url=API.INDEX_ENDPOINT,
-                headers=self.api_headers,
-            )
-            account_data.update(r)
-
-            # Fetch profile data
-            utils.crunchy_log("Fetching profile data", xbmc.LOGDEBUG)
-            r = self.make_unauthenticated_request(
-                method="GET",
-                url=API.PROFILE_ENDPOINT,
-                headers=self.api_headers,
-            )
-            account_data.update(r)
-
-            # Handle profile refresh specific logic
-            if action == "refresh_profile" and profile_id:
-                utils.crunchy_log(f"Refreshing profile data for profile_id: {profile_id}", xbmc.LOGDEBUG)
-                # Fetch all profiles from API
-                r = self.make_unauthenticated_request(
-                    method="GET",
-                    url=self.PROFILES_LIST_ENDPOINT,
-                    headers=self.api_headers,
-                )
-
-                # Extract current profile data as dict from ProfileData obj
-                profile_data = vars(self.profile_data)
-
-                # Update extracted profile data with fresh data from API for requested profile_id
-                profile_data.update(
-                    next(profile for profile in r.get("profiles") if profile["profile_id"] == profile_id)
-                )
-
-                # Update our ProfileData obj with updated data
-                self.profile_data = ProfileData(profile_data)
-
-                # Cache profile to file
-                self.profile_data.write_to_storage()
-
-            # Store account data
-            self.account_data = AccountData(account_data)
-            self.account_data.write_to_storage()
-
-            # Reset refresh attempts counter on successful session finalization
-            self.refresh_attempts = 0
-
-            utils.crunchy_log(f"Session finalization completed successfully (action: {action})")
-
-        except KeyError as e:
-            # Missing required token fields
-            error_msg = f"Invalid token response - missing field: {e}"
-            utils.crunchy_log(error_msg, xbmc.LOGERROR)
-            raise LoginError(f"Invalid authentication response: missing {e}") from e
-        except Exception as e:
-            # Unexpected errors during session setup
-            utils.crunchy_log(f"Session finalization failed: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Failed to finalize session: {str(e)}") from e
+        self.auth_manager._finalize_session_from_tokens(token_response, action=action, profile_id=profile_id)
 
     def make_request(
         self,
@@ -739,7 +198,7 @@ class API:
         use_scraper = any(host in url for host in ("crunchyroll.com", "crunchyrollsvc.com"))
 
         if use_scraper:
-            scraper = self.create_auth_scraper()
+            scraper = self.auth_manager.create_auth_scraper()
             if not scraper:
                 raise LoginError("CloudScraper initialization failed")
 
@@ -818,7 +277,7 @@ class API:
                     f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)",
                     xbmc.LOGINFO,
                 )
-                self._handle_refresh_flow()
+                self.auth_manager._handle_refresh_flow()
 
         if self.account_data:
             params.update(
@@ -841,7 +300,7 @@ class API:
         request_headers.update(auth_headers)
         request_headers.update(headers)
 
-        scraper = self.create_auth_scraper()
+        scraper = self.auth_manager.create_auth_scraper()
         if not scraper:
             utils.crunchy_log("CloudScraper initialization failed, cannot proceed", xbmc.LOGERROR)
             raise LoginError("CloudScraper initialization failed")
@@ -894,13 +353,6 @@ class API:
             raise LoginError(f"Unexpected error: {str(e)}") from e
 
 
-def default_request_headers() -> dict:
-    return {
-        "User-Agent": API.CRUNCHYROLL_UA,
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
-
-
 def get_date() -> datetime:
     return datetime.utcnow()
 
@@ -918,49 +370,3 @@ def str_to_date(string: str) -> datetime:
         res = datetime(*(time.strptime(string, time_format)[0:6]))
 
     return res
-
-
-def get_json_from_response(r: Response) -> dict | None:
-    from .model import CrunchyrollError
-    from .utils import log_error_with_trace
-
-    code: int = r.status_code
-    response_type: str = r.headers.get("Content-Type", "")
-
-    # no content - possibly POST/DELETE request?
-    if not r or not r.text:
-        try:
-            r.raise_for_status()
-            return None
-        except HTTPError as e:
-            # r.text is empty when status code cause raise
-            r = e.response
-
-    # handle plain text responses (e.g. subtitles from CDN)
-    # CDN may serve subtitles as text/plain or application/octet-stream
-    if response_type in ("text/plain", "application/octet-stream") and r.text[0] != "{":
-        # if encoding is not provided in the response, Requests will make an educated guess and very likely fail
-        # messing encoding up - which did cost me hours. We will always receive utf-8 from crunchy, so enforce that
-        r.encoding = "utf-8"
-        return {"data": r.text}
-
-    if not r.ok and (r.text[0] != "{"):
-        raise CrunchyrollError(f"[{code}] {r.text}")
-
-    try:
-        r_json: dict = r.json()
-    except (requests.exceptions.JSONDecodeError, ValueError):
-        log_error_with_trace("Failed to parse response data")
-        return None
-
-    if "error" in r_json:
-        error_code = r_json.get("error")
-        if error_code == "invalid_grant":
-            raise LoginError(f"[{code}] Invalid login credentials.")
-    elif "message" in r_json and "code" in r_json:
-        message = r_json.get("message")
-        raise CrunchyrollError(f"[{code}] Error occurred: {message}")
-    if not r.ok:
-        raise CrunchyrollError(f"[{code}] {r.text}")
-
-    return r_json
