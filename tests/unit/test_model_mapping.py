@@ -272,14 +272,14 @@ class TestResponseConsistency:
         watchlist = load_captured_response("watchlist_response")
         history = load_captured_response("history_response")
 
-        # Browse, Search, Seasons, Episodes, Watchlist nutzen "items"
+        # Browse, Search, Watchlist (legacy beta-api) nutzen "items"
         assert "items" in browse
         assert "items" in search
-        assert "items" in seasons
-        assert "items" in episodes
         assert "items" in watchlist
 
-        # ONLY History uses "data"
+        # Seasons, Episodes (new content/v2 api) and History use "data"
+        assert "data" in seasons
+        assert "data" in episodes
         assert "data" in history
 
     def test_all_have_total_field(self):

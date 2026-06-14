@@ -451,7 +451,7 @@ def view_season():
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data') or req.get('items')),
+        listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='season'),
         is_folder=True
     )
 
@@ -479,7 +479,7 @@ def view_episodes():
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data') or req.get('items')),
+        listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='episode'),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE
     )
