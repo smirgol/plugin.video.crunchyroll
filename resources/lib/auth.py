@@ -28,43 +28,17 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta
-from typing import Any, Protocol
 
 import requests
 import xbmc
 import xbmcgui
 
+from ..modules import cloudscraper
 from .globals import G
 from .http_utils import default_request_headers
 from .models.account import AccountData, ProfileData
 from .models.exceptions import LoginError
 from .utils.logging import crunchy_log
-
-
-class _APIProtocol(Protocol):
-    """Minimal shape of ``API`` required by ``AuthManager``."""
-
-    CRUNCHYROLL_UA: str
-    account_data: AccountData
-    profile_data: ProfileData
-    api_headers: dict
-    refresh_attempts: int
-
-    def make_unauthenticated_request(self, method: str, url: str, headers=None, **kwargs: Any) -> dict | None:
-        ...
-
-    def create_auth_scraper(self):
-        ...
-
-    def _handle_login_flow(self) -> None: ...
-    def _handle_refresh_flow(self) -> None: ...
-    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None: ...
-    def _handle_device_code_flow(self) -> None: ...
-    def _process_device_token_response(self, r) -> dict: ...
-    def _finalize_session_from_tokens(
-        self, token_response: dict, action: str = ..., profile_id: str | None = ...
-    ) -> None: ...
-
 
 # Authentication credentials - single device-only identity (AndroidTV for device auth)
 AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
@@ -104,9 +78,16 @@ def str_to_date(string: str) -> datetime:
 
 
 class AuthManager:
-    """Owns authentication state and all authentication flows."""
+    """Owns authentication state and all authentication flows.
 
-    def __init__(self, api_instance: _APIProtocol) -> None:
+    ``AuthManager`` writes session state back to the API instance it was
+    given (``self.api.account_data``, ``self.api.api_headers``, etc.), which
+    is the same pattern the pre-extraction code used.  This keeps the data
+    flow simple and avoids stale-reference bugs that would come from holding
+    separate copies of mutable state.
+    """
+
+    def __init__(self, api_instance) -> None:
         self.api = api_instance
 
     def start(self) -> None:
@@ -156,12 +137,12 @@ class AuthManager:
 
         if action == "login":
             # Modern device code authentication flow
-            return self.api._handle_login_flow()
+            return self._handle_login_flow()
 
         elif action == "refresh":
             # Refresh existing token, fall back to device auth if refresh token expired
             try:
-                return self.api._handle_refresh_flow()
+                return self._handle_refresh_flow()
             except LoginError as e:
                 if e.error_code == "REFRESH_TOKEN_EXPIRED":
                     xbmcgui.Dialog().ok(
@@ -169,13 +150,13 @@ class AuthManager:
                         G.args.addon.getLocalizedString(30401),
                     )
                     self.api.account_data.delete_storage()
-                    return self.api._handle_login_flow()
+                    return self._handle_login_flow()
                 else:
                     raise
 
         elif action == "refresh_profile":
             # Switch profile using existing refresh token
-            return self.api._handle_profile_refresh_flow(profile_id)
+            return self._handle_profile_refresh_flow(profile_id)
 
         else:
             raise LoginError(f"Unknown action: {action}")
@@ -195,7 +176,7 @@ class AuthManager:
         if self.api.account_data.refresh_token:
             try:
                 crunchy_log("Attempting token refresh", xbmc.LOGDEBUG)
-                self.api._handle_refresh_flow()
+                self._handle_refresh_flow()
                 return  # Success, exit flow
             except LoginError as e:
                 crunchy_log(f"Token refresh failed: {e}, continuing to device flow", xbmc.LOGDEBUG)
@@ -205,7 +186,7 @@ class AuthManager:
         # 3. Start device code authentication flow
         try:
             crunchy_log("Starting device code authentication", xbmc.LOGDEBUG)
-            self.api._handle_device_code_flow()
+            self._handle_device_code_flow()
             return  # Success, exit flow
         except LoginError as e:
             crunchy_log(f"Device code authentication failed: {e}", xbmc.LOGERROR)
@@ -255,7 +236,7 @@ class AuthManager:
             raise LoginError(f"Unexpected error during token refresh: {str(e)}") from e
 
         if r.ok:
-            self.api._finalize_session_from_tokens(r.json(), action="refresh")
+            self._finalize_session_from_tokens(r.json(), action="refresh")
             return
 
         if r.status_code == 400:
@@ -311,7 +292,7 @@ class AuthManager:
             raise LoginError(f"Unexpected error during profile refresh: {str(e)}") from e
 
         if r.ok:
-            self.api._finalize_session_from_tokens(r.json(), action="refresh_profile", profile_id=profile_id)
+            self._finalize_session_from_tokens(r.json(), action="refresh_profile", profile_id=profile_id)
             return
 
         raise LoginError("Profile refresh failed")
@@ -338,7 +319,7 @@ class AuthManager:
                 # Authentication successful - finalize session
                 auth_result = dialog_result["auth_result"]
                 crunchy_log("Device authentication successful, finalizing session")
-                self.api._finalize_session_from_tokens(auth_result, action="login")
+                self._finalize_session_from_tokens(auth_result, action="login")
                 return  # Success
 
             elif dialog_result["status"] == "cancelled":
@@ -403,14 +384,20 @@ class AuthManager:
         """
         Create cloudscraper instance for www auth endpoints.
 
-        Delegates to the API instance so external callers/tests can patch a
-        single location (``API.create_auth_scraper``).
-
         Returns:
-            CloudScraper instance configured for Crunchyroll auth endpoints
-            None if cloudscraper initialization fails
+            CloudScraper instance configured for Crunchyroll auth endpoints,
+            or ``None`` if cloudscraper initialization fails.
         """
-        return self.api.create_auth_scraper()
+        try:
+            scraper = cloudscraper.create_scraper(
+                delay=10,
+                browser={"custom": self.api.CRUNCHYROLL_UA},
+            )
+            crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
+            return scraper
+        except Exception as e:
+            crunchy_log(f"CloudScraper initialization failed: {e}", xbmc.LOGDEBUG)
+            return None
 
     def request_device_code(self) -> dict | None:
         """
@@ -494,7 +481,7 @@ class AuthManager:
                 json={"device_code": device_code},
                 timeout=30,
             )
-            return self.api._process_device_token_response(r)
+            return self._process_device_token_response(r)
         except Exception as e:
             crunchy_log(f"Device token poll via cloudscraper failed: {e}", xbmc.LOGDEBUG)
             return {"status": "error", "message": f"Network error: {str(e)}"}

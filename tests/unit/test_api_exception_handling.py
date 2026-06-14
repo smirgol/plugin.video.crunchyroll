@@ -35,9 +35,9 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
             assert exc_info.value.error_code == "REFRESH_TOKEN_EXPIRED"
             assert "Refresh token expired" in str(exc_info.value)
@@ -51,9 +51,9 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
             assert exc_info.value.error_code == "SERVER_ERROR"
 
@@ -62,9 +62,9 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.side_effect = requests.exceptions.ConnectionError("Network down")
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
             assert exc_info.value.error_code is None
             assert "Network error" in str(exc_info.value)
@@ -74,9 +74,9 @@ class TestRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.side_effect = ValueError("Unexpected")
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
             assert exc_info.value.error_code is None
             assert "Unexpected error during token refresh" in str(exc_info.value)
@@ -87,9 +87,9 @@ class TestRefreshFlowExceptionHandling:
         login_error = LoginError("Custom error", error_code="CUSTOM_ERROR")
         mock_scraper.post.side_effect = login_error
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
             assert exc_info.value.error_code == "CUSTOM_ERROR"
             assert str(exc_info.value) == "Custom error"
@@ -115,18 +115,18 @@ class TestProfileRefreshFlowExceptionHandling:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
-                self.api._handle_profile_refresh_flow("profile_123")
+                self.api.auth_manager._handle_profile_refresh_flow("profile_123")
 
     def test_profile_refresh_network_error_handling(self):
         """Test that network errors during profile refresh are handled correctly"""
         mock_scraper = Mock()
         mock_scraper.post.side_effect = requests.exceptions.Timeout("Timeout")
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_profile_refresh_flow("profile_123")
+                self.api.auth_manager._handle_profile_refresh_flow("profile_123")
 
             assert "Network connection failed" in str(exc_info.value)
 
@@ -136,9 +136,9 @@ class TestProfileRefreshFlowExceptionHandling:
         login_error = LoginError("Profile error", error_code="PROFILE_ERROR")
         mock_scraper.post.side_effect = login_error
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError) as exc_info:
-                self.api._handle_profile_refresh_flow("profile_123")
+                self.api.auth_manager._handle_profile_refresh_flow("profile_123")
 
             assert exc_info.value.error_code == "PROFILE_ERROR"
             assert str(exc_info.value) == "Profile error"
@@ -160,8 +160,8 @@ class TestCreateSessionRefreshTokenExpiredHandling:
         refresh_error = LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
         mock_login_flow = Mock()
 
-        with patch.object(self.api, "_handle_refresh_flow", side_effect=refresh_error), patch.object(
-            self.api, "_handle_login_flow", mock_login_flow
+        with patch.object(self.api.auth_manager, "_handle_refresh_flow", side_effect=refresh_error), patch.object(
+            self.api.auth_manager, "_handle_login_flow", mock_login_flow
         ), patch("xbmcgui.Dialog") as mock_dialog, patch.object(self.api.account_data, "delete_storage"):
             self.api.create_session(action="refresh")
 
@@ -173,7 +173,7 @@ class TestCreateSessionRefreshTokenExpiredHandling:
         """Test that create_session re-raises LoginError without REFRESH_TOKEN_EXPIRED"""
         refresh_error = LoginError("Network error")
 
-        with patch.object(self.api, "_handle_refresh_flow", side_effect=refresh_error):
+        with patch.object(self.api.auth_manager, "_handle_refresh_flow", side_effect=refresh_error):
             with pytest.raises(LoginError) as exc_info:
                 self.api.create_session(action="refresh")
 

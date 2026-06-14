@@ -37,8 +37,8 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
@@ -58,8 +58,8 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
@@ -80,8 +80,8 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"

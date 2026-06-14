@@ -46,8 +46,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             result = self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 0, "n": 20})
 
@@ -68,8 +68,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(search_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             result = self.api.make_request(
                 method="GET", url=self.api.SEARCH_ENDPOINT, params={"q": "test anime", "n": 10}
@@ -88,8 +88,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(SEASONS_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             series_id = "GRVN8VK8R"
             result = self.api.make_request(
@@ -112,8 +112,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(EPISODES_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             season_id = "GRJ0X123Y"
             result = self.api.make_request(
@@ -133,8 +133,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(WATCHLIST_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ):
             account_id = "test_account_123"
             result = self.api.make_request(method="GET", url=self.api.WATCHLIST_LIST_ENDPOINT.format(account_id))
@@ -155,8 +155,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ) as mock_create:
             self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 0})
 
@@ -179,8 +179,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ) as mock_create:
             self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"start": 20, "n": 50})
 
@@ -203,8 +203,8 @@ class TestAPIContentUnit:
         mock_response.text = json.dumps(browse_data)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, "is_token_valid", return_value=True), patch.object(
-            self.api, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
         ) as mock_create:
             self.api.make_request(method="GET", url=self.api.BROWSE_ENDPOINT, params={"locale": "de-DE"})
 
