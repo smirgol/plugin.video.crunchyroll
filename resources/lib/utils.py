@@ -48,7 +48,7 @@ def get_listables_from_response(data: list[dict], item_type_hint: str | None = N
             crunchy_log(
                 f"get_listables_from_response | failed to determine type for response item "
                 f"{json.dumps(item, indent=4)}",
-                xbmc.LOGERROR
+                xbmc.LOGERROR,
             )
             continue
 
@@ -91,7 +91,7 @@ async def get_cms_object_data_by_ids(ids: list) -> dict:
                 'locale': G.args.subtitle,
                 'ratings': 'true'
                 # "preferred_audio_language": ""
-            }
+            },
         )
     except (CrunchyrollError, requests.exceptions.RequestException):
         crunchy_log(f"get_cms_object_data_by_ids: failed to load for: {','.join(ids_filtered)}")
@@ -132,7 +132,7 @@ async def get_playheads_from_api(episode_ids: str | list) -> dict:
             'preferred_audio_language': G.api.account_data.default_audio_language,
             'content_ids': ','.join(episode_ids)
         },
-        auto_refresh=True
+        auto_refresh=True,
     )
 
     out = {}
@@ -160,7 +160,7 @@ async def get_watchlist_status_from_api(ids: list) -> list:
             "content_ids": ','.join(ids),
             "locale": G.args.subtitle
         },
-        auto_refresh=True
+        auto_refresh=True,
     )
 
     if not req or req.get("error") is not None:
@@ -202,7 +202,7 @@ def get_img_from_struct(item: dict, image_type: str, depth: int = 2) -> str | No
     return None
 
 
-def infer_img_from_id(id: str, image_type: str) -> str | None:
+def infer_img_from_id(crid: str, image_type: str) -> str | None:
     """
     Generate Crunchyroll artwork URL based on ID and image type.
 
@@ -213,13 +213,13 @@ def infer_img_from_id(id: str, image_type: str) -> str | None:
     Returns:
         Generated URL or None if invalid input
     """
-    if not id:
+    if not crid:
         return None
 
     if image_type == "backdrop_wide":
-        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{id}-backdrop_wide"
+        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=cover,format=auto,quality=85,width=3840,height=2160/keyart/{crid}-backdrop_wide"
     elif image_type == "title_logo":
-        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{id}-title_logo-en-us"
+        return f"https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=800,height=310/keyart/{crid}-title_logo-en-us"
     else:
         return None
 
@@ -254,7 +254,7 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
     # Get current system exception
     ex_type, ex_value, ex_traceback = sys.exc_info()
 
-    # Extract unformatter stack traces as tuples
+    # Extract unformatted stack traces as tuples
     trace_back = traceback.extract_tb(ex_traceback)
 
     # Format stacktrace
@@ -275,7 +275,7 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
             f'{addon_name} Error',
             'Please check logs for details',
             xbmcgui.NOTIFICATION_ERROR,
-            5
+            5,
         )
 
 
@@ -310,7 +310,7 @@ def show_user_friendly_error(error_type: str, technical_message: str = None) -> 
         f'{addon_name} Error',
         user_message,
         xbmcgui.NOTIFICATION_ERROR,
-        8000  # Show for 8 seconds
+        8000,  # Show for 8 seconds
     )
 
 

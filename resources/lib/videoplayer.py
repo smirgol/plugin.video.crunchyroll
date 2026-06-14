@@ -159,7 +159,7 @@ class VideoPlayer(Object):
         if is_helper.check_inputstream():
             manifest_headers = {
                 'User-Agent': G.api.CRUNCHYROLL_UA,
-                'Authorization': f"Bearer {G.api.account_data.access_token}"
+                'Authorization': f"Bearer {G.api.account_data.access_token}",
             }
             license_headers = {
                 'User-Agent': G.api.CRUNCHYROLL_UA,
@@ -167,17 +167,17 @@ class VideoPlayer(Object):
                 'Origin': 'https://static.crunchyroll.com',
                 'Authorization': f"Bearer {G.api.account_data.access_token}",
                 'x-cr-content-id': G.args.get_arg('episode_id'),
-                'x-cr-video-token': self._stream_data.token
+                'x-cr-video-token': self._stream_data.token,
             }
             license_config = {
                 'license_server_url': G.api.LICENSE_ENDPOINT,
                 'headers': urlencode(license_headers),
                 'post_data': 'R{SSM}',
-                'response_data': 'JBlicense'
+                'response_data': 'JBlicense',
             }
 
             inputstream_config = {
-                'ssl_verify_peer': False
+                'ssl_verify_peer': False,
             }
 
             item.setProperty("inputstream", "inputstream.adaptive")
@@ -306,7 +306,7 @@ class VideoPlayer(Object):
         try:
             req = G.api.make_request(
                 method="GET",
-                url=G.api.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS
+                url=G.api.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS,
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
@@ -355,13 +355,13 @@ def update_playhead(content_id: str, playhead: int):
             headers={
                 'Content-Type': 'application/json'
             },
-            auto_refresh=True
+            auto_refresh=True,
         )
     except (CrunchyrollError, LoginError, requests.exceptions.RequestException) as e:
         # catch timeout or any other possible exception
         utils.crunchy_log(
             f"Failed to update playhead to crunchyroll: {str(e)} for {content_id}",
-            xbmc.LOGERROR
+            xbmc.LOGERROR,
         )
 
         raise e

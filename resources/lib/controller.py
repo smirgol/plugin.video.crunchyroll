@@ -56,7 +56,7 @@ def show_profiles():
         G.args.addon.getLocalizedString(30073),
         profile_list_items,
         preselect=current_profile,
-        useDetails=True
+        useDetails=True,
     )
 
     if selected == -1:
@@ -76,7 +76,7 @@ def show_queue():
         params={
             "n": 1024,
             "locale": G.args.subtitle
-        }
+        },
     )
 
     # check for error
@@ -88,7 +88,7 @@ def show_queue():
     view.add_listables(
         listables=get_listables_from_response(req.get('items')),
         is_folder=False,
-        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
+        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -103,7 +103,7 @@ def search_anime():
     if not G.args.get_arg('search'):
         d = xbmcgui.Dialog().input(G.args.addon.getLocalizedString(30041), type=xbmcgui.INPUT_ALPHANUM)
         if not d:
-            return
+            return None
     else:
         d = G.args.get_arg('search')
 
@@ -121,7 +121,7 @@ def search_anime():
             "locale": G.args.subtitle,
             "start": G.args.get_arg('offset', 0, int),
             "type": "series"
-        }
+        },
     )
 
     # check for error
@@ -140,7 +140,7 @@ def search_anime():
     view.add_listables(
         listables=get_listables_from_response(type_data.get('items')),
         is_folder=True,
-        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
@@ -153,7 +153,7 @@ def search_anime():
                 "search": d,
                 "mode": G.args.get_arg('mode')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("tvshows")
@@ -173,7 +173,7 @@ def show_history():
             "page_size": items_per_page,
             "page": current_page,
             "locale": G.args.subtitle,
-        }
+        },
     )
 
     # check for error
@@ -185,7 +185,7 @@ def show_history():
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
         listables=get_listables_from_response(req.get('data')),
-        is_folder=False
+        is_folder=False,
     )
 
     # pagination
@@ -197,7 +197,7 @@ def show_history():
                 "offset": G.args.get_arg('offset', 1, int) + 1,
                 "mode": G.args.get_arg('mode')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -216,7 +216,7 @@ def show_resume_episodes():
             "n": items_per_page,
             "locale": G.args.subtitle,
             "start": G.args.get_arg('offset', 0, int),
-        }
+        },
     )
 
     # check for error
@@ -229,7 +229,7 @@ def show_resume_episodes():
     view.add_listables(
         listables=get_listables_from_response(req.get('data')),
         is_folder=False,
-        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
@@ -241,7 +241,7 @@ def show_resume_episodes():
                 "offset": G.args.get_arg('offset', 0, int) + items_per_page,
                 "mode": G.args.get_arg('mode')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -266,7 +266,7 @@ def list_anime_seasons():
             "locale": G.args.subtitle,
             "season_tag": season_filter,
             "n": 100
-        }
+        },
     )
 
     # check for error
@@ -279,10 +279,11 @@ def list_anime_seasons():
     view.add_listables(
         listables=get_listables_from_response(req.get('items')),
         is_folder=True,
-        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     view.end_of_directory("seasons")
+    return None
 
 
 def list_anime_seasons_without_filter():
@@ -293,7 +294,7 @@ def list_anime_seasons_without_filter():
         url=G.api.SEASONAL_TAGS_ENDPOINT,
         params={
             "locale": G.args.subtitle,
-        }
+        },
     )
 
     # check for error
@@ -310,7 +311,7 @@ def list_anime_seasons_without_filter():
                 "season_filter": season_tag_item.get("id", {}),
                 "mode": G.args.get_arg('mode')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("seasons")
@@ -341,7 +342,7 @@ def list_filter():
         "categories": category_filter,
         "n": items_per_page,
         "start": G.args.get_arg('offset', 0, int),
-        "ratings": 'true'
+        "ratings": 'true',
     }
 
     # hack to re-use this for other views
@@ -353,7 +354,7 @@ def list_filter():
     req = G.api.make_request(
         method="GET",
         url=G.api.BROWSE_ENDPOINT,
-        params=params
+        params=params,
     )
 
     # check for error
@@ -366,7 +367,7 @@ def list_filter():
     view.add_listables(
         listables=get_listables_from_response(req.get('items')),
         is_folder=True,
-        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     items_left = req.get('total') - G.args.get_arg('offset', 0, int) - len(req.get('items'))
@@ -380,7 +381,7 @@ def list_filter():
                 "category_filter": category_filter,
                 "mode": G.args.get_arg('mode')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("tvshows")
@@ -395,7 +396,7 @@ def list_filter_without_category():
         url=G.api.CATEGORIES_ENDPOINT,
         params={
             "locale": G.args.subtitle,
-        }
+        },
     )
 
     # check for error
@@ -417,7 +418,7 @@ def list_filter_without_category():
                     "category_filter": category_item.get("tenant_category", {}),
                     "mode": G.args.get_arg('mode')
                 },
-                is_folder=True
+                is_folder=True,
             )
         except Exception:
             utils.log_error_with_trace(
@@ -440,7 +441,7 @@ def view_season():
             "locale": G.args.subtitle,
             "preferred_audio_language": G.api.account_data.default_audio_language,
             "force_locale": ""
-        }
+        },
     )
 
     # check for error
@@ -452,7 +453,7 @@ def view_season():
     # season / season  (crunchy / xbmc)
     view.add_listables(
         listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='season'),
-        is_folder=True
+        is_folder=True,
     )
 
     view.end_of_directory("seasons")
@@ -468,7 +469,7 @@ def view_episodes():
         url=G.api.EPISODES_ENDPOINT.format(G.args.get_arg('season_id')),
         params={
             "locale": G.args.subtitle
-        }
+        },
     )
 
     # check for error
@@ -481,7 +482,7 @@ def view_episodes():
     view.add_listables(
         listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='episode'),
         is_folder=False,
-        options=view.OPT_NO_SEASON_TITLE
+        options=view.OPT_NO_SEASON_TITLE,
     )
 
     view.end_of_directory("episodes", cache_to_disc=False)
@@ -521,7 +522,7 @@ def add_to_queue() -> bool:
             },
             headers={
                 'Content-Type': 'application/json'
-            }
+            },
         )
 
         if req and "error" in req:
@@ -629,7 +630,7 @@ def crunchylists_lists():
         url=G.api.CRUNCHYLISTS_LISTS_ENDPOINT.format(G.api.account_data.account_id),
         params={
             'locale': G.args.subtitle
-        }
+        },
     )
 
     # check for error
@@ -647,7 +648,7 @@ def crunchylists_lists():
                 'mode': 'crunchylists_item',
                 'crunchylists_item_id': crunchy_list.get('list_id')
             },
-            is_folder=True
+            is_folder=True,
         )
 
     view.end_of_directory("tvshows")
@@ -667,7 +668,7 @@ def crunchylists_item():
                                                     G.args.get_arg('crunchylists_item_id')),
         params={
             'locale': G.args.subtitle
-        }
+        },
     )
 
     # check for error
@@ -679,7 +680,7 @@ def crunchylists_item():
     view.add_listables(
         listables=get_listables_from_response(req.get('data')),
         is_folder=True,
-        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES
+        options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     view.end_of_directory("tvshows")

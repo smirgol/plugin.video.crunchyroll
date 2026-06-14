@@ -103,7 +103,7 @@ class CloudflareProxy:
                             # Use CloudScraper to fetch manifest
                             scraper = cloudscraper.create_scraper(
                                 delay=10,
-                                browser={'custom': G.api.CRUNCHYROLL_UA}
+                                browser={'custom': G.api.CRUNCHYROLL_UA},
                             )
 
                             headers = {
@@ -311,7 +311,7 @@ class VideoStream(Object):
             'skip_events_data': results[1] or {},
             'playheads_data': results[2] or {},
             'playable_item': playable_item[0] if playable_item else None,
-            'playable_item_parent': None
+            'playable_item_parent': None,
             # get_listables_from_response([results[4]])[0] if results[4] else None
         }
 
@@ -334,7 +334,7 @@ class VideoStream(Object):
         req = G.api.make_scraper_request(
             method="GET",
             url=stream_url,
-            auto_refresh=True
+            auto_refresh=True,
         )
 
         # check for error
@@ -402,7 +402,7 @@ class VideoStream(Object):
             cache_result = self._get_subtitle_from_cache(
                 subtitle_data.get('url', ""),
                 subtitle_data.get('language', ""),
-                subtitle_data.get('format', "")
+                subtitle_data.get('format', ""),
             )
 
             if cache_result is not None:
@@ -417,7 +417,7 @@ class VideoStream(Object):
             # api request streams
             subtitles_req = G.api.make_request(
                 method="GET",
-                url=subtitle_url
+                url=subtitle_url,
             )
         except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
@@ -529,14 +529,14 @@ class VideoStream(Object):
             # api request streams
             req = G.api.make_unauthenticated_request(
                 method="GET",
-                url=G.api.SKIP_EVENTS_ENDPOINT.format(episode_id)
+                url=G.api.SKIP_EVENTS_ENDPOINT.format(episode_id),
             )
         except (requests.exceptions.RequestException, CrunchyrollError):
             try:
                 # Some streams raise a 403 on SKIP_EVENTS endpoint but skip data are available in INTRO_V2 endpoint
                 intro_req = G.api.make_unauthenticated_request(
                     method="GET",
-                    url=G.api.INTRO_V2_ENDPOINT.format(episode_id)
+                    url=G.api.INTRO_V2_ENDPOINT.format(episode_id),
                 )
                 req = {"intro": {
                     "start": intro_req.get("startTime"),
@@ -546,7 +546,7 @@ class VideoStream(Object):
                 # can be okay for e.g. movies, thus only log error, but don't show notification
                 crunchy_log(
                     "_get_skip_events: error in requesting skip events data from api. possibly no data available",
-                    False
+                    False,
                 )
                 return None
 

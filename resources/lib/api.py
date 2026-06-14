@@ -154,7 +154,7 @@ class API:
                 if e.error_code == "REFRESH_TOKEN_EXPIRED":
                     xbmcgui.Dialog().ok(
                         G.args.addon_name,
-                        G.args.addon.getLocalizedString(30401)
+                        G.args.addon.getLocalizedString(30401),
                     )
                     self.account_data.delete_storage()
                     return self._handle_login_flow()
@@ -209,7 +209,7 @@ class API:
         headers = {
             "Authorization": self.AUTHORIZATION,
             "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         data = {
@@ -218,7 +218,7 @@ class API:
             "scope": "offline_access",
             "device_id": G.args.device_id,
             "device_name": 'Kodi',
-            "device_type": 'MediaCenter'
+            "device_type": 'MediaCenter',
         }
 
         scraper = self.create_auth_scraper()
@@ -231,7 +231,7 @@ class API:
                 url=self.TOKEN_ENDPOINT,
                 headers=headers,
                 data=data,
-                timeout=30
+                timeout=30,
             )
         except LoginError:
             raise
@@ -266,7 +266,7 @@ class API:
         headers = {
             "Authorization": self.AUTHORIZATION,
             "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         data = {
@@ -275,7 +275,7 @@ class API:
             "device_type": "MediaCenter",
             "grant_type": "refresh_token_profile_id",
             "profile_id": profile_id,
-            "refresh_token": self.account_data.refresh_token
+            "refresh_token": self.account_data.refresh_token,
         }
 
         scraper = self.create_auth_scraper()
@@ -287,7 +287,7 @@ class API:
                 url=self.TOKEN_ENDPOINT,
                 headers=headers,
                 data=data,
-                timeout=30
+                timeout=30,
             )
         except LoginError:
             raise
@@ -412,7 +412,7 @@ class API:
         try:
             scraper = cloudscraper.create_scraper(
                 delay=10,
-                browser={'custom': self.CRUNCHYROLL_UA}
+                browser={'custom': self.CRUNCHYROLL_UA},
             )
             utils.crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
             return scraper
@@ -431,7 +431,7 @@ class API:
         headers = {
             "Authorization": self.AUTHORIZATION,
             "User-Agent": self.CRUNCHYROLL_UA,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         scraper = self.create_auth_scraper()
@@ -445,7 +445,7 @@ class API:
                 url=self.DEVICE_CODE_ENDPOINT,
                 headers=headers,
                 data={},
-                timeout=30
+                timeout=30,
             )
 
             if r.ok:
@@ -499,7 +499,7 @@ class API:
                 url=self.DEVICE_TOKEN_ENDPOINT,
                 headers=headers,
                 json={"device_code": device_code},
-                timeout=30
+                timeout=30,
             )
             return self._process_device_token_response(r)
         except Exception as e:
@@ -645,7 +645,7 @@ class API:
             r = self.make_unauthenticated_request(
                 method="GET",
                 url=API.INDEX_ENDPOINT,
-                headers=self.api_headers
+                headers=self.api_headers,
             )
             account_data.update(r)
 
@@ -654,7 +654,7 @@ class API:
             r = self.make_unauthenticated_request(
                 method="GET",
                 url=API.PROFILE_ENDPOINT,
-                headers=self.api_headers
+                headers=self.api_headers,
             )
             account_data.update(r)
 
@@ -665,7 +665,7 @@ class API:
                 r = self.make_unauthenticated_request(
                     method="GET",
                     url=self.PROFILES_LIST_ENDPOINT,
-                    headers=self.api_headers
+                    headers=self.api_headers,
                 )
 
                 # Extract current profile data as dict from ProfileData obj
@@ -723,7 +723,7 @@ class API:
             data=data,
             json_data=json_data,
             auto_refresh=True,
-            is_retry=is_retry
+            is_retry=is_retry,
         )
 
     def make_unauthenticated_request(
@@ -754,7 +754,7 @@ class API:
                 params=params,
                 data=data,
                 json=json_data,
-                timeout=30
+                timeout=30,
             )
         else:
             req = requests.Request(method, url, data=data, params=params, headers=headers, json=json_data)
@@ -855,7 +855,7 @@ class API:
                 params=params,
                 data=data,
                 json=json_data,
-                timeout=timeout
+                timeout=timeout,
             )
 
             utils.crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
@@ -872,7 +872,7 @@ class API:
                     json_data=json_data,
                     timeout=timeout,
                     auto_refresh=auto_refresh,
-                    is_retry=True
+                    is_retry=True,
                 )
 
             return get_json_from_response(r)
