@@ -296,3 +296,57 @@ class TestResponseConsistency:
         for response_name in responses:
             data = load_captured_response(response_name)
             assert "total" in data, f"{response_name} should have .total. field"
+
+
+class TestAccountDataStorageRoundTrip:
+    """Test that AccountData survives the storage serialize/deserialize round-trip.
+
+    Regression: renamed fields (API key != attribute name) were lost on reload,
+    causing e.g. default_audio_language to become None when the cached session
+    was reused (valid token, no refresh).
+    """
+
+    API_RESPONSE = {
+        "access_token": "tok",
+        "refresh_token": "ref",
+        "expires": "2026-6-14T13:42:24Z",
+        "token_type": "Bearer",
+        "scope": "account content",
+        "country": "DE",
+        "account_id": "acc-123",
+        "service_available": True,
+        "avatar": "avatar.jpg",
+        "cr_beta_opt_in": True,
+        "crleg_email_verified": True,
+        "email": "user@example.com",
+        "maturity_rating": "M3",
+        "preferred_communication_language": "en-US",
+        "preferred_content_subtitle_language": "de-DE",
+        "preferred_content_audio_language": "ja-JP",
+        "username": "user",
+    }
+
+    def _roundtrip(self):
+        from resources.lib.model import AccountData
+
+        original = AccountData(self.API_RESPONSE)
+        # str(obj) is exactly what write_to_storage() persists
+        restored = AccountData(json.loads(str(original)))
+        return original, restored
+
+    def test_renamed_fields_survive_roundtrip(self):
+        original, restored = self._roundtrip()
+
+        assert restored.default_audio_language == original.default_audio_language == "ja-JP"
+        assert restored.default_subtitles_language == original.default_subtitles_language == "de-DE"
+        assert restored.account_language == original.account_language == "en-US"
+        assert restored.has_beta == original.has_beta is True
+        assert restored.email_verified == original.email_verified is True
+
+    def test_unchanged_fields_survive_roundtrip(self):
+        original, restored = self._roundtrip()
+
+        assert restored.access_token == original.access_token == "tok"
+        assert restored.country == original.country == "DE"
+        assert restored.username == original.username == "user"
+        assert restored.maturity_rating == original.maturity_rating == "M3"
