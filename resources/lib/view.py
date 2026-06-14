@@ -101,10 +101,10 @@ def add_item(
         cm = []
         if path_params.get("series_id"):
             cm.append((G.args.addon.getLocalizedString(30045),
-                       "Container.Update(%s)" % build_url(path_params, "series_view")))
+                       f"Container.Update({build_url(path_params, 'series_view')})"))
         if path_params.get("collection_id"):
             cm.append((G.args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % build_url(path_params, "season_view")))
+                       f"Container.Update({build_url(path_params, 'season_view')})"))
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
@@ -305,13 +305,13 @@ def add_listables(
         if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
             cm.append((
                 G.args.addon.getLocalizedString(30067),
-                'RunPlugin(%s?mode=add_to_queue&content_id=%s)' % (G.args.argv[0], listable.id)
+                f'RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})'
             ))
 
         if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and listable.series_id is not None:
             route = (G.args.addonurl +
                      router.create_path_from_route('series_view', {'series_id': listable.series_id}))
-            cm.append((G.args.addon.getLocalizedString(30045), "Container.Update(%s)" % route))
+            cm.append((G.args.addon.getLocalizedString(30045), f"Container.Update({route})"))
 
         if options & OPT_CTX_EPISODES and hasattr(listable, 'season_id') and listable.season_id is not None:
             route = (G.args.addonurl +
@@ -319,7 +319,7 @@ def add_listables(
                          'season_view',
                          {'series_id': listable.series_id, 'season_id': listable.season_id}
                      ))
-            cm.append((G.args.addon.getLocalizedString(30046), "Container.Update(%s)" % route))
+            cm.append((G.args.addon.getLocalizedString(30046), f"Container.Update({route})"))
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
             list_item.setInfo('video',

@@ -294,10 +294,10 @@ class VideoPlayer(Object):
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
-            utils.crunchy_log("Failed to clear active stream for episode: %s" % G.args.get_arg('episode_id'))
+            utils.crunchy_log(f"Failed to clear active stream for episode: {G.args.get_arg('episode_id')}")
             return
 
-        utils.crunchy_log("Cleared active stream for episode: %s" % G.args.get_arg('episode_id'))
+        utils.crunchy_log(f"Cleared active stream for episode: {G.args.get_arg('episode_id')}")
 
     def get_active_streams(self) -> list[str]:
         try:
@@ -329,7 +329,7 @@ class VideoPlayer(Object):
 
         for token in active_streams_tokens:
             self.clear_active_stream(token)
-            utils.crunchy_log("Cleared stream token %s" % token)
+            utils.crunchy_log(f"Cleared stream token {token}")
 
 
 def update_playhead(content_id: str, playhead: int):
@@ -357,9 +357,7 @@ def update_playhead(content_id: str, playhead: int):
     except (CrunchyrollError, LoginError, requests.exceptions.RequestException) as e:
         # catch timeout or any other possible exception
         utils.crunchy_log(
-            "Failed to update playhead to crunchyroll: %s for %s" % (
-                str(e), content_id
-            ),
+            f"Failed to update playhead to crunchyroll: {str(e)} for {content_id}",
             xbmc.LOGERROR
         )
 

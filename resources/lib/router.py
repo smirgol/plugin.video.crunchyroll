@@ -154,7 +154,7 @@ def create_path_from_route(route_name: str, args: dict) -> str | None:
     # Replace each {parameter} by its value from args
     pattern_params = extract_params_from_pattern(result)
     for param in pattern_params:
-        result = result.replace("{%s}" % param, str(args.get(param)))
+        result = result.replace(f"{{{param}}}", str(args.get(param)))
     return result
 
 

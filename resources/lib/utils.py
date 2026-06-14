@@ -43,8 +43,8 @@ def get_listables_from_response(data: list[dict], item_type_hint: str | None = N
         item_type = item.get('panel', {}).get('type') or item.get('type') or item.get('__class__') or item_type_hint
         if not item_type:
             crunchy_log(
-                "get_listables_from_response | failed to determine type for response item %s" % (
-                    json.dumps(item, indent=4)),
+                f"get_listables_from_response | failed to determine type for response item "
+                f"{json.dumps(item, indent=4)}",
                 xbmc.LOGERROR
             )
             continue
@@ -64,7 +64,7 @@ def get_listables_from_response(data: list[dict], item_type_hint: str | None = N
             listable_items.append(MovieData(item))
         else:
             crunchy_log(
-                "get_listables_from_response | unhandled index for metadata. %s" % (json.dumps(item, indent=4)),
+                f"get_listables_from_response | unhandled index for metadata. {json.dumps(item, indent=4)}",
                 xbmc.LOGERROR
             )
             continue
@@ -91,7 +91,7 @@ async def get_cms_object_data_by_ids(ids: list) -> dict:
             }
         )
     except (CrunchyrollError, requests.exceptions.RequestException):
-        crunchy_log("get_cms_object_data_by_ids: failed to load for: %s" % ",".join(ids_filtered))
+        crunchy_log(f"get_cms_object_data_by_ids: failed to load for: {','.join(ids_filtered)}")
         return {}
 
     if not req or 'error' in req:
@@ -238,10 +238,10 @@ def crunchy_log(message, loglevel=xbmc.LOGINFO) -> None:
     #         return
 
     try:
-        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), loglevel)
+        xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", loglevel)
     except (NameError, AttributeError):
         # Fallback for threading issues where xbmc module is not available
-        xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), xbmc.LOGINFO)
+        xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", xbmc.LOGINFO)
 
 
 def log_error_with_trace(message, show_notification: bool = True) -> None:
@@ -259,16 +259,17 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
 
     for trace in trace_back:
         stack_trace.append(
-            "File : %s , Line : %d, Func.Name : %s, Message : %s" % (trace[0], trace[1], trace[2], trace[3]))
+            f"File : {trace[0]} , Line : {trace[1]}, Func.Name : {trace[2]}, Message : {trace[3]}")
 
     addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, 'addon_name') else "Crunchyroll"
 
-    xbmc.log("[PLUGIN] %s: %s" % (addon_name, str(message)), xbmc.LOGERROR)
-    xbmc.log("[PLUGIN] %s: %s %s\n%s" % (addon_name, ex_type.__name__, ex_value, "\n".join(stack_trace)), xbmc.LOGERROR)
+    xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", xbmc.LOGERROR)
+    formatted_trace = "\n".join(stack_trace)
+    xbmc.log(f"[PLUGIN] {addon_name}: {ex_type.__name__} {ex_value}\n{formatted_trace}", xbmc.LOGERROR)
 
     if show_notification:
         xbmcgui.Dialog().notification(
-            '%s Error' % addon_name,
+            f'{addon_name} Error',
             'Please check logs for details',
             xbmcgui.NOTIFICATION_ERROR,
             5
