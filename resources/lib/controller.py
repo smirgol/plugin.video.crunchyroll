@@ -240,7 +240,7 @@ def list_anime_seasons(ctx):
 
     # if no seasons filter applied, list all available seasons
     if not season_filter:
-        return list_anime_seasons_without_filter()
+        return list_anime_seasons_without_filter(ctx)
 
     # else, if we have a season filter, show all from season
     req = ctx.api.make_request(
@@ -310,7 +310,7 @@ def list_filter(ctx):
 
     # if no category_filter filter applied, list all available categories
     if not category_filter and category_filter not in specials:
-        return list_filter_without_category()
+        return list_filter_without_category(ctx)
 
     # else, if we have a category filter, show all from category
 

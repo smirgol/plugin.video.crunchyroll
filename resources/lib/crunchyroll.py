@@ -18,12 +18,11 @@
 import random
 import re
 
-import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from . import controller, utils, view
+from . import controller, modes, utils, view
 from .context import PluginContext
 from .globals import G
 from .model import CrunchyrollError, LoginError
@@ -120,82 +119,8 @@ def main(argv):
 
 
 def check_mode(ctx):
-    """Run mode-specific functions"""
-    if ctx.args.get_arg("mode"):
-        mode = ctx.args.get_arg("mode")
-    elif ctx.args.get_arg("id"):
-        # call from other plugin
-        mode = "videoplay"
-        ctx.args.set_arg("url", "/media-" + ctx.args.get_arg("id"))
-    elif ctx.args.get_arg("url"):
-        # call from other plugin
-        mode = "videoplay"
-        ctx.args.set_arg("url", ctx.args.get_arg("url")[26:])  # @todo: does this actually work? truncated?
-    else:
-        mode = None
-
-    if not mode:
-        show_main_menu(ctx)
-
-    elif mode == "queue":
-        controller.show_queue(ctx)
-    elif mode == "search":
-        controller.search_anime(ctx)
-    elif mode == "history":
-        controller.show_history(ctx)
-    elif mode == "resume":
-        controller.show_resume_episodes(ctx)
-    # elif mode == "random":
-    #     controller.showRandom()
-
-    elif mode == "anime":
-        show_main_category(ctx, "anime")
-    elif mode == "drama":
-        show_main_category(ctx, "drama")
-
-    # elif mode == "featured":
-    #     https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
-    #     controller.list_series("featured", api)
-    elif mode == "popular":  # DONE
-        controller.list_filter(ctx)
-    # elif mode == "simulcast":  # https://www.crunchyroll.com/de/simulcasts/seasons/fall-2023 ???
-    #     controller.listSeries("simulcast", api)
-    # elif mode == "updated":
-    #    controller.listSeries("updated", api)
-    elif mode == "newest":
-        controller.list_filter(ctx)
-    elif mode == "alpha":
-        controller.list_filter(ctx)
-    elif mode == "season":  # DONE
-        controller.list_anime_seasons(ctx)
-    elif mode == "genre":  # DONE
-        controller.list_filter(ctx)
-
-    elif mode == "seasons":
-        controller.view_season(ctx)
-    elif mode == "episodes":
-        controller.view_episodes(ctx)
-    elif mode == "videoplay":
-        controller.start_playback(ctx)
-    elif mode == "add_to_queue":
-        controller.add_to_queue(ctx)
-    # elif mode == "remove_from_queue":
-    #     controller.remove_from_queue()
-    elif mode == "crunchylists_lists":
-        controller.crunchylists_lists(ctx)
-    elif mode == "crunchylists_item":
-        controller.crunchylists_item(ctx)
-    elif mode == "profiles_list":
-        controller.show_profiles(ctx)
-    else:
-        # unknown mode
-        utils.crunchy_log(f"Failed in check_mode '{str(mode)}'", xbmc.LOGERROR)
-        xbmcgui.Dialog().notification(
-            ctx.args.addon_name,
-            ctx.args.addon.getLocalizedString(30061),
-            xbmcgui.NOTIFICATION_ERROR,
-        )
-        show_main_menu(ctx)
+    """Run mode-specific functions via the declarative registry."""
+    return modes.check_mode(ctx)
 
 
 def show_main_menu(ctx):
