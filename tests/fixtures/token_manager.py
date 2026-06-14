@@ -1,7 +1,7 @@
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from pathlib import Path
+
 import requests
 
 from resources.lib.api import API
@@ -26,9 +26,9 @@ class TokenManager:
     def __init__(self, refresh_token: str, device_id: str):
         self.refresh_token = refresh_token
         self.device_id = device_id
-        self.access_token: Optional[str] = None
-        self.token_expires_at: Optional[datetime] = None
-        self.account_id: Optional[str] = None
+        self.access_token: str | None = None
+        self.token_expires_at: datetime | None = None
+        self.account_id: str | None = None
 
     def get_valid_token(self) -> str:
         """Get valid access token, refresh if needed"""
@@ -89,7 +89,7 @@ class TokenManager:
 
         self.account_id = token_data.get("account_id")
 
-    def get_auth_headers(self) -> Dict[str, str]:
+    def get_auth_headers(self) -> dict[str, str]:
         """Get authorization headers with valid token"""
         return {
             "Authorization": f"Bearer {self.get_valid_token()}",

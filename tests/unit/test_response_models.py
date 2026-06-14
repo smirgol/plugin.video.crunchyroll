@@ -11,14 +11,27 @@ import pytest
 
 # Import our new response models
 try:
-    from resources.lib.api.models.responses import (
-        AuthResponse, ProfileData, CMSData, ProfilesResponse,
-        ContentItem, SearchResponse, SeasonsResponse, EpisodesResponse, ImageSet,
-        StreamResponse, StreamUrl, SubtitleTrack,
-        WatchlistResponse, WatchlistItem, PlayheadsResponse, PlayheadData,
-        HistoryItem, WatchHistoryResponse
-    )
     from resources.lib.api.models.enums import ContentType
+    from resources.lib.api.models.responses import (
+        AuthResponse,
+        CMSData,
+        ContentItem,
+        EpisodesResponse,
+        HistoryItem,
+        ImageSet,
+        PlayheadData,
+        PlayheadsResponse,
+        ProfileData,
+        ProfilesResponse,
+        SearchResponse,
+        SeasonsResponse,
+        StreamResponse,
+        StreamUrl,
+        SubtitleTrack,
+        WatchHistoryResponse,
+        WatchlistItem,
+        WatchlistResponse,
+    )
 except ImportError:
     pytest.skip("New API response models not available", allow_module_level=True)
 

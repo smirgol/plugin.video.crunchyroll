@@ -3,12 +3,11 @@ from unittest.mock import Mock, patch
 import pytest
 
 from resources.lib.api import API
-from resources.lib.model import LoginError, AccountData
+from resources.lib.model import AccountData, LoginError
 from tests.fixtures.api_responses import (
     AUTH_TOKEN_RESPONSE,
     DEVICE_CODE_RESPONSE,
-    ERROR_RESPONSE_401,
-    ERROR_RESPONSE_500
+    ERROR_RESPONSE_500,
 )
 
 

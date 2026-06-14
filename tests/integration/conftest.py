@@ -1,13 +1,13 @@
 import os
 import time
-import pytest
 from pathlib import Path
+
+import pytest
 from dotenv import load_dotenv
 
-from tests.fixtures.token_manager import TokenManager
 from resources.lib.api import API
 from resources.lib.model import AccountData
-
+from tests.fixtures.token_manager import TokenManager
 
 env_path = Path(__file__).parent.parent / '.env'
 if env_path.exists():
@@ -53,10 +53,7 @@ def api_client(token_manager, test_credentials):
 
     token = token_manager.get_valid_token()
     expires_at = token_manager.token_expires_at
-    expires_str = "{}-{}-{}T{}:{}:{}Z".format(
-        expires_at.year, expires_at.month, expires_at.day,
-        expires_at.hour, expires_at.minute, expires_at.second
-    )
+    expires_str = f"{expires_at.year}-{expires_at.month}-{expires_at.day}T{expires_at.hour}:{expires_at.minute}:{expires_at.second}Z"
 
     api.account_data = AccountData({
         "access_token": token,

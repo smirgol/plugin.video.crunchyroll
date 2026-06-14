@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     Copyright (C) 2017 Sebastian Golasch (plugin.video.netflix)
     Copyright (C) 2018 Caphm (original implementation module)
@@ -9,8 +8,8 @@
     See LICENSES/MIT.md for more information.
 """
 
-import time
 import threading
+import time
 
 import xbmc
 import xbmcgui
@@ -359,12 +358,14 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             return
 
         try:
-            from . import utils
             import os
-            import time as _t
             import struct
+            import time as _t
             import zlib
+
             import xbmc
+
+            from . import utils
 
             # Try to import pyqrcode module
             _pyqrcode = None

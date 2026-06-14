@@ -5,10 +5,10 @@ from resources.lib.api import API
 from resources.lib.model import AccountData
 from tests.fixtures.api_responses import (
     BROWSE_RESPONSE,
-    SEASONS_RESPONSE,
     EPISODES_RESPONSE,
     SEARCH_RESPONSE,
-    WATCHLIST_RESPONSE
+    SEASONS_RESPONSE,
+    WATCHLIST_RESPONSE,
 )
 
 
@@ -127,7 +127,6 @@ class TestAPIContentUnit:
         with patch.object(self.api, 'is_token_valid', return_value=True), \
              patch.object(self.api, 'create_auth_scraper', return_value=_mock_scraper(mock_response)):
 
-            bucket = self.api.account_data.cms.bucket
             season_id = 'GRJ0X123Y'
             result = self.api.make_request(
                 method="GET",

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # based on work by stefanodvx
 # Copyright (C) 2023 smirgol
@@ -17,18 +16,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import time
-from datetime import timedelta, datetime
-from typing import Optional, Dict
+from datetime import datetime, timedelta
 
 import requests
 import xbmc
 import xbmcgui
 from requests import HTTPError, Response
 
+from ..modules import cloudscraper
 from . import utils
 from .globals import G
 from .model import AccountData, CrunchyrollError, LoginError, ProfileData
-from ..modules import cloudscraper
 
 
 class API:
@@ -95,7 +93,7 @@ class API:
         self.locale: str = locale
         self.account_data: AccountData = AccountData(dict())
         self.profile_data: ProfileData = ProfileData(dict())
-        self.api_headers: Dict = default_request_headers()
+        self.api_headers: dict = default_request_headers()
         self.refresh_attempts = 0
 
     def start(self) -> None:
@@ -131,7 +129,7 @@ class API:
         # session management
         self.create_session(action="refresh" if session_restart else "login")
 
-    def create_session(self, action: str = "login", profile_id: Optional[str] = None) -> None:
+    def create_session(self, action: str = "login", profile_id: str | None = None) -> None:
         """
         Create or refresh authentication session
 
@@ -252,7 +250,7 @@ class API:
 
         raise LoginError("Token refresh failed")
 
-    def _handle_profile_refresh_flow(self, profile_id: Optional[str]) -> None:
+    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
         """Handle profile refresh using existing refresh token"""
         if not profile_id:
             raise LoginError("Profile ID required for profile refresh")
@@ -419,7 +417,7 @@ class API:
             utils.crunchy_log(f"CloudScraper initialization failed: {e}", xbmc.LOGDEBUG)
             return None
 
-    def request_device_code(self) -> Optional[Dict]:
+    def request_device_code(self) -> dict | None:
         """
         Request device code for activation flow
 
@@ -464,7 +462,7 @@ class API:
             utils.crunchy_log(f"Device code request via cloudscraper failed: {e}", xbmc.LOGDEBUG)
             raise LoginError(f"Device code request error: {str(e)}")
 
-    def poll_device_token(self, device_code: str) -> Dict:
+    def poll_device_token(self, device_code: str) -> dict:
         """
         Poll for device token after user activation
 
@@ -503,7 +501,7 @@ class API:
             utils.crunchy_log(f"Device token poll via cloudscraper failed: {e}", xbmc.LOGDEBUG)
             return {"status": "error", "message": f"Network error: {str(e)}"}
 
-    def _process_device_token_response(self, r) -> Dict:
+    def _process_device_token_response(self, r) -> dict:
         """
         Process device token response from cloudscraper
 
@@ -598,7 +596,7 @@ class API:
             return {"status": "error", "message": f"Response processing error: {str(e)}"}
 
 
-    def _finalize_session_from_tokens(self, token_response: Dict, action: str = "login", profile_id: Optional[str] = None) -> None:
+    def _finalize_session_from_tokens(self, token_response: dict, action: str = "login", profile_id: str | None = None) -> None:
         """
         Finalize session setup after receiving authentication tokens
 
@@ -703,7 +701,7 @@ class API:
             data=None,
             json_data=None,
             is_retry=False,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         Make a request through CloudScraper. All Crunchyroll API calls are routed
         through the scraper to handle Cloudflare protection.
@@ -727,7 +725,7 @@ class API:
             params=None,
             data=None,
             json_data=None,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """ Send a raw request without any session information
 
         Crunchyroll domain requests go through cloudscraper; other hosts use
@@ -760,14 +758,14 @@ class API:
             self,
             method: str,
             url: str,
-            headers: Optional[Dict] = None,
-            params: Optional[Dict] = None,
-            data: Optional[Dict] = None,
-            json_data: Optional[Dict] = None,
+            headers: dict | None = None,
+            params: dict | None = None,
+            data: dict | None = None,
+            json_data: dict | None = None,
             timeout: int = 30,
             auto_refresh: bool = False,
             is_retry: bool = False
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         Make HTTP request using CloudScraper for Cloudflare-protected endpoints.
         Only device authentication is supported.
@@ -880,7 +878,7 @@ class API:
             raise LoginError(f"Unexpected error: {str(e)}")
 
 
-def default_request_headers() -> Dict:
+def default_request_headers() -> dict:
     return {
         "User-Agent": API.CRUNCHYROLL_UA,
         "Content-Type": "application/x-www-form-urlencoded"
@@ -892,11 +890,7 @@ def get_date() -> datetime:
 
 
 def date_to_str(date: datetime) -> str:
-    return "{}-{}-{}T{}:{}:{}Z".format(
-        date.year, date.month,
-        date.day, date.hour,
-        date.minute, date.second
-    )
+    return f"{date.year}-{date.month}-{date.day}T{date.hour}:{date.minute}:{date.second}Z"
 
 
 def str_to_date(string: str) -> datetime:
@@ -910,9 +904,9 @@ def str_to_date(string: str) -> datetime:
     return res
 
 
-def get_json_from_response(r: Response) -> Optional[Dict]:
-    from .utils import log_error_with_trace
+def get_json_from_response(r: Response) -> dict | None:
     from .model import CrunchyrollError
+    from .utils import log_error_with_trace
 
     code: int = r.status_code
     response_type: str = r.headers.get("Content-Type", "")
@@ -938,7 +932,7 @@ def get_json_from_response(r: Response) -> Optional[Dict]:
         raise CrunchyrollError(f"[{code}] {r.text}")
 
     try:
-        r_json: Dict = r.json()
+        r_json: dict = r.json()
     except (requests.exceptions.JSONDecodeError, ValueError):
         log_error_with_trace("Failed to parse response data")
         return None
