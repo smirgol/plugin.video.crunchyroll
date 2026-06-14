@@ -31,8 +31,18 @@ __all__ = [
     "LoginError",
 ]
 
-from .models.account import CMS, AccountData, ProfileData
-from .models.args import Args
-from .models.base import Cacheable, ListableItem, Meta, Object, PlayableItem
-from .models.content import EpisodeData, MovieData, SeasonData, SeriesData
-from .models.exceptions import CrunchyrollError, LoginError
+from .account import CMS as CMS
+from .account import AccountData as AccountData
+from .account import ProfileData as ProfileData
+from .args import Args as Args
+from .base import Cacheable as Cacheable
+from .base import ListableItem as ListableItem
+from .base import Meta as Meta
+from .base import Object as Object
+from .base import PlayableItem as PlayableItem
+from .content import EpisodeData as EpisodeData
+from .content import MovieData as MovieData
+from .content import SeasonData as SeasonData
+from .content import SeriesData as SeriesData
+from .exceptions import CrunchyrollError as CrunchyrollError
+from .exceptions import LoginError as LoginError
