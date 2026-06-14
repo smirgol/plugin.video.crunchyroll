@@ -18,13 +18,15 @@
 import random
 import re
 
+import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
 from . import controller, modes, view
+from .api import API
 from .context import PluginContext
-from .globals import G
+from .models.args import Args
 from .models.exceptions import CrunchyrollError, LoginError
 from .utils.images import get_img_from_static
 from .utils.logging import show_user_friendly_error
@@ -33,10 +35,10 @@ from .utils.logging import show_user_friendly_error
 def main(argv):
     """Main function for the addon"""
 
-    G.init(argv)
-
-    # Build explicit context. Legacy code may still fall back to G during transition.
-    ctx = PluginContext(api=G.api, args=G.args, monitor=G.monitor)
+    args = Args.from_argv(argv)
+    api = API(args=args, locale=args.subtitle or "en-US")
+    monitor = xbmc.Monitor()
+    ctx = PluginContext(api=api, args=args, monitor=monitor)
 
     # inputstream adaptive settings
     if ctx.args.get_arg("mode") == "hls":

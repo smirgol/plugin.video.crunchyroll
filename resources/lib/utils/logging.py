@@ -19,11 +19,13 @@ from __future__ import annotations
 import sys
 import traceback
 from json import dumps
+from typing import TYPE_CHECKING
 
 import xbmc
 import xbmcgui
 
-from ..globals import G
+if TYPE_CHECKING:
+    import xbmcaddon
 
 
 def dump(data) -> None:
@@ -34,16 +36,22 @@ def log(message) -> None:
     xbmc.log(message, xbmc.LOGINFO)
 
 
-def crunchy_log(message, loglevel=xbmc.LOGINFO) -> None:
-    addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, "addon_name") else "Crunchyroll"
+def _addon_name(addon: xbmcaddon.Addon | None) -> str:
+    try:
+        return addon.getAddonInfo("name") if addon is not None else "Crunchyroll"
+    except Exception:
+        return "Crunchyroll"
 
+
+def crunchy_log(message, loglevel=xbmc.LOGINFO, *, addon: xbmcaddon.Addon | None = None) -> None:
+    addon_name = _addon_name(addon)
     try:
         xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", loglevel)
     except (NameError, AttributeError):
         xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", xbmc.LOGINFO)
 
 
-def log_error_with_trace(message, show_notification: bool = True) -> None:
+def log_error_with_trace(message, show_notification: bool = True, *, addon: xbmcaddon.Addon | None = None) -> None:
     ex_type, ex_value, ex_traceback = sys.exc_info()
     trace_back = traceback.extract_tb(ex_traceback)
 
@@ -51,7 +59,7 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
     for trace in trace_back:
         stack_trace.append(f"File : {trace[0]} , Line : {trace[1]}, Func.Name : {trace[2]}, Message : {trace[3]}")
 
-    addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, "addon_name") else "Crunchyroll"
+    addon_name = _addon_name(addon)
 
     xbmc.log(f"[PLUGIN] {addon_name}: {str(message)}", xbmc.LOGERROR)
     formatted_trace = "\n".join(stack_trace)
@@ -66,7 +74,12 @@ def log_error_with_trace(message, show_notification: bool = True) -> None:
         )
 
 
-def show_user_friendly_error(error_type: str, technical_message: str = None) -> None:
+def show_user_friendly_error(
+    error_type: str,
+    technical_message: str = None,
+    *,
+    addon: xbmcaddon.Addon | None = None,
+) -> None:
     """
     Show user-friendly error notification to user (translated)
     while keeping technical logs in English for developers.
@@ -80,12 +93,17 @@ def show_user_friendly_error(error_type: str, technical_message: str = None) -> 
         "general": 30405,
     }
 
-    if technical_message:
-        crunchy_log(f"Error ({error_type}): {technical_message}", xbmc.LOGERROR)
+    addon_name = _addon_name(addon)
 
-    addon_name = G.args.addon_name if G.args is not None and hasattr(G.args, "addon_name") else "Crunchyroll"
+    if technical_message:
+        crunchy_log(f"Error ({error_type}): {technical_message}", xbmc.LOGERROR, addon=addon)
+
     message_id = error_messages.get(error_type, 30405)
-    user_message = G.args.addon.getLocalizedString(message_id)
+    user_message = (
+        addon.getLocalizedString(message_id)
+        if addon is not None
+        else f"Error {error_type}"
+    )
 
     xbmcgui.Dialog().notification(
         f"{addon_name} Error",

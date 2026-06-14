@@ -5,8 +5,8 @@ Covers Object._read and Cacheable storage round-trips.
 """
 
 import os
+from unittest.mock import MagicMock
 
-from resources.lib.globals import G
 from resources.lib.models.base import Cacheable, Object
 
 
@@ -29,6 +29,12 @@ class ConcreteCacheable(Cacheable):
         return "test_cache.json"
 
 
+def _make_addon(profile_dir):
+    addon = MagicMock()
+    addon.getAddonInfo.return_value = str(profile_dir)
+    return addon
+
+
 class TestCacheableRoundTrip:
     def test_storage_roundtrip(self, tmp_path, monkeypatch):
         import xbmcvfs
@@ -36,7 +42,7 @@ class TestCacheableRoundTrip:
         profile_dir = tmp_path / "profile"
         profile_dir.mkdir()
 
-        G.args.addon.getAddonInfo.return_value = str(profile_dir)
+        addon = _make_addon(profile_dir)
         monkeypatch.setattr(xbmcvfs, "translatePath", lambda p: str(profile_dir) + os.sep)
 
         class RealFile:
@@ -57,15 +63,15 @@ class TestCacheableRoundTrip:
         obj.field_a = "hello"
         obj.field_b = 42
 
-        written = obj.write_to_storage()
+        written = obj.write_to_storage(addon)
         assert written is not False
         assert (profile_dir / "test_cache.json").exists()
 
-        loaded = obj.load_from_storage()
+        loaded = obj.load_from_storage(addon)
         assert loaded["field_a"] == "hello"
         assert loaded["field_b"] == 42
 
-        obj.delete_storage()
+        obj.delete_storage(addon)
         assert not (profile_dir / "test_cache.json").exists()
 
     def test_load_from_missing_file_returns_empty_dict(self, tmp_path, monkeypatch):
@@ -74,12 +80,12 @@ class TestCacheableRoundTrip:
         profile_dir = tmp_path / "profile"
         profile_dir.mkdir()
 
-        G.args.addon.getAddonInfo.return_value = str(profile_dir)
+        addon = _make_addon(profile_dir)
         monkeypatch.setattr(xbmcvfs, "translatePath", lambda p: str(profile_dir) + os.sep)
         monkeypatch.setattr(xbmcvfs, "exists", lambda p: False)
 
         obj = ConcreteCacheable()
-        assert obj.load_from_storage() == {}
+        assert obj.load_from_storage(addon) == {}
 
     def test_delete_missing_file_returns_none(self, tmp_path, monkeypatch):
         import xbmcvfs
@@ -87,9 +93,9 @@ class TestCacheableRoundTrip:
         profile_dir = tmp_path / "profile"
         profile_dir.mkdir()
 
-        G.args.addon.getAddonInfo.return_value = str(profile_dir)
+        addon = _make_addon(profile_dir)
         monkeypatch.setattr(xbmcvfs, "translatePath", lambda p: str(profile_dir) + os.sep)
         monkeypatch.setattr(xbmcvfs, "exists", lambda p: False)
 
         obj = ConcreteCacheable()
-        assert obj.delete_storage() is None
+        assert obj.delete_storage(addon) is None

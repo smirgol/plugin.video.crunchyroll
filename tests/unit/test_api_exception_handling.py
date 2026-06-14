@@ -20,8 +20,12 @@ class TestRefreshFlowExceptionHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
-            self.api = API()
+        mock_args = Mock()
+        mock_args.device_id = "test-device-id"
+        mock_args.addon_name = "TestCrunchyroll"
+        mock_args.addon.getLocalizedString.return_value = "localized"
+        with patch("resources.lib.api.default_request_headers"):
+            self.api = API(args=mock_args)
             self.api.account_data = AccountData(
                 {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
             )
@@ -100,8 +104,12 @@ class TestProfileRefreshFlowExceptionHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
-            self.api = API()
+        mock_args = Mock()
+        mock_args.device_id = "test-device-id"
+        mock_args.addon_name = "TestCrunchyroll"
+        mock_args.addon.getLocalizedString.return_value = "localized"
+        with patch("resources.lib.api.default_request_headers"):
+            self.api = API(args=mock_args)
             self.api.account_data = AccountData(
                 {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
             )
@@ -149,8 +157,12 @@ class TestCreateSessionRefreshTokenExpiredHandling:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
-            self.api = API()
+        mock_args = Mock()
+        mock_args.device_id = "test-device-id"
+        mock_args.addon_name = "TestCrunchyroll"
+        mock_args.addon.getLocalizedString.return_value = "localized"
+        with patch("resources.lib.api.default_request_headers"):
+            self.api = API(args=mock_args)
             self.api.account_data = AccountData(
                 {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
             )
