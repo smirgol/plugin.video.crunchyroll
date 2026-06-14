@@ -35,14 +35,11 @@ class API:
     """Api documentation
     https://github.com/CloudMax94/crunchyroll-api/wiki/Api
     """
-    # URL = "https://api.crunchyroll.com/"
-    # VERSION = "1.1.21.0"
-    # TOKEN = "LNDJgOit5yaRIWN"
-    # DEVICE = "com.crunchyroll.windows.desktop"
-    # TIMEOUT = 30
 
     # User Agent - single device-only identity
     CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
+    # Authentication credentials - single device-only identity
+    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="  # AndroidTV for device auth
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
     INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
@@ -60,8 +57,7 @@ class API:
     SEASONS_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/series/{}/seasons"
     EPISODES_ENDPOINT = "https://www.crunchyroll.com/content/v2/cms/seasons/{}/episodes"
     OBJECTS_BY_ID_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/cms/objects/{}"
-    # SIMILAR_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/{}/similar_to"
-    # NEWSFEED_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/news_feed"
+
     BROWSE_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/browse"
     # there is also a v2, but that will only deliver content_ids and no details about the entries
     WATCHLIST_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/{}/watchlist"
@@ -79,9 +75,6 @@ class API:
 
     CRUNCHYLISTS_LISTS_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists"
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
-
-    # Authentication credentials - single device-only identity
-    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="  # AndroidTV for device auth
 
     # Device code configuration
     DEVICE_CODE_POLL_INTERVAL = 5  # seconds - initial polling interval
