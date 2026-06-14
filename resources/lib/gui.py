@@ -247,7 +247,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             seconds = self.countdown_time % 60
             countdown_text = G.args.addon.getLocalizedString(30302) % (minutes, seconds)
             self.getControl(self.LABEL_COUNTDOWN).setLabel(countdown_text)
-        except:
+        except Exception:
             pass  # UI might not be ready yet
 
     def _refresh_device_code(self):
@@ -320,7 +320,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             from .globals import G
             success_text = G.args.addon.getLocalizedString(30304)
             self.getControl(self.LABEL_STATUS).setLabel(success_text)
-        except:
+        except Exception:
             pass  # UI might be closing
         self.return_value = 'success'
 

@@ -18,8 +18,8 @@ import sys
 
 sys.modules['_asyncio'] = None  # @see: https://kodi.wiki/view/Python_Problems#asyncio
 
-import xbmc
-import xbmcaddon
+import xbmc  # noqa: E402
+import xbmcaddon  # noqa: E402
 
 # plugin constants
 _addon = xbmcaddon.Addon(id=re.sub(r"^plugin://([^/]+)/.*$", r"\1", sys.argv[0]))
