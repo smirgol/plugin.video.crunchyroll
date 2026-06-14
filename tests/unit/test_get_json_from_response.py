@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from resources.lib.api import get_json_from_response
-from resources.lib.model import CrunchyrollError, LoginError
+from resources.lib.models.exceptions import CrunchyrollError, LoginError
 
 ASS_CONTENT = "[Script Info]\nTitle: Test\n"
 
@@ -49,7 +49,7 @@ class TestJsonResponses:
     def test_json_decode_error_returns_none(self):
         r = _mock_response("application/json", "not json")
         r.json.side_effect = requests.exceptions.JSONDecodeError("", "", 0)
-        with patch("resources.lib.utils.log_error_with_trace"):
+        with patch("resources.lib.utils.logging.log_error_with_trace"):
             assert get_json_from_response(r) is None
 
     def test_error_response_raises_crunchyroll_error(self):

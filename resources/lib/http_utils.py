@@ -21,7 +21,7 @@ from __future__ import annotations
 import requests
 from requests import HTTPError, Response
 
-from .model import CrunchyrollError, LoginError
+from .models.exceptions import CrunchyrollError, LoginError
 
 CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
 
@@ -34,7 +34,7 @@ def default_request_headers() -> dict:
 
 
 def get_json_from_response(r: Response) -> dict | None:
-    from .utils import log_error_with_trace
+    from .utils.logging import log_error_with_trace
 
     code: int = r.status_code
     response_type: str = r.headers.get("Content-Type", "")

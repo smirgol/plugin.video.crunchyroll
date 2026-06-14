@@ -3,7 +3,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from resources.lib.api import API
-from resources.lib.model import AccountData, LoginError
+from resources.lib.models.account import AccountData
+from resources.lib.models.exceptions import LoginError
 from tests.fixtures.api_responses import (
     AUTH_TOKEN_RESPONSE,
     DEVICE_CODE_RESPONSE,

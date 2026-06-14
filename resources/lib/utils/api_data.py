@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import requests
 import xbmc
 
-from ..model import CrunchyrollError, EpisodeData, ListableItem, MovieData, SeasonData, SeriesData
+from ..models import CrunchyrollError, EpisodeData, ListableItem, MovieData, SeasonData, SeriesData
 
 if TYPE_CHECKING:
     from xbmcgui import ListItem

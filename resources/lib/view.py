@@ -26,10 +26,12 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib.model import EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
+from resources.lib.models.base import ListableItem, PlayableItem
+from resources.lib.models.content import EpisodeData, SeasonData, SeriesData
 
-from . import presentation, router, utils
+from . import presentation, router
 from .context import PluginContext
+from .utils.formatting import format_short_episode_title
 
 # Fix for bug in old python version on windows
 # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/44
@@ -154,13 +156,12 @@ OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
 async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
-    from .utils import (
+    from .utils.api_data import (
         get_cms_object_data_by_ids,
-        get_img_from_struct,
         get_playheads_from_api,
         get_watchlist_status_from_api,
-        infer_img_from_id,
     )
+    from .utils.images import get_img_from_struct, infer_img_from_id
 
     # playheads
     ids_playhead = [
@@ -296,7 +297,8 @@ def add_listables(
     if listables is None:
         listables = []
 
-    from .utils import crunchy_log, highlight_list_item_title
+    from .utils.api_data import highlight_list_item_title
+    from .utils.logging import crunchy_log
 
     args = ctx.args
 
@@ -305,7 +307,7 @@ def add_listables(
     crunchy_log("add_listables: Finished to retrieve data async")
 
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
-        from .utils import sort_episodes
+        from .utils.formatting import sort_episodes
 
         listables = sort_episodes(listables)
 
@@ -348,7 +350,7 @@ def add_listables(
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
             list_item.setInfo(
-                "video", {"title": utils.format_short_episode_title(listable.episode, listable.title_unformatted)}
+                "video", {"title": format_short_episode_title(listable.episode, listable.title_unformatted)}
             )
 
         if len(cm) > 0:

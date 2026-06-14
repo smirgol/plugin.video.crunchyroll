@@ -6,7 +6,7 @@ import pytest
 from dotenv import load_dotenv
 
 from resources.lib.api import API
-from resources.lib.model import AccountData
+from resources.lib.models.account import AccountData
 from tests.fixtures.token_manager import TokenManager
 
 env_path = Path(__file__).parent.parent / ".env"
