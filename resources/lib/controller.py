@@ -24,15 +24,18 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from . import utils, view
+from . import view
 from .controller_helpers import (
     add_next_page_item,
     is_response_error,
     is_response_error_strict,
     render_error_directory,
 )
-from .model import CrunchyrollError, ProfileData
-from .utils import get_listables_from_response
+from .models.account import ProfileData
+from .models.exceptions import CrunchyrollError
+from .utils.api_data import get_listables_from_response
+from .utils.images import get_img_from_struct
+from .utils.logging import crunchy_log, log_error_with_trace
 from .videoplayer import VideoPlayer
 
 
@@ -388,15 +391,15 @@ def list_filter_without_category(ctx):
                     "title": category_item.get("localization", {}).get("title"),
                     "plot": category_item.get("localization", {}).get("description"),
                     "plotoutline": category_item.get("localization", {}).get("description"),
-                    "thumb": utils.get_img_from_struct(category_item, "low", 1),
-                    "fanart": utils.get_img_from_struct(category_item, "background", 1),
+                    "thumb": get_img_from_struct(category_item, "low", 1),
+                    "fanart": get_img_from_struct(category_item, "background", 1),
                     "category_filter": category_item.get("tenant_category", {}),
                     "mode": ctx.args.get_arg("mode"),
                 },
                 is_folder=True,
             )
         except Exception:
-            utils.log_error_with_trace(
+            log_error_with_trace(
                 f"Failed to add category name item to list_filter view: {json.dumps(category_item, indent=4)}"
             )
 
@@ -473,7 +476,7 @@ def start_playback(ctx):
     video_player = VideoPlayer(ctx=ctx)
     video_player.start_playback()
 
-    utils.crunchy_log("Starting loop", xbmc.LOGINFO)
+    crunchy_log("Starting loop", xbmc.LOGINFO)
     # stay in this method while playing to not lose video_player, as backgrounds threads reference it
     monitor = ctx.monitor
     args = ctx.args
@@ -487,7 +490,7 @@ def start_playback(ctx):
 
 
 def add_to_queue(ctx) -> bool:
-    from .model import LoginError
+    from .models.exceptions import LoginError
 
     try:
         req = ctx.api.make_scraper_request(
@@ -525,7 +528,7 @@ def add_to_queue(ctx) -> bool:
             )
             return False
         else:
-            utils.log_error_with_trace(f"Failed to add to queue: {e}")
+            log_error_with_trace(f"Failed to add to queue: {e}")
             xbmcgui.Dialog().notification(
                 f"{ctx.args.addon_name} Error",
                 "Failed to add item to watchlist",
@@ -534,7 +537,7 @@ def add_to_queue(ctx) -> bool:
             )
             return False
     except LoginError as e:
-        utils.log_error_with_trace(f"Authentication error adding to queue: {e}")
+        log_error_with_trace(f"Authentication error adding to queue: {e}")
         xbmcgui.Dialog().notification(
             f"{ctx.args.addon_name} Error",
             "Authentication failed - it's broken, Jim! :(",
@@ -543,7 +546,7 @@ def add_to_queue(ctx) -> bool:
         )
         return False
     except Exception as e:
-        utils.log_error_with_trace(f"Unexpected error adding to queue: {e}")
+        log_error_with_trace(f"Unexpected error adding to queue: {e}")
         xbmcgui.Dialog().notification(
             f"{ctx.args.addon_name} Error",
             "Failed to add item to watchlist",
@@ -635,7 +638,7 @@ def crunchylists_lists(ctx):
 def crunchylists_item(ctx):
     """Retrieve all items for a crunchylist"""
 
-    utils.crunchy_log(f"Fetching crunchylist: {ctx.args.get_arg('crunchylists_item_id')}")
+    crunchy_log(f"Fetching crunchylist: {ctx.args.get_arg('crunchylists_item_id')}")
 
     # api request
     req = ctx.api.make_request(

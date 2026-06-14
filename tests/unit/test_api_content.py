@@ -2,7 +2,7 @@ import json
 from unittest.mock import Mock, patch
 
 from resources.lib.api import API
-from resources.lib.model import AccountData
+from resources.lib.models.account import AccountData
 from tests.fixtures.api_responses import (
     BROWSE_RESPONSE,
     EPISODES_RESPONSE,

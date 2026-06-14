@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..model import EpisodeData, ListableItem, MovieData
+from ..models import EpisodeData, ListableItem, MovieData
 from . import logging
 
 

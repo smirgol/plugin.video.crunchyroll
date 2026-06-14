@@ -11,7 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from resources.lib.auth import AuthManager, get_date, str_to_date
-from resources.lib.model import AccountData, LoginError, ProfileData
+from resources.lib.models.account import AccountData, ProfileData
+from resources.lib.models.exceptions import LoginError
 
 
 class _FakeAPI:

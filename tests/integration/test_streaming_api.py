@@ -1,6 +1,6 @@
 import pytest
 
-from resources.lib.model import CrunchyrollError
+from resources.lib.models.exceptions import CrunchyrollError
 
 
 @pytest.mark.integration

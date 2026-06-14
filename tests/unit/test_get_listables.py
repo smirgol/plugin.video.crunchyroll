@@ -12,8 +12,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from resources.lib.model import EpisodeData, SeasonData, SeriesData
-from resources.lib.utils import get_listables_from_response
+from resources.lib.models.content import EpisodeData, SeasonData, SeriesData
+from resources.lib.utils.api_data import get_listables_from_response
 
 
 @pytest.fixture

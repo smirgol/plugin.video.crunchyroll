@@ -29,15 +29,15 @@ import xbmcplugin
 import xbmcvfs
 
 from resources.lib.context import PluginContext
-from resources.lib.model import CrunchyrollError, Object, PlayableItem
+from resources.lib.models.base import Object, PlayableItem
+from resources.lib.models.exceptions import CrunchyrollError
 from resources.lib.proxy import get_cloudflare_proxy
-from resources.lib.utils import (
-    crunchy_log,
+from resources.lib.utils.api_data import (
     get_cms_object_data_by_ids,
     get_listables_from_response,
     get_playheads_from_api,
-    log_error_with_trace,
 )
+from resources.lib.utils.logging import crunchy_log, log_error_with_trace
 
 
 class VideoPlayerStreamData(Object):

@@ -10,8 +10,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from resources.lib.model import CrunchyrollError
-from resources.lib.utils import api_data, filters, formatting, images
+import resources.lib.utils.api_data as api_data
+import resources.lib.utils.filters as filters
+import resources.lib.utils.formatting as formatting
+import resources.lib.utils.images as images
+from resources.lib.models.exceptions import CrunchyrollError
 
 
 @pytest.fixture

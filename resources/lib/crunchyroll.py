@@ -22,10 +22,12 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from . import controller, modes, utils, view
+from . import controller, modes, view
 from .context import PluginContext
 from .globals import G
-from .model import CrunchyrollError, LoginError
+from .models.exceptions import CrunchyrollError, LoginError
+from .utils.images import get_img_from_static
+from .utils.logging import show_user_friendly_error
 
 
 def main(argv):
@@ -110,7 +112,7 @@ def main(argv):
         else:
             error_type = "general"
 
-        utils.show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
+        show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
 
         view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30060)})
         view.end_of_directory(ctx)
@@ -139,7 +141,7 @@ def show_main_menu(ctx):
         {
             "title": ctx.args.addon.getLocalizedString(30072) % str(ctx.api.profile_data.profile_name),
             "mode": "profiles_list",
-            "thumb": utils.get_img_from_static(ctx.api.profile_data.avatar),
+            "thumb": get_img_from_static(ctx.api.profile_data.avatar),
         },
     )
     # @TODO: i think there are no longer dramas. should we add music videos and movies?

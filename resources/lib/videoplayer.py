@@ -25,10 +25,11 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import utils
 from resources.lib.context import PluginContext
 from resources.lib.gui import SkipModalDialog, show_modal_dialog
-from resources.lib.model import CrunchyrollError, LoginError, Object
+from resources.lib.models.base import Object
+from resources.lib.models.exceptions import CrunchyrollError, LoginError
+from resources.lib.utils.logging import crunchy_log, log, log_error_with_trace
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
 
@@ -55,7 +56,7 @@ class VideoPlayer(Object):
 
         # already playing for whatever reason?
         if self.isPlaying():
-            utils.log("Skipping playback because already playing")
+            log("Skipping playback because already playing")
             return
 
         self.clear_all_active_streams()
@@ -87,7 +88,7 @@ class VideoPlayer(Object):
         if (time.time() - self.createTime) > 20:
             if self.waitForStart:
                 self.waitForStart = False
-                utils.crunchy_log("Timout start playing file")
+                crunchy_log("Timout start playing file")
         return self.waitForStart
 
     def finished(self, forced=False):
@@ -107,13 +108,13 @@ class VideoPlayer(Object):
         try:
             self._stream_data = video_stream_helper.get_player_stream_data()
             if not self._stream_data or not self._stream_data.stream_url:
-                utils.crunchy_log("Failed to load stream info for playback", xbmc.LOGERROR)
+                crunchy_log("Failed to load stream info for playback", xbmc.LOGERROR)
                 xbmcplugin.setResolvedUrl(int(args.argv[1]), False, item)
                 xbmcgui.Dialog().ok(args.addon_name, args.addon.getLocalizedString(30064))
                 return False
 
         except (CrunchyrollError, requests.exceptions.RequestException) as e:
-            utils.log_error_with_trace("Failed to prepare stream info data", False)
+            log_error_with_trace("Failed to prepare stream info data", False)
             xbmcplugin.setResolvedUrl(int(args.argv[1]), False, item)
 
             # check for TOO_MANY_ACTIVE_STREAMS
@@ -223,13 +224,13 @@ class VideoPlayer(Object):
                     error_msg = "Unexpected playhead update error"
 
                 self.playhead_retry_count += 1
-                utils.crunchy_log(
+                crunchy_log(
                     f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}"
                 )
 
                 # Only raise if we've exceeded max retries
                 if self.playhead_retry_count >= self.playhead_max_retries:
-                    utils.crunchy_log("Max playhead update retries exceeded. Stopping playhead updates.")
+                    crunchy_log("Max playhead update retries exceeded. Stopping playhead updates.")
                     raise
 
     def check_skipping(self):
@@ -262,7 +263,7 @@ class VideoPlayer(Object):
 
         args = self._ctx.args
 
-        utils.crunchy_log("_ask_to_skip", xbmc.LOGINFO)
+        crunchy_log("_ask_to_skip", xbmc.LOGINFO)
 
         dialog_duration = self._stream_data.skip_events_data.get(section, []).get(
             "end", 0
@@ -286,7 +287,7 @@ class VideoPlayer(Object):
     def _instaskip(self, section):
         """Skip immediatly without asking"""
 
-        utils.crunchy_log("_instaskip", xbmc.LOGINFO)
+        crunchy_log("_instaskip", xbmc.LOGINFO)
 
         self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get("end", 0))
         self.update_playhead()
@@ -311,10 +312,10 @@ class VideoPlayer(Object):
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
-            utils.crunchy_log(f"Failed to clear active stream for episode: {args.get_arg('episode_id')}")
+            crunchy_log(f"Failed to clear active stream for episode: {args.get_arg('episode_id')}")
             return
 
-        utils.crunchy_log(f"Cleared active stream for episode: {args.get_arg('episode_id')}")
+        crunchy_log(f"Cleared active stream for episode: {args.get_arg('episode_id')}")
 
     def get_active_streams(self) -> list[str]:
         api = self._ctx.api
@@ -327,7 +328,7 @@ class VideoPlayer(Object):
             )
         except (CrunchyrollError, LoginError, requests.exceptions.RequestException):
             # catch timeout or any other possible exception
-            utils.crunchy_log("Failed to get active streams")
+            crunchy_log("Failed to get active streams")
             return []
 
         active = []
@@ -349,7 +350,7 @@ class VideoPlayer(Object):
 
         for token in active_streams_tokens:
             self.clear_active_stream(token)
-            utils.crunchy_log(f"Cleared stream token {token}")
+            crunchy_log(f"Cleared stream token {token}")
 
 
 def update_playhead(content_id: str, playhead: int, api, args):
@@ -376,7 +377,7 @@ def update_playhead(content_id: str, playhead: int, api, args):
         )
     except (CrunchyrollError, LoginError, requests.exceptions.RequestException) as e:
         # catch timeout or any other possible exception
-        utils.crunchy_log(
+        crunchy_log(
             f"Failed to update playhead to crunchyroll: {str(e)} for {content_id}",
             xbmc.LOGERROR,
         )

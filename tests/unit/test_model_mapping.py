@@ -1,7 +1,7 @@
 """
 Tests for API Response → Model Mapping
 
-Tests that API responses are correctly parsed into resources.lib.model.py objects.
+Tests that API responses are correctly parsed into resources.lib.models objects.
 Uses real responses from captured_responses.json.
 """
 
@@ -327,7 +327,7 @@ class TestAccountDataStorageRoundTrip:
     }
 
     def _roundtrip(self):
-        from resources.lib.model import AccountData
+        from resources.lib.models.account import AccountData
 
         original = AccountData(self.API_RESPONSE)
         # str(obj) is exactly what write_to_storage() persists

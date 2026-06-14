@@ -24,10 +24,11 @@ import requests
 import xbmc
 
 from ..modules import cloudscraper
-from . import utils
 from .auth import AuthManager
 from .http_utils import default_request_headers, get_json_from_response
-from .model import AccountData, CrunchyrollError, LoginError, ProfileData
+from .models.account import AccountData, ProfileData
+from .models.exceptions import CrunchyrollError, LoginError
+from .utils.logging import crunchy_log
 
 
 class API:
@@ -124,10 +125,10 @@ class API:
                 delay=10,
                 browser={"custom": self.CRUNCHYROLL_UA},
             )
-            utils.crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
+            crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
             return scraper
         except Exception as e:
-            utils.crunchy_log(f"CloudScraper initialization failed: {e}", xbmc.LOGDEBUG)
+            crunchy_log(f"CloudScraper initialization failed: {e}", xbmc.LOGDEBUG)
             return None
 
     def request_device_code(self) -> dict | None:
@@ -258,7 +259,7 @@ class API:
         if auto_refresh and self.account_data:
             if not self.is_token_valid():
                 if not self.account_data.refresh_token:
-                    utils.crunchy_log(
+                    crunchy_log(
                         "CRITICAL: Token expired but no refresh token available - session not properly initialized",
                         xbmc.LOGERROR,
                     )
@@ -267,13 +268,13 @@ class API:
                 self.refresh_attempts += 1
 
                 if self.refresh_attempts > 3:
-                    utils.crunchy_log(
+                    crunchy_log(
                         "CRITICAL: Too many refresh attempts, stopping to prevent infinite loop",
                         xbmc.LOGERROR,
                     )
                     raise LoginError("Authentication refresh failed repeatedly - please restart addon")
 
-                utils.crunchy_log(
+                crunchy_log(
                     f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)",
                     xbmc.LOGINFO,
                 )
@@ -302,11 +303,11 @@ class API:
 
         scraper = self.auth_manager.create_auth_scraper()
         if not scraper:
-            utils.crunchy_log("CloudScraper initialization failed, cannot proceed", xbmc.LOGERROR)
+            crunchy_log("CloudScraper initialization failed, cannot proceed", xbmc.LOGERROR)
             raise LoginError("CloudScraper initialization failed")
 
         try:
-            utils.crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
+            crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
 
             r = scraper.request(
                 method=method,
@@ -318,10 +319,10 @@ class API:
                 timeout=timeout,
             )
 
-            utils.crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
+            crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
 
             if r.status_code == 401 and auto_refresh and not is_retry:
-                utils.crunchy_log("Request failed due to auth error, forcing token refresh and retry", xbmc.LOGERROR)
+                crunchy_log("Request failed due to auth error, forcing token refresh and retry", xbmc.LOGERROR)
                 self.account_data.expires = date_to_str(get_date() - timedelta(seconds=1))
                 return self.make_scraper_request(
                     method=method,
@@ -340,16 +341,16 @@ class API:
         except (LoginError, CrunchyrollError):
             raise
         except requests.exceptions.Timeout as e:
-            utils.crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
+            crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
             raise LoginError("Request timeout - check your network connection") from e
         except requests.exceptions.ConnectionError as e:
-            utils.crunchy_log(f"CloudScraper connection error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"CloudScraper connection error: {e}", xbmc.LOGERROR)
             raise LoginError("Network connection failed") from e
         except requests.exceptions.RequestException as e:
-            utils.crunchy_log(f"CloudScraper request error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"CloudScraper request error: {e}", xbmc.LOGERROR)
             raise LoginError(f"Request failed: {str(e)}") from e
         except Exception as e:
-            utils.crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
             raise LoginError(f"Unexpected error: {str(e)}") from e
 
 

@@ -31,7 +31,7 @@ import urllib.parse
 import xbmc
 
 from ..modules import cloudscraper
-from .utils import crunchy_log
+from .utils.logging import crunchy_log
 
 
 class CloudflareProxy:

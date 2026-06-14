@@ -155,9 +155,9 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
             self._start_polling()
 
         except Exception as e:
-            from . import utils
+            from .utils.logging import crunchy_log
 
-            utils.crunchy_log(f"DeviceActivationDialog onInit error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"DeviceActivationDialog onInit error: {e}", xbmc.LOGERROR)
             self.return_value = "error"
             self.close()
 
@@ -198,7 +198,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
         """Start device token polling in background thread"""
 
         def polling_worker():
-            from . import utils
+            from .utils.logging import crunchy_log
 
             poll_interval = 5  # Start with 5 seconds
 
@@ -230,7 +230,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     poll_interval = min(poll_interval * 1.2, 30)
 
                 except Exception as e:
-                    utils.crunchy_log(f"Device token polling error: {e}")
+                    crunchy_log(f"Device token polling error: {e}")
                     # Continue polling, network errors are recoverable
 
         self.polling_thread = threading.Thread(target=polling_worker, daemon=True)
@@ -296,9 +296,9 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                 self._handle_error(error_text)
 
         except Exception as e:
-            from . import utils
+            from .utils.logging import crunchy_log
 
-            utils.crunchy_log(f"Refresh device code error: {e}")
+            crunchy_log(f"Refresh device code error: {e}")
             error_text = G.args.addon.getLocalizedString(30308)
             self._handle_error(error_text)
 
@@ -364,7 +364,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
 
             import xbmc
 
-            from . import utils
+            from .utils.logging import crunchy_log
 
             # Try to import pyqrcode module
             _pyqrcode = None
@@ -382,7 +382,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                             sys.path.insert(0, addon_root)
                         from resources.modules import pyqrcode as _pyqrcode
                     except Exception:
-                        utils.crunchy_log("[Crunchyroll] Failed to import pyqrcode module", xbmc.LOGERROR)
+                        crunchy_log("[Crunchyroll] Failed to import pyqrcode module", xbmc.LOGERROR)
                         self._update_qr_status("PyQRCode module not found. Use the code above.")
                         return
 
@@ -450,7 +450,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                 _write_png_gray(qr_path, rows, img_size, img_size)
 
             except Exception as e_gen:
-                utils.crunchy_log(f"[Crunchyroll] QR code generation failed: {e_gen}", xbmc.LOGERROR)
+                crunchy_log(f"[Crunchyroll] QR code generation failed: {e_gen}", xbmc.LOGERROR)
                 self._update_qr_status("Unable to generate QR code. Use the code above.")
                 return
 
@@ -460,7 +460,7 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     # Set QR image in UI
                     self.getControl(self.IMAGE_QR_CODE).setImage(qr_path)
                     self._update_qr_status("QR code ready")
-                    utils.crunchy_log(f"[Crunchyroll] QR code generated: {qr_path}")
+                    crunchy_log(f"[Crunchyroll] QR code generated: {qr_path}")
 
                     # Store path for cleanup
                     if not hasattr(self, "_qr_temp_files"):
@@ -468,18 +468,18 @@ class DeviceActivationDialog(xbmcgui.WindowXMLDialog):
                     self._qr_temp_files.append(qr_path)
 
                 except Exception as e_ui:
-                    utils.crunchy_log(f"[Crunchyroll] Failed to set QR image: {e_ui}", xbmc.LOGERROR)
+                    crunchy_log(f"[Crunchyroll] Failed to set QR image: {e_ui}", xbmc.LOGERROR)
                     self._update_qr_status("QR code generated but display failed")
                     try:
                         xbmcvfs.delete(qr_path)
                     except Exception:
                         pass
             else:
-                utils.crunchy_log("[Crunchyroll] QR file does not exist!", xbmc.LOGERROR)
+                crunchy_log("[Crunchyroll] QR file does not exist!", xbmc.LOGERROR)
                 self._update_qr_status("QR file missing")
 
         except Exception as e:
-            utils.crunchy_log(f"[Crunchyroll] Error setting QR code: {e}", xbmc.LOGERROR)
+            crunchy_log(f"[Crunchyroll] Error setting QR code: {e}", xbmc.LOGERROR)
             self._update_qr_status("QR code error")
 
     def _update_qr_status(self, status):
@@ -571,10 +571,10 @@ def show_device_activation_dialog(device_code_data, api_instance):
             return {"status": "error", "message": "Dialog returned unexpected status"}
 
     except Exception as e:
-        from . import utils
+        from .utils.logging import crunchy_log, log_error_with_trace
 
-        utils.crunchy_log(f"Device activation dialog error: {e}", xbmc.LOGERROR)
-        utils.log_error_with_trace("Device activation dialog failed", show_notification=True)
+        crunchy_log(f"Device activation dialog error: {e}", xbmc.LOGERROR)
+        log_error_with_trace("Device activation dialog failed", show_notification=True)
         return {"status": "error", "message": f"Dialog error: {str(e)}"}
 
 
