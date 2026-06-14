@@ -44,12 +44,56 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # keys allowed in setInfo
-types = ["count", "size", "date", "genre", "country", "year", "episode", "season", "sortepisode", "top250", "setid",
-         "tracknumber", "rating", "userrating", "watched", "overlay", "cast", "castandrole", "director",
-         "mpaa", "plot", "plotoutline", "title", "originaltitle", "sorttitle", "duration", "studio", "tagline",
-         "writer",
-         "tvshowtitle", "premiered", "status", "set", "setoverview", "tag", "imdbnumber", "code", "aired", "credits",
-         "lastplayed", "album", "artist", "votes", "path", "trailer", "dateadded", "mediatype", "dbid"]
+types = [
+    "count",
+    "size",
+    "date",
+    "genre",
+    "country",
+    "year",
+    "episode",
+    "season",
+    "sortepisode",
+    "top250",
+    "setid",
+    "tracknumber",
+    "rating",
+    "userrating",
+    "watched",
+    "overlay",
+    "cast",
+    "castandrole",
+    "director",
+    "mpaa",
+    "plot",
+    "plotoutline",
+    "title",
+    "originaltitle",
+    "sorttitle",
+    "duration",
+    "studio",
+    "tagline",
+    "writer",
+    "tvshowtitle",
+    "premiered",
+    "status",
+    "set",
+    "setoverview",
+    "tag",
+    "imdbnumber",
+    "code",
+    "aired",
+    "credits",
+    "lastplayed",
+    "album",
+    "artist",
+    "votes",
+    "path",
+    "trailer",
+    "dateadded",
+    "mediatype",
+    "dbid",
+]
 
 
 def end_of_directory(content_type=None, update_listing=False, cache_to_disc=True):
@@ -65,15 +109,15 @@ def end_of_directory(content_type=None, update_listing=False, cache_to_disc=True
 
 
 def add_item(
-        info,
-        is_folder=True,
-        total_items=0,
-        mediatype="video",
-        callbacks: list[Callable[[xbmcgui.ListItem], None]] | None = None
+    info,
+    is_folder=True,
+    total_items=0,
+    mediatype="video",
+    callbacks: list[Callable[[xbmcgui.ListItem], None]] | None = None,
 ):
-    """ Add item to directory listing.
+    """Add item to directory listing.
 
-        This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
+    This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
 
     path_params = {}
@@ -103,11 +147,13 @@ def add_item(
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
         if path_params.get("series_id"):
-            cm.append((G.args.addon.getLocalizedString(30045),
-                       f"Container.Update({build_url(path_params, 'series_view')})"))
+            cm.append(
+                (G.args.addon.getLocalizedString(30045), f"Container.Update({build_url(path_params, 'series_view')})")
+            )
         if path_params.get("collection_id"):
-            cm.append((G.args.addon.getLocalizedString(30046),
-                       f"Container.Update({build_url(path_params, 'season_view')})"))
+            cm.append(
+                (G.args.addon.getLocalizedString(30046), f"Container.Update({build_url(path_params, 'season_view')})")
+            )
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
@@ -117,7 +163,7 @@ def add_item(
         "thumb": info.get("thumb", "DefaultFolder.png"),
         "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
         "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-        "landscape": info.get("landscape", info.get("thumb", 'DefaultFolder.png')),
+        "landscape": info.get("landscape", info.get("thumb", "DefaultFolder.png")),
         "banner": info.get("poster", info.get("thumb", "DefaultFolder.png")),
         "icon": info.get("thumb", "DefaultFolder.png"),
     }
@@ -164,13 +210,15 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
     )
 
     # playheads
-    ids_playhead = [listable.id for listable in listables if
-                    isinstance(listable, PlayableItem) and listable.playhead == 0]
+    ids_playhead = [
+        listable.id for listable in listables if isinstance(listable, PlayableItem) and listable.playhead == 0
+    ]
 
     # object data for e.g. poster images
     # for now we use the objects to fetch the series data only, to fetch its images and its rating
-    ids_objects_seasons = [listable.series_id for listable in listables if
-                           isinstance(listable, (SeasonData, EpisodeData, SeriesData))]
+    ids_objects_seasons = [
+        listable.series_id for listable in listables if isinstance(listable, (SeasonData, EpisodeData, SeriesData))
+    ]
     # ids_objects_other = [listable.id for listable in listables if
     #                      isinstance(listable, (EpisodeData, MovieData, SeriesData))]
     # ids_objects = ids_objects_seasons + ids_objects_other
@@ -184,24 +232,24 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
     tasks = []
     if ids_playhead:
         tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead)))
-        tasks_added.append('playheads')
+        tasks_added.append("playheads")
     # @todo: for some reason objects endpoint stopped to deliver anything but thumbs in terms of images,
     #        but the sole reason for calling it are the additional images...
     #        for now we use the objects to fetch the series data only, to fetch its images and its rating
     if ids_objects:
         tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects)))
-        tasks_added.append('objects')
+        tasks_added.append("objects")
     if ids_watchlist:
         tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist)))
-        tasks_added.append('watchlist')
+        tasks_added.append("watchlist")
 
     # start async requests and fetch results
     results = await asyncio.gather(*tasks)
 
     result_obj = {
-        'playheads': {},
-        'objects': {},
-        'watchlist': {},
+        "playheads": {},
+        "objects": {},
+        "watchlist": {},
     }
     for idx, task in enumerate(tasks_added):
         result_obj[task] = results[idx]
@@ -217,13 +265,13 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
     # add some of the info to the listables
     for listable in listables:
         # update playcount data, which might be missing
-        if listable.id in result_obj.get('playheads'):
-            listable.update_playcount_from_playhead(result_obj.get('playheads').get(listable.id))
+        if listable.id in result_obj.get("playheads"):
+            listable.update_playcount_from_playhead(result_obj.get("playheads").get(listable.id))
 
         # update images for SeasonData, as they come with none by default
-        if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
-            series_data = result_obj.get('objects').get(listable.series_id)
-            series_id = series_data.get('id') if series_data else None
+        if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get("objects"):
+            series_data = result_obj.get("objects").get(listable.series_id)
+            series_id = series_data.get("id") if series_data else None
 
             listable.thumb = get_img_from_struct(series_data, "poster_wide", 2) or listable.thumb
             listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
@@ -236,12 +284,12 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
             listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
             listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster
 
-        elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
+        elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get("objects"):
             # for episodes, only thumb is provided, so we can use it
             # however, fanart and other arts are empty so we need to get them from the series
             # to get a complete interface
-            series_data = result_obj.get('objects').get(listable.series_id)
-            series_id = series_data.get('id') if series_data else None
+            series_data = result_obj.get("objects").get(listable.series_id)
+            series_id = series_data.get("id") if series_data else None
 
             listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
             listable.fanart = (
@@ -253,26 +301,30 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
             listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
             listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster
 
-        if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get(
-                'rating') and hasattr(listable, 'rating'):
-            if result_obj.get('objects').get(listable.id).get('rating').get('average'):
-                listable.rating = float(result_obj.get('objects').get(listable.id).get('rating').get('average')) * 2.0
-            elif result_obj.get('objects').get(listable.id).get('rating').get('up') and result_obj.get('objects').get(
-                    listable.id).get('rating').get('down'):
+        if (
+            listable.id in result_obj.get("objects")
+            and result_obj.get("objects").get(listable.id).get("rating")
+            and hasattr(listable, "rating")
+        ):
+            if result_obj.get("objects").get(listable.id).get("rating").get("average"):
+                listable.rating = float(result_obj.get("objects").get(listable.id).get("rating").get("average")) * 2.0
+            elif result_obj.get("objects").get(listable.id).get("rating").get("up") and result_obj.get("objects").get(
+                listable.id
+            ).get("rating").get("down"):
                 # these are user ratings, and they are pretty weird (overly positive)
-                ups_obj = result_obj.get('objects').get(listable.id).get('rating').get('up')
-                downs_obj = result_obj.get('objects').get(listable.id).get('rating').get('down')
-                ups = float(ups_obj.get('displayed'))
-                downs = float(downs_obj.get('displayed'))
+                ups_obj = result_obj.get("objects").get(listable.id).get("rating").get("up")
+                downs_obj = result_obj.get("objects").get(listable.id).get("rating").get("down")
+                ups = float(ups_obj.get("displayed"))
+                downs = float(downs_obj.get("displayed"))
 
-                if ups_obj.get('unit') == 'K':
+                if ups_obj.get("unit") == "K":
                     ups *= 1000.0
-                elif ups_obj.get('unit') == 'M':
+                elif ups_obj.get("unit") == "M":
                     ups *= 1000000.0  # not sure if that works or if there are ever that many votes
 
-                if downs_obj.get('unit') == 'K':
+                if downs_obj.get("unit") == "K":
                     downs *= 1000.0
-                elif downs_obj.get('unit') == 'M':
+                elif downs_obj.get("unit") == "M":
                     downs *= 1000000.0  # not sure if that works or if there are ever that many votes
 
                 listable.rating = float((ups / (ups + downs)) * 10.0)
@@ -282,10 +334,10 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
 
 
 def add_listables(
-        listables: list[ListableItem],
-        is_folder=True,
-        options: int = 0,
-        callbacks: list[Callable[[xbmcgui.ListItem, ListableItem], None]] | None = None
+    listables: list[ListableItem],
+    is_folder=True,
+    options: int = 0,
+    callbacks: list[Callable[[xbmcgui.ListItem, ListableItem], None]] | None = None,
 ):
     from .utils import crunchy_log, highlight_list_item_title
 
@@ -295,6 +347,7 @@ def add_listables(
 
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
         from .utils import sort_episodes
+
         listables = sort_episodes(listables)
 
     # add listable items to kodi
@@ -313,34 +366,31 @@ def add_listables(
         # process options
 
         if options & OPT_MARK_ON_WATCHLIST:
-            highlight_list_item_title(list_item) if listable.id in complement_data.get('watchlist') else None
+            highlight_list_item_title(list_item) if listable.id in complement_data.get("watchlist") else None
 
         cm = []
-        if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
-            cm.append((
-                G.args.addon.getLocalizedString(30067),
-                f'RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})',
-            ))
+        if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get("watchlist"):
+            cm.append(
+                (
+                    G.args.addon.getLocalizedString(30067),
+                    f"RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})",
+                )
+            )
 
-        if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and listable.series_id is not None:
-            route = (G.args.addonurl +
-                     router.create_path_from_route('series_view', {'series_id': listable.series_id}))
+        if options & OPT_CTX_SEASONS and hasattr(listable, "series_id") and listable.series_id is not None:
+            route = G.args.addonurl + router.create_path_from_route("series_view", {"series_id": listable.series_id})
             cm.append((G.args.addon.getLocalizedString(30045), f"Container.Update({route})"))
 
-        if options & OPT_CTX_EPISODES and hasattr(listable, 'season_id') and listable.season_id is not None:
-            route = (G.args.addonurl +
-                     router.create_path_from_route(
-                         'season_view',
-                         {'series_id': listable.series_id, 'season_id': listable.season_id}
-                     ))
+        if options & OPT_CTX_EPISODES and hasattr(listable, "season_id") and listable.season_id is not None:
+            route = G.args.addonurl + router.create_path_from_route(
+                "season_view", {"series_id": listable.series_id, "season_id": listable.season_id}
+            )
             cm.append((G.args.addon.getLocalizedString(30046), f"Container.Update({route})"))
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
-            list_item.setInfo('video',
-                              {
-                                  'title': utils.format_short_episode_title(listable.episode,
-                                                                            listable.title_unformatted)
-                              })
+            list_item.setInfo(
+                "video", {"title": utils.format_short_episode_title(listable.episode, listable.title_unformatted)}
+            )
 
         if len(cm) > 0:
             list_item.addContextMenuItems(cm)
@@ -355,8 +405,7 @@ def add_listables(
 
 
 def quote_value(value) -> str:
-    """Quote value depending on python
-    """
+    """Quote value depending on python"""
     if not isinstance(value, str):
         value = str(value)
     return quote_plus(value)
@@ -369,8 +418,7 @@ whitelist_url_args = []
 
 
 def build_url(path_params: dict, route_name: str = None) -> str:
-    """Create url
-    """
+    """Create url"""
 
     # Get base route
     if route_name is None:
@@ -394,8 +442,7 @@ def build_url(path_params: dict, route_name: str = None) -> str:
 
 
 def make_info_label(info) -> dict:
-    """Generate info_labels from existing dict
-    """
+    """Generate info_labels from existing dict"""
     info_labels = {}
     # step 1 copy new information from info
     info_items = list(info.items())
@@ -415,6 +462,5 @@ def make_info_label(info) -> dict:
             info_labels["playcount"] = info_items["playcount"]
         if "playcount" in arg_items and "playcount" not in info_labels:
             info_labels["playcount"] = arg_items["playcount"]
-
 
     return info_labels

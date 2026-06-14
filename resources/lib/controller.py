@@ -35,7 +35,7 @@ def show_profiles():
     # api request
     req = G.api.make_request(
         method="GET",
-        url=G.api.PROFILES_LIST_ENDPOINT
+        url=G.api.PROFILES_LIST_ENDPOINT,
     )
 
     # check for error
@@ -49,8 +49,9 @@ def show_profiles():
     current_profile = 0
 
     if bool(G.api.profile_data.profile_id):
-        current_profile = \
-            [i for i in range(len(profiles)) if profiles[i].get("profile_id") == G.api.profile_data.profile_id][0]
+        current_profile = [
+            i for i in range(len(profiles)) if profiles[i].get("profile_id") == G.api.profile_data.profile_id
+        ][0]
 
     selected = xbmcgui.Dialog().select(
         G.args.addon.getLocalizedString(30073),
@@ -67,15 +68,14 @@ def show_profiles():
 
 
 def show_queue():
-    """ shows anime queue/playlist
-    """
+    """shows anime queue/playlist"""
     # api request
     req = G.api.make_request(
         method="GET",
         url=G.api.WATCHLIST_LIST_ENDPOINT.format(G.api.account_data.account_id),
         params={
             "n": 1024,
-            "locale": G.args.subtitle
+            "locale": G.args.subtitle,
         },
     )
 
@@ -86,7 +86,7 @@ def show_queue():
         return False
 
     view.add_listables(
-        listables=get_listables_from_response(req.get('items')),
+        listables=get_listables_from_response(req.get("items")),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
@@ -96,16 +96,15 @@ def show_queue():
 
 
 def search_anime():
-    """Search for anime
-    """
+    """Search for anime"""
 
     # ask for search string
-    if not G.args.get_arg('search'):
+    if not G.args.get_arg("search"):
         d = xbmcgui.Dialog().input(G.args.addon.getLocalizedString(30041), type=xbmcgui.INPUT_ALPHANUM)
         if not d:
             return None
     else:
-        d = G.args.get_arg('search')
+        d = G.args.get_arg("search")
 
     # api request
     # available types seem to be: music,series,episode,top_results,movie_listing
@@ -119,8 +118,8 @@ def search_anime():
             "n": 50,
             "q": d,
             "locale": G.args.subtitle,
-            "start": G.args.get_arg('offset', 0, int),
-            "type": "series"
+            "start": G.args.get_arg("offset", 0, int),
+            "type": "series",
         },
     )
 
@@ -130,28 +129,28 @@ def search_anime():
         view.end_of_directory()
         return False
 
-    if not req.get('items') or len(req.get('items')) == 0:
+    if not req.get("items") or len(req.get("items")) == 0:
         view.add_item({"title": G.args.addon.getLocalizedString(30090)})
         view.end_of_directory()
         return False
 
-    type_data = req.get('items')[0]  # @todo: for now we support only the first type, which should be series
+    type_data = req.get("items")[0]  # @todo: for now we support only the first type, which should be series
 
     view.add_listables(
-        listables=get_listables_from_response(type_data.get('items')),
+        listables=get_listables_from_response(type_data.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
-    items_left = type_data.get('total') - (G.args.get_arg('offset', 0, int) * 50) - len(type_data.get('items'))
+    items_left = type_data.get("total") - (G.args.get_arg("offset", 0, int) * 50) - len(type_data.get("items"))
     if items_left > 0:
         view.add_item(
             {
                 "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg('offset', 0, int) + 50,
+                "offset": G.args.get_arg("offset", 0, int) + 50,
                 "search": d,
-                "mode": G.args.get_arg('mode')
+                "mode": G.args.get_arg("mode"),
             },
             is_folder=True,
         )
@@ -161,10 +160,9 @@ def search_anime():
 
 
 def show_history():
-    """ shows history of watched anime
-    """
+    """shows history of watched anime"""
     items_per_page = 50
-    current_page = G.args.get_arg('offset', 1, int)
+    current_page = G.args.get_arg("offset", 1, int)
 
     req = G.api.make_request(
         method="GET",
@@ -184,7 +182,7 @@ def show_history():
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data')),
+        listables=get_listables_from_response(req.get("data")),
         is_folder=False,
     )
 
@@ -194,8 +192,8 @@ def show_history():
         view.add_item(
             {
                 "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg('offset', 1, int) + 1,
-                "mode": G.args.get_arg('mode')
+                "offset": G.args.get_arg("offset", 1, int) + 1,
+                "mode": G.args.get_arg("mode"),
             },
             is_folder=True,
         )
@@ -205,8 +203,7 @@ def show_history():
 
 
 def show_resume_episodes():
-    """ shows episode to resume for watching animes
-    """
+    """shows episode to resume for watching animes"""
     items_per_page = 50
 
     req = G.api.make_request(
@@ -215,7 +212,7 @@ def show_resume_episodes():
         params={
             "n": items_per_page,
             "locale": G.args.subtitle,
-            "start": G.args.get_arg('offset', 0, int),
+            "start": G.args.get_arg("offset", 0, int),
         },
     )
 
@@ -227,19 +224,19 @@ def show_resume_episodes():
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data')),
+        listables=get_listables_from_response(req.get("data")),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
-    items_left = req.get("total") - (G.args.get_arg('offset', 0, int) * items_per_page) - len(req.get("data"))
+    items_left = req.get("total") - (G.args.get_arg("offset", 0, int) * items_per_page) - len(req.get("data"))
     if items_left > 0:
         view.add_item(
             {
                 "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg('offset', 0, int) + items_per_page,
-                "mode": G.args.get_arg('mode')
+                "offset": G.args.get_arg("offset", 0, int) + items_per_page,
+                "mode": G.args.get_arg("mode"),
             },
             is_folder=True,
         )
@@ -250,9 +247,8 @@ def show_resume_episodes():
 
 
 def list_anime_seasons():
-    """ view all available anime seasons and filter by selected season
-    """
-    season_filter: str = G.args.get_arg('season_filter', "")
+    """view all available anime seasons and filter by selected season"""
+    season_filter: str = G.args.get_arg("season_filter", "")
 
     # if no seasons filter applied, list all available seasons
     if not season_filter:
@@ -265,7 +261,7 @@ def list_anime_seasons():
         params={
             "locale": G.args.subtitle,
             "season_tag": season_filter,
-            "n": 100
+            "n": 100,
         },
     )
 
@@ -277,7 +273,7 @@ def list_anime_seasons():
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('items')),
+        listables=get_listables_from_response(req.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
@@ -287,8 +283,7 @@ def list_anime_seasons():
 
 
 def list_anime_seasons_without_filter():
-    """ view all available anime seasons and filter by selected season
-    """
+    """view all available anime seasons and filter by selected season"""
     req = G.api.make_request(
         method="GET",
         url=G.api.SEASONAL_TAGS_ENDPOINT,
@@ -309,7 +304,7 @@ def list_anime_seasons_without_filter():
             {
                 "title": season_tag_item.get("localization", {}).get("title"),
                 "season_filter": season_tag_item.get("id", {}),
-                "mode": G.args.get_arg('mode')
+                "mode": G.args.get_arg("mode"),
             },
             is_folder=True,
         )
@@ -320,9 +315,8 @@ def list_anime_seasons_without_filter():
 
 
 def list_filter():
-    """ view all anime from selected mode
-    """
-    category_filter: str = G.args.get_arg('category_filter', "")
+    """view all anime from selected mode"""
+    category_filter: str = G.args.get_arg("category_filter", "")
 
     # we re-use this method which is normally used for the categories to also show some special views, that share
     # the same logic
@@ -334,15 +328,15 @@ def list_filter():
 
     # else, if we have a category filter, show all from category
 
-    items_per_page = G.args.get_arg('items_per_page', 50, int)  # change this if desired
+    items_per_page = G.args.get_arg("items_per_page", 50, int)  # change this if desired
 
     # default query params - might get modified by special categories below
     params = {
         "locale": G.args.subtitle,
         "categories": category_filter,
         "n": items_per_page,
-        "start": G.args.get_arg('offset', 0, int),
-        "ratings": 'true',
+        "start": G.args.get_arg("offset", 0, int),
+        "ratings": "true",
     }
 
     # hack to re-use this for other views
@@ -365,21 +359,21 @@ def list_filter():
 
     # series / collection  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('items')),
+        listables=get_listables_from_response(req.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
-    items_left = req.get('total') - G.args.get_arg('offset', 0, int) - len(req.get('items'))
+    items_left = req.get("total") - G.args.get_arg("offset", 0, int) - len(req.get("items"))
 
     # show next page button
     if items_left > 0:
         view.add_item(
             {
                 "title": G.args.addon.getLocalizedString(30044),
-                "offset": G.args.get_arg('offset', 0, int) + items_per_page,
+                "offset": G.args.get_arg("offset", 0, int) + items_per_page,
                 "category_filter": category_filter,
-                "mode": G.args.get_arg('mode')
+                "mode": G.args.get_arg("mode"),
             },
             is_folder=True,
         )
@@ -416,7 +410,7 @@ def list_filter_without_category():
                     "thumb": utils.get_img_from_struct(category_item, "low", 1),
                     "fanart": utils.get_img_from_struct(category_item, "background", 1),
                     "category_filter": category_item.get("tenant_category", {}),
-                    "mode": G.args.get_arg('mode')
+                    "mode": G.args.get_arg("mode"),
                 },
                 is_folder=True,
             )
@@ -431,16 +425,15 @@ def list_filter_without_category():
 
 
 def view_season():
-    """ view all seasons/arcs of an anime
-    """
+    """view all seasons/arcs of an anime"""
     # api request
     req = G.api.make_request(
         method="GET",
-        url=G.api.SEASONS_ENDPOINT.format(G.args.get_arg('series_id')),
+        url=G.api.SEASONS_ENDPOINT.format(G.args.get_arg("series_id")),
         params={
             "locale": G.args.subtitle,
             "preferred_audio_language": G.api.account_data.default_audio_language,
-            "force_locale": ""
+            "force_locale": "",
         },
     )
 
@@ -452,7 +445,7 @@ def view_season():
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='season'),
+        listables=get_listables_from_response(req.get("data") or req.get("items"), item_type_hint="season"),
         is_folder=True,
     )
 
@@ -461,14 +454,13 @@ def view_season():
 
 
 def view_episodes():
-    """ view all episodes of season
-    """
+    """view all episodes of season"""
     # api request
     req = G.api.make_request(
         method="GET",
-        url=G.api.EPISODES_ENDPOINT.format(G.args.get_arg('season_id')),
+        url=G.api.EPISODES_ENDPOINT.format(G.args.get_arg("season_id")),
         params={
-            "locale": G.args.subtitle
+            "locale": G.args.subtitle,
         },
     )
 
@@ -480,7 +472,7 @@ def view_episodes():
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
-        listables=get_listables_from_response(req.get('data') or req.get('items'), item_type_hint='episode'),
+        listables=get_listables_from_response(req.get("data") or req.get("items"), item_type_hint="episode"),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE,
     )
@@ -490,8 +482,7 @@ def view_episodes():
 
 
 def start_playback():
-    """ plays an episode
-    """
+    """plays an episode"""
     video_player = VideoPlayer()
     video_player.start_playback()
 
@@ -514,64 +505,61 @@ def add_to_queue() -> bool:
             method="POST",
             url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
             json_data={
-                "content_id": G.args.get_arg('content_id')
+                "content_id": G.args.get_arg("content_id"),
             },
             params={
                 "locale": G.args.subtitle,
-                "preferred_audio_language": G.api.account_data.default_audio_language
+                "preferred_audio_language": G.api.account_data.default_audio_language,
             },
             headers={
-                'Content-Type': 'application/json'
+                "Content-Type": "application/json",
             },
         )
 
         if req and "error" in req:
             error_msg = req.get("error", "Unknown error")
-            if 'content.add_watchlist_item_v2.item_already_exists' in error_msg:
+            if "content.add_watchlist_item_v2.item_already_exists" in error_msg:
                 xbmcgui.Dialog().notification(
-                    f'{G.args.addon_name} Error',
-                    'Item already in watchlist',
-                    xbmcgui.NOTIFICATION_ERROR,
-                    3
+                    f"{G.args.addon_name} Error", "Item already in watchlist", xbmcgui.NOTIFICATION_ERROR, 3
                 )
                 return False
             else:
                 raise CrunchyrollError(f"Failed to add to watchlist: {error_msg}")
 
     except CrunchyrollError as e:
-        if 'content.add_watchlist_item_v2.item_already_exists' in str(e):
+        if "content.add_watchlist_item_v2.item_already_exists" in str(e):
             xbmcgui.Dialog().notification(
-                f'{G.args.addon_name} Error',
-                'Item already in watchlist',
+                f"{G.args.addon_name} Error",
+                "Item already in watchlist",
                 xbmcgui.NOTIFICATION_ERROR,
-                3
+                3,
             )
             return False
         else:
             utils.log_error_with_trace(f"Failed to add to queue: {e}")
             xbmcgui.Dialog().notification(
-                f'{G.args.addon_name} Error',
-                'Failed to add item to watchlist',
+                f"{G.args.addon_name} Error",
+                "Failed to add item to watchlist",
                 xbmcgui.NOTIFICATION_ERROR,
-                3
+                3,
             )
             return False
     except LoginError as e:
         utils.log_error_with_trace(f"Authentication error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            f'{G.args.addon_name} Error',
-            'Authentication failed - it\'s broken, Jim! :(',
+            f"{G.args.addon_name} Error",
+            "Authentication failed - it's broken, Jim! :(",
             xbmcgui.NOTIFICATION_ERROR,
-            3
+            3,
         )
         return False
     except Exception as e:
         utils.log_error_with_trace(f"Unexpected error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            f'{G.args.addon_name} Error',
-            'Failed to add item to watchlist',
+            f"{G.args.addon_name} Error",
+            "Failed to add item to watchlist",
             xbmcgui.NOTIFICATION_ERROR,
-            3
+            3,
         )
         return False
 
@@ -580,7 +568,7 @@ def add_to_queue() -> bool:
         G.args.addon.getLocalizedString(30071),
         xbmcgui.NOTIFICATION_INFO,
         2,
-        False
+        False,
     )
 
     return True
@@ -622,31 +610,31 @@ def add_to_queue() -> bool:
 
 
 def crunchylists_lists():
-    """ Retrieve all crunchylists """
+    """Retrieve all crunchylists"""
 
     # api request
     req = G.api.make_request(
-        method='GET',
+        method="GET",
         url=G.api.CRUNCHYLISTS_LISTS_ENDPOINT.format(G.api.account_data.account_id),
         params={
-            'locale': G.args.subtitle
+            "locale": G.args.subtitle,
         },
     )
 
     # check for error
-    if not req or 'error' in req:
-        view.add_item({'title': G.args.addon.getLocalizedString(30061)})
+    if not req or "error" in req:
+        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
         view.end_of_directory()
         return False
 
-    for crunchy_list in req.get('data'):
+    for crunchy_list in req.get("data"):
         # add to view
         view.add_item(
             {
-                'title': crunchy_list.get('title'),
-                'fanart': xbmcvfs.translatePath(G.args.addon.getAddonInfo('fanart')),
-                'mode': 'crunchylists_item',
-                'crunchylists_item_id': crunchy_list.get('list_id')
+                "title": crunchy_list.get("title"),
+                "fanart": xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart")),
+                "mode": "crunchylists_item",
+                "crunchylists_item_id": crunchy_list.get("list_id"),
             },
             is_folder=True,
         )
@@ -657,28 +645,29 @@ def crunchylists_lists():
 
 
 def crunchylists_item():
-    """ Retrieve all items for a crunchylist """
+    """Retrieve all items for a crunchylist"""
 
     utils.crunchy_log(f"Fetching crunchylist: {G.args.get_arg('crunchylists_item_id')}")
 
     # api request
     req = G.api.make_request(
-        method='GET',
-        url=G.api.CRUNCHYLISTS_VIEW_ENDPOINT.format(G.api.account_data.account_id,
-                                                    G.args.get_arg('crunchylists_item_id')),
+        method="GET",
+        url=G.api.CRUNCHYLISTS_VIEW_ENDPOINT.format(
+            G.api.account_data.account_id, G.args.get_arg("crunchylists_item_id")
+        ),
         params={
-            'locale': G.args.subtitle
+            "locale": G.args.subtitle,
         },
     )
 
     # check for error
-    if not req or 'error' in req:
-        view.add_item({'title': G.args.addon.getLocalizedString(30061)})
+    if not req or "error" in req:
+        view.add_item({"title": G.args.addon.getLocalizedString(30061)})
         view.end_of_directory()
         return False
 
     view.add_listables(
-        listables=get_listables_from_response(req.get('data')),
+        listables=get_listables_from_response(req.get("data")),
         is_folder=True,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )

@@ -45,7 +45,7 @@ class TestAuthResponseModels:
             "bucket": "crunchyroll",
             "policy": "test_policy",
             "signature": "test_signature",
-            "key_pair_id": "test_key_pair"
+            "key_pair_id": "test_key_pair",
         }
 
         cms_data = CMSData.from_dict(api_data)
@@ -62,7 +62,7 @@ class TestAuthResponseModels:
             "profile_name": "Test User",
             "avatar": "http://example.com/avatar.jpg",
             "wallpaper": "http://example.com/wallpaper.jpg",
-            "is_primary": True
+            "is_primary": True,
         }
 
         profile_data = ProfileData.from_dict(api_data)
@@ -83,9 +83,9 @@ class TestAuthResponseModels:
                 "bucket": "crunchyroll",
                 "policy": "test_policy",
                 "signature": "test_signature",
-                "key_pair_id": "test_key_pair"
+                "key_pair_id": "test_key_pair",
             },
-            "default_audio_language": "en-US"
+            "default_audio_language": "en-US",
         }
 
         auth_response = AuthResponse.from_dict(api_data)
@@ -106,7 +106,7 @@ class TestAuthResponseModels:
             "access_token": "test_token",
             "refresh_token": "refresh_token",
             "token_type": "Bearer",
-            "expires_in": 3600
+            "expires_in": 3600,
         }
 
         auth_response = AuthResponse.from_dict(api_data)
@@ -127,15 +127,15 @@ class TestAuthResponseModels:
                     "profile_name": "Main Profile",
                     "avatar": "avatar1.jpg",
                     "wallpaper": "wallpaper1.jpg",
-                    "is_primary": True
+                    "is_primary": True,
                 },
                 {
                     "profile_id": "profile2",
                     "profile_name": "Kid Profile",
                     "avatar": "avatar2.jpg",
                     "wallpaper": "wallpaper2.jpg",
-                    "is_primary": False
-                }
+                    "is_primary": False,
+                },
             ]
         }
 
@@ -163,7 +163,7 @@ class TestContentResponseModels:
             "images": {
                 "thumbnail": [{"source": "http://example.com/thumb.jpg"}],
                 "poster_tall": [{"source": "http://example.com/poster_tall.jpg"}],
-                "poster_wide": [{"source": "http://example.com/poster_wide.jpg"}]
+                "poster_wide": [{"source": "http://example.com/poster_wide.jpg"}],
             }
         }
 
@@ -191,9 +191,7 @@ class TestContentResponseModels:
             "season_number": 2,
             "duration_ms": 1440000,  # 24 minutes
             "is_premium_only": True,
-            "images": {
-                "thumbnail": [{"source": "http://example.com/thumb.jpg"}]
-            }
+            "images": {"thumbnail": [{"source": "http://example.com/thumb.jpg"}]},
         }
 
         content_item = ContentItem.from_dict(api_data)
@@ -218,27 +216,12 @@ class TestContentResponseModels:
         """Test SearchResponse creation and filtering"""
         api_data = {
             "data": [
-                {
-                    "id": "series1",
-                    "title": "Test Series",
-                    "slug": "test-series",
-                    "type": "series"
-                },
-                {
-                    "id": "episode1",
-                    "title": "Test Episode",
-                    "slug": "test-episode",
-                    "type": "episode"
-                },
-                {
-                    "id": "movie1",
-                    "title": "Test Movie",
-                    "slug": "test-movie",
-                    "type": "movie"
-                }
+                {"id": "series1", "title": "Test Series", "slug": "test-series", "type": "series"},
+                {"id": "episode1", "title": "Test Episode", "slug": "test-episode", "type": "episode"},
+                {"id": "movie1", "title": "Test Movie", "slug": "test-movie", "type": "movie"},
             ],
             "total": 3,
-            "has_more": False
+            "has_more": False,
         }
 
         search_response = SearchResponse.from_dict(api_data)
@@ -264,18 +247,8 @@ class TestContentResponseModels:
         """Test SeasonsResponse creation and helper methods"""
         api_data = {
             "data": [
-                {
-                    "id": "season1",
-                    "title": "Season 1",
-                    "type": "season",
-                    "season_number": 1
-                },
-                {
-                    "id": "season2",
-                    "title": "Season 2",
-                    "type": "season",
-                    "season_number": 2
-                }
+                {"id": "season1", "title": "Season 1", "type": "season", "season_number": 1},
+                {"id": "season2", "title": "Season 2", "type": "season", "season_number": 2},
             ]
         }
 
@@ -301,22 +274,22 @@ class TestContentResponseModels:
                     "title": "Episode 1",
                     "type": "episode",
                     "episode_number": 1,
-                    "is_premium_only": False
+                    "is_premium_only": False,
                 },
                 {
                     "id": "episode2",
                     "title": "Episode 2",
                     "type": "episode",
                     "episode_number": 2,
-                    "is_premium_only": True
+                    "is_premium_only": True,
                 },
                 {
                     "id": "episode3",
                     "title": "Episode 3",
                     "type": "episode",
                     "episode_number": 3,
-                    "is_premium_only": False
-                }
+                    "is_premium_only": False,
+                },
             ]
         }
 
@@ -349,7 +322,7 @@ class TestStreamResponseModels:
         api_data = {
             "url": "http://example.com/stream.m3u8",
             "hardsub_locale": "en-US",
-            "adaptive_hls": {"quality": "1080p"}
+            "adaptive_hls": {"quality": "1080p"},
         }
 
         stream_url = StreamUrl.from_dict(api_data)
@@ -361,11 +334,7 @@ class TestStreamResponseModels:
 
     def test_subtitle_track_creation(self):
         """Test SubtitleTrack creation and methods"""
-        api_data = {
-            "locale": "en-US",
-            "url": "http://example.com/subtitle.ass",
-            "format": "ass"
-        }
+        api_data = {"locale": "en-US", "url": "http://example.com/subtitle.ass", "format": "ass"}
 
         subtitle_track = SubtitleTrack.from_dict(api_data)
 
@@ -379,22 +348,12 @@ class TestStreamResponseModels:
     def test_stream_response_creation(self):
         """Test StreamResponse creation and helper methods"""
         api_data = {
-            "streams": {
-                "adaptive_hls": {
-                    "url": "http://example.com/stream.m3u8"
-                }
-            },
+            "streams": {"adaptive_hls": {"url": "http://example.com/stream.m3u8"}},
             "subtitles": {
-                "en-US": {
-                    "url": "http://example.com/en.ass",
-                    "format": "ass"
-                },
-                "ja-JP": {
-                    "url": "http://example.com/ja.ass",
-                    "format": "ass"
-                }
+                "en-US": {"url": "http://example.com/en.ass", "format": "ass"},
+                "ja-JP": {"url": "http://example.com/ja.ass", "format": "ass"},
             },
-            "token": "stream_token_123"
+            "token": "stream_token_123",
         }
 
         stream_response = StreamResponse.from_dict(api_data)
@@ -430,7 +389,7 @@ class TestUserContentResponseModels:
             "id": "episode123",
             "title": "Test Episode",
             "type": "episode",
-            "date_added": "2024-01-15T10:30:00Z"
+            "date_added": "2024-01-15T10:30:00Z",
         }
 
         watchlist_item = WatchlistItem.from_dict(api_data)
@@ -443,18 +402,8 @@ class TestUserContentResponseModels:
         """Test WatchlistResponse creation and filtering"""
         api_data = {
             "data": [
-                {
-                    "id": "series1",
-                    "title": "Test Series",
-                    "type": "series",
-                    "date_added": "2024-01-15T10:30:00Z"
-                },
-                {
-                    "id": "episode1",
-                    "title": "Test Episode",
-                    "type": "episode",
-                    "date_added": "2024-01-16T10:30:00Z"
-                }
+                {"id": "series1", "title": "Test Series", "type": "series", "date_added": "2024-01-15T10:30:00Z"},
+                {"id": "episode1", "title": "Test Episode", "type": "episode", "date_added": "2024-01-16T10:30:00Z"},
             ]
         }
 
@@ -479,7 +428,7 @@ class TestUserContentResponseModels:
         api_data = {
             "content_id": "episode123",
             "playhead": 600,  # 10 minutes
-            "fully_watched": False
+            "fully_watched": False,
         }
 
         playhead_data = PlayheadData.from_dict(api_data)
@@ -498,21 +447,9 @@ class TestUserContentResponseModels:
         """Test PlayheadsResponse creation and filtering"""
         api_data = {
             "data": [
-                {
-                    "content_id": "episode1",
-                    "playhead": 0,
-                    "fully_watched": False
-                },
-                {
-                    "content_id": "episode2",
-                    "playhead": 600,
-                    "fully_watched": False
-                },
-                {
-                    "content_id": "episode3",
-                    "playhead": 1200,
-                    "fully_watched": True
-                }
+                {"content_id": "episode1", "playhead": 0, "fully_watched": False},
+                {"content_id": "episode2", "playhead": 600, "fully_watched": False},
+                {"content_id": "episode3", "playhead": 1200, "fully_watched": True},
             ]
         }
 
@@ -545,7 +482,7 @@ class TestUserContentResponseModels:
             "title": "Test Episode",
             "type": "episode",
             "last_watched": "2024-01-15T15:30:00Z",
-            "playhead": 300
+            "playhead": 300,
         }
 
         history_item = HistoryItem.from_dict(api_data)
@@ -559,24 +496,9 @@ class TestUserContentResponseModels:
         """Test WatchHistoryResponse creation and sorting"""
         api_data = {
             "data": [
-                {
-                    "id": "episode1",
-                    "title": "Episode 1",
-                    "type": "episode",
-                    "last_watched": "2024-01-15T10:00:00Z"
-                },
-                {
-                    "id": "episode2",
-                    "title": "Episode 2",
-                    "type": "episode",
-                    "last_watched": "2024-01-16T10:00:00Z"
-                },
-                {
-                    "id": "series1",
-                    "title": "Series 1",
-                    "type": "series",
-                    "last_watched": "2024-01-14T10:00:00Z"
-                }
+                {"id": "episode1", "title": "Episode 1", "type": "episode", "last_watched": "2024-01-15T10:00:00Z"},
+                {"id": "episode2", "title": "Episode 2", "type": "episode", "last_watched": "2024-01-16T10:00:00Z"},
+                {"id": "series1", "title": "Series 1", "type": "series", "last_watched": "2024-01-14T10:00:00Z"},
             ]
         }
 
@@ -587,7 +509,7 @@ class TestUserContentResponseModels:
         # Test sorting by last watched (most recent first)
         sorted_items = history_response.sort_by_last_watched()
         assert sorted_items[0].content_item.title == "Episode 2"  # Most recent
-        assert sorted_items[2].content_item.title == "Series 1"   # Oldest
+        assert sorted_items[2].content_item.title == "Series 1"  # Oldest
 
         # Test getting recent episodes
         recent_episodes = history_response.get_recent_episodes(limit=5)
@@ -605,7 +527,7 @@ class TestModelSerialization:
             refresh_token="refresh_token",
             token_type="Bearer",
             expires_in=3600,
-            account_id="account123"
+            account_id="account123",
         )
 
         result_dict = auth_response.to_dict()
@@ -621,7 +543,7 @@ class TestModelSerialization:
             title="Test Episode",
             slug="test-episode",
             content_type=ContentType.EPISODE,
-            episode_number=5
+            episode_number=5,
         )
 
         result_dict = content_item.to_dict()
@@ -635,11 +557,7 @@ class TestModelSerialization:
         stream_url = StreamUrl(url="http://example.com/stream.m3u8")
         subtitle_track = SubtitleTrack(locale="en-US", url="http://example.com/sub.ass", format="ass")
 
-        stream_response = StreamResponse(
-            stream_url=stream_url,
-            subtitles=[subtitle_track],
-            token="test_token"
-        )
+        stream_response = StreamResponse(stream_url=stream_url, subtitles=[subtitle_track], token="test_token")
 
         result_dict = stream_response.to_dict()
 

@@ -290,7 +290,7 @@ class TestResponseConsistency:
             "seasons_response",
             "episodes_response",
             "watchlist_response",
-            "history_response"
+            "history_response",
         ]
 
         for response_name in responses:

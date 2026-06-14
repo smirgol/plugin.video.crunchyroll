@@ -77,7 +77,7 @@ class Args:
                 self._args[key] = unquote_plus(value[0])
 
     def get_arg(self, arg: str, default: Any = None, cast: type = None):
-        """ Get an argument provided via URL"""
+        """Get an argument provided via URL"""
         value = self._args.get(arg, default)
         if cast:
             value = cast(value)
@@ -141,12 +141,10 @@ class Object(metaclass=Meta):
         return {
             "_": obj.__class__.__name__,
             **{
-                attr: (
-                    getattr(obj, attr)
-                )
+                attr: (getattr(obj, attr))
                 for attr in filter(lambda x: not x.startswith("_"), obj.__dict__)
                 if getattr(obj, attr) is not None
-            }
+            },
         }
 
     def __str__(self) -> str:
@@ -163,8 +161,7 @@ class Cacheable(Object):
 
     @staticmethod
     def get_storage_path() -> str:
-        """Get cookie file path
-        """
+        """Get cookie file path"""
         profile_path = xbmcvfs.translatePath(G.args.addon.getAddonInfo("profile"))
 
         return profile_path
@@ -197,7 +194,7 @@ class Cacheable(Object):
         # serialize (Object has a to_str serializer)
         json_string = str(self)
 
-        with xbmcvfs.File(storage_file, 'w') as file:
+        with xbmcvfs.File(storage_file, "w") as file:
             result = file.write(json_string)
 
         return result
@@ -234,11 +231,11 @@ class AccountData(Cacheable):
         self.username: str = data.get("username")
 
     def get_cache_file_name(self) -> str:
-        return 'session_data.json'
+        return "session_data.json"
 
 
 class ListableItem(Object):
-    """ Base object for all DataObjects below that can be displayed in a Kodi List View """
+    """Base object for all DataObjects below that can be displayed in a Kodi List View"""
 
     def __init__(self):
         super().__init__()
@@ -258,12 +255,12 @@ class ListableItem(Object):
 
     @abstractmethod
     def get_info(self) -> dict:
-        """ return a dict with info to set on the kodi ListItem (filtered) and access some data """
+        """return a dict with info to set on the kodi ListItem (filtered) and access some data"""
 
         pass
 
     def to_item(self) -> xbmcgui.ListItem:
-        """ Convert ourselves to a Kodi ListItem"""
+        """Convert ourselves to a Kodi ListItem"""
 
         from resources.lib.view import types
 
@@ -272,24 +269,24 @@ class ListableItem(Object):
         list_info = {key: info[key] for key in types if key in info}
 
         # only allow to overwrite the local playcount if we sync the playtime with the server
-        if G.args.addon.getSetting("sync_playtime") == "true" and hasattr(self, 'playcount'):
+        if G.args.addon.getSetting("sync_playtime") == "true" and hasattr(self, "playcount"):
             list_info["playcount"] = self.playcount
 
         li = xbmcgui.ListItem()
         li.setLabel(self.title)
 
         # if is a playable item, set some things
-        if hasattr(self, 'duration'):
+        if hasattr(self, "duration"):
             li.setProperty("IsPlayable", "true")
-            li.setProperty('TotalTime', str(float(self.duration)))
+            li.setProperty("TotalTime", str(float(self.duration)))
             # set resume if not fully watched and playhead > x
-            if hasattr(self, 'playcount') and self.playcount == 0:
-                if hasattr(self, 'playhead') and self.playhead > 0:
+            if hasattr(self, "playcount") and self.playcount == 0:
+                if hasattr(self, "playhead") and self.playhead > 0:
                     resume = int(self.playhead / self.duration * 100)
                     if 5 <= resume <= 90:
-                        li.setProperty('ResumeTime', str(float(self.playhead)))
+                        li.setProperty("ResumeTime", str(float(self.playhead)))
 
-        li.setInfo('video', list_info)
+        li.setInfo("video", list_info)
         artworks = {}
         # Do not add an artwork if it is empty here,
         # otherwise, you will override the inherited one (from series or season for example).
@@ -314,15 +311,15 @@ class ListableItem(Object):
         if not isinstance(self, (EpisodeData, MovieData)):
             return
 
-        self.playhead = playhead_data.get('playhead')
-        if playhead_data.get('fully_watched'):
+        self.playhead = playhead_data.get("playhead")
+        if playhead_data.get("fully_watched"):
             self.playcount = 1
         else:
             self.recalc_playcount()
 
 
 class PlayableItem(ListableItem):
-    """ Intermediate base class for playable items """
+    """Intermediate base class for playable items"""
 
     def __init__(self):
         super().__init__()
@@ -332,7 +329,7 @@ class PlayableItem(ListableItem):
 
     @abstractmethod
     def get_info(self) -> dict:
-        """ return a dict with info to set on the kodi ListItem (filtered) and access some data """
+        """return a dict with info to set on the kodi ListItem (filtered) and access some data"""
 
         pass
 
@@ -346,13 +343,13 @@ class PlayableItem(ListableItem):
 
 
 class SeriesData(ListableItem):
-    """ A Series containing Seasons containing Episodes """
+    """A Series containing Seasons containing Episodes"""
 
     def __init__(self, data: dict):
         super().__init__()
         from . import utils
 
-        panel = data.get('panel') or data
+        panel = data.get("panel") or data
         meta = panel.get("series_metadata") or panel
 
         self.id = panel.get("id")
@@ -363,11 +360,11 @@ class SeriesData(ListableItem):
         self.season_id: str | None = None
         self.plot: str = panel.get("description", "")
         self.plotoutline: str = panel.get("description", "")
-        self.year: str = str(meta.get("series_launch_year")) + '-01-01'
-        self.aired: str = str(meta.get("series_launch_year")) + '-01-01'
+        self.year: str = str(meta.get("series_launch_year")) + "-01-01"
+        self.aired: str = str(meta.get("series_launch_year")) + "-01-01"
         self.premiered: str = str(meta.get("series_launch_year"))
-        self.episode: int = meta.get('episode_count')
-        self.season: int = meta.get('season_count')
+        self.episode: int = meta.get("episode_count")
+        self.season: int = meta.get("season_count")
 
         self.thumb: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
         self.landscape: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
@@ -387,31 +384,26 @@ class SeriesData(ListableItem):
         # in theory, we could also omit this method and just iterate over the objects properties and use them
         # to set data on the Kodi ListItem, but this way we are decoupled from their naming convention
         return {
-            'title': self.title,
-            'tvshowtitle': self.tvshowtitle,
-            'season': self.season,
-            'episode': self.episode,
-            'plot': self.plot,
-            'plotoutline': self.plotoutline,
-
-            'playcount': self.playcount,
-            'series_id': self.series_id,
-
-            'year': self.year,
-            'aired': self.aired,
-            'premiered': self.premiered,
-
-            'rating': self.rating,
-
-            'mediatype': 'season',
-
+            "title": self.title,
+            "tvshowtitle": self.tvshowtitle,
+            "season": self.season,
+            "episode": self.episode,
+            "plot": self.plot,
+            "plotoutline": self.plotoutline,
+            "playcount": self.playcount,
+            "series_id": self.series_id,
+            "year": self.year,
+            "aired": self.aired,
+            "premiered": self.premiered,
+            "rating": self.rating,
+            "mediatype": "season",
             # internally used for routing
-            "mode": "seasons"
+            "mode": "seasons",
         }
 
 
 class SeasonData(ListableItem):
-    """ A Season/Arc of a Series containing Episodes """
+    """A Season/Arc of a Series containing Episodes"""
 
     def __init__(self, data: dict):
         super().__init__()
@@ -428,7 +420,7 @@ class SeasonData(ListableItem):
         self.aired: str = ""
         self.premiered: str = ""
         self.episode: int = 0  # @todo we want to display that, but it's not in the data
-        self.season: int = data.get('season_number')
+        self.season: int = data.get("season_number")
         self.thumb: str | None = None
         self.landscape: str | None = None
         self.fanart: str | None = None
@@ -437,7 +429,7 @@ class SeasonData(ListableItem):
         self.clearlogo: str | None = None
         self.clearart: str | None = None
         self.rating: int = 0
-        self.playcount: int = 1 if data.get('is_complete') else 0
+        self.playcount: int = 1 if data.get("is_complete") else 0
 
         self.recalc_playcount()
 
@@ -447,46 +439,40 @@ class SeasonData(ListableItem):
 
     def get_info(self) -> dict:
         return {
-            'title': self.title,
-            'tvshowtitle': self.tvshowtitle,
-            'season': self.season,
-            'episode': self.episode,
+            "title": self.title,
+            "tvshowtitle": self.tvshowtitle,
+            "season": self.season,
+            "episode": self.episode,
             # 'plot': self.plot,
             # 'plotoutline': self.plotoutline,
-
-            'playcount': self.playcount,
-            'series_id': self.series_id,
-            'season_id': self.season_id,
-
+            "playcount": self.playcount,
+            "series_id": self.series_id,
+            "season_id": self.season_id,
             # 'year': self.year,
             # 'aired': self.aired,
             # 'premiered': self.premiered,
-
-            'rating': self.rating,
-
-            'mediatype': 'season',
-
+            "rating": self.rating,
+            "mediatype": "season",
             # internally used for routing
-            "mode": "episodes"
+            "mode": "episodes",
         }
 
 
 # dto
 class EpisodeData(PlayableItem):
-    """ A single Episode of a Season of a Series """
+    """A single Episode of a Season of a Series"""
 
     def __init__(self, data: dict):
         super().__init__()
         from . import utils
 
-        panel = data.get('panel') or data
+        panel = data.get("panel") or data
         meta = panel.get("episode_metadata") or panel
 
         self.id = panel.get("id")
-        self.title: str = utils.format_long_episode_title(meta.get("series_title"),
-                                                          meta.get("season_number", 1),
-                                                          meta.get("episode_number"),
-                                                          panel.get("title"))
+        self.title: str = utils.format_long_episode_title(
+            meta.get("series_title"), meta.get("season_number", 1), meta.get("episode_number"), panel.get("title")
+        )
         self.title_unformatted: str = panel.get("title")
         self.tvshowtitle: str = meta.get("series_title", "")
         self.duration: int = int(meta.get("duration_ms", 0) / 1000)
@@ -520,32 +506,26 @@ class EpisodeData(PlayableItem):
 
     def get_info(self) -> dict:
         return {
-            'title': self.title,
-            'tvshowtitle': self.tvshowtitle,
-            'season': self.season,
-            'episode': self.episode,
-            'plot': self.plot,
-            'plotoutline': self.plotoutline,
-
-            'playhead': self.playhead,
-            'duration': self.duration,
-            'playcount': self.playcount,
-
-            'season_id': self.season_id,
-            'series_id': self.series_id,
-            'episode_id': self.episode_id,
-            'stream_id': self.stream_id,
-
-            'year': self.year,
-            'aired': self.aired,
-            'premiered': self.premiered,
-
-            'rating': self.rating,
-
-            'mediatype': 'episode',
-
+            "title": self.title,
+            "tvshowtitle": self.tvshowtitle,
+            "season": self.season,
+            "episode": self.episode,
+            "plot": self.plot,
+            "plotoutline": self.plotoutline,
+            "playhead": self.playhead,
+            "duration": self.duration,
+            "playcount": self.playcount,
+            "season_id": self.season_id,
+            "series_id": self.series_id,
+            "episode_id": self.episode_id,
+            "stream_id": self.stream_id,
+            "year": self.year,
+            "aired": self.aired,
+            "premiered": self.premiered,
+            "rating": self.rating,
+            "mediatype": "episode",
             # internally used for routing
-            "mode": "videoplay"
+            "mode": "videoplay",
         }
 
 
@@ -554,7 +534,7 @@ class MovieData(PlayableItem):
         super().__init__()
         from . import utils
 
-        panel = data.get('panel') or data
+        panel = data.get("panel") or data
         meta = panel.get("movie_metadata") or panel
 
         self.id = panel.get("id")
@@ -570,12 +550,15 @@ class MovieData(PlayableItem):
         self.series_id: str | None = None
         self.plot: str = panel.get("description", "")
         self.plotoutline: str = panel.get("description", "")
-        self.year: str = meta.get("premium_available_date")[:10] if meta.get(
-            "premium_available_date") is not None else ""
-        self.aired: str = meta.get("premium_available_date")[:10] if meta.get(
-            "premium_available_date") is not None else ""
-        self.premiered: str = meta.get("premium_available_date")[:10] if meta.get(
-            "premium_available_date") is not None else ""
+        self.year: str = (
+            meta.get("premium_available_date")[:10] if meta.get("premium_available_date") is not None else ""
+        )
+        self.aired: str = (
+            meta.get("premium_available_date")[:10] if meta.get("premium_available_date") is not None else ""
+        )
+        self.premiered: str = (
+            meta.get("premium_available_date")[:10] if meta.get("premium_available_date") is not None else ""
+        )
         self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.landscape: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
         self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
@@ -595,38 +578,31 @@ class MovieData(PlayableItem):
 
     def get_info(self) -> dict:
         return {
-            'title': self.title,
-            'tvshowtitle': self.tvshowtitle,
-            'season': self.season,
-            'episode': self.episode,
-            'plot': self.plot,
-            'plotoutline': self.plotoutline,
-
-            'playhead': self.playhead,
-            'duration': self.duration,
-            'playcount': self.playcount,
-
-            'series_id': self.series_id,
-            'season_id': self.season_id,
-            'episode_id': self.episode_id,
-            'stream_id': self.stream_id,
-
-            'year': self.year,
-            'aired': self.aired,
-            'premiered': self.premiered,
-
-            'rating': self.rating,
-
-            'mediatype': 'movie',
-
+            "title": self.title,
+            "tvshowtitle": self.tvshowtitle,
+            "season": self.season,
+            "episode": self.episode,
+            "plot": self.plot,
+            "plotoutline": self.plotoutline,
+            "playhead": self.playhead,
+            "duration": self.duration,
+            "playcount": self.playcount,
+            "series_id": self.series_id,
+            "season_id": self.season_id,
+            "episode_id": self.episode_id,
+            "stream_id": self.stream_id,
+            "year": self.year,
+            "aired": self.aired,
+            "premiered": self.premiered,
+            "rating": self.rating,
+            "mediatype": "movie",
             # internally used for routing
-            "mode": "videoplay"
+            "mode": "videoplay",
         }
 
 
 # @todo: rethink Cacheable inheritance, it's too easy to use the wrong class' properties
 class ProfileData(ListableItem, Cacheable):
-
     def __init__(self, data: dict):
         super(ListableItem, self).__init__()
         Cacheable.__init__(self)
@@ -643,28 +619,30 @@ class ProfileData(ListableItem, Cacheable):
         self.wallpaper: str = data.get("wallpaper")
 
     def get_cache_file_name(self) -> str:
-        return 'profile_data.json'
+        return "profile_data.json"
 
     def get_info(self) -> dict:
         return {
-            'profile_id': self.profile_id,
-            'title': self.profile_name,
+            "profile_id": self.profile_id,
+            "title": self.profile_name,
             "mode": "profiles_list_with_id",
         }
 
     def to_item(self) -> xbmcgui.ListItem:
-        """ Convert ourselves to a Kodi ListItem"""
+        """Convert ourselves to a Kodi ListItem"""
 
         from . import utils
 
         li = xbmcgui.ListItem(label=self.profile_name, label2=self.username)
-        li.setArt({
-            'thumb': utils.get_img_from_static(self.avatar),
-            'fanart': utils.get_img_from_static(self.avatar),
-            'poster': utils.get_img_from_static(self.avatar),
-            #'fanart': utils.get_img_from_static(self.wallpaper, "wallpaper"),
-            #'poster': utils.get_img_from_static(self.wallpaper, "wallpaper")
-        })
+        li.setArt(
+            {
+                "thumb": utils.get_img_from_static(self.avatar),
+                "fanart": utils.get_img_from_static(self.avatar),
+                "poster": utils.get_img_from_static(self.avatar),
+                #'fanart': utils.get_img_from_static(self.wallpaper, "wallpaper"),
+                #'poster': utils.get_img_from_static(self.wallpaper, "wallpaper")
+            }
+        )
 
         return li
 

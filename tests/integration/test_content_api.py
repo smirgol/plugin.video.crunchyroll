@@ -8,13 +8,7 @@ class TestContentAPIIntegration:
     def test_browse_endpoint(self, api_client):
         """Test browse endpoint returns valid data"""
         data = api_client.make_request(
-            method="GET",
-            url=api_client.BROWSE_ENDPOINT,
-            params={
-                "start": 0,
-                "n": 10,
-                "locale": "en-US"
-            }
+            method="GET", url=api_client.BROWSE_ENDPOINT, params={"start": 0, "n": 10, "locale": "en-US"}
         )
 
         assert data is not None
@@ -31,13 +25,7 @@ class TestContentAPIIntegration:
     def test_search_endpoint(self, api_client):
         """Test search endpoint with query - uses 'items'"""
         data = api_client.make_request(
-            method="GET",
-            url=api_client.SEARCH_ENDPOINT,
-            params={
-                "q": "one piece",
-                "n": 5,
-                "locale": "en-US"
-            }
+            method="GET", url=api_client.SEARCH_ENDPOINT, params={"q": "one piece", "n": 5, "locale": "en-US"}
         )
 
         assert data is not None
@@ -51,21 +39,14 @@ class TestContentAPIIntegration:
 
     def test_categories_endpoint(self, api_client):
         """Test fetching categories"""
-        data = api_client.make_request(
-            method="GET",
-            url=api_client.CATEGORIES_ENDPOINT,
-            params={"locale": "en-US"}
-        )
+        data = api_client.make_request(method="GET", url=api_client.CATEGORIES_ENDPOINT, params={"locale": "en-US"})
 
         assert data is not None
         assert isinstance(data, dict)
 
     def test_seasonal_tags(self, api_client):
         """Test fetching seasonal tags"""
-        data = api_client.make_request(
-            method="GET",
-            url=api_client.SEASONAL_TAGS_ENDPOINT
-        )
+        data = api_client.make_request(method="GET", url=api_client.SEASONAL_TAGS_ENDPOINT)
 
         assert data is not None
         assert "data" in data or isinstance(data, list)
@@ -73,18 +54,15 @@ class TestContentAPIIntegration:
     def test_series_seasons(self, api_client):
         """Test fetching seasons for a known series - uses 'items'"""
 
-        series_id = 'GQWH0M1J3'
+        series_id = "GQWH0M1J3"
         data = api_client.make_request(
             method="GET",
             url=api_client.SEASONS_ENDPOINT.format(series_id),
-            params={
-                "force_locale": "ja-JP",
-                "locale": "de-DE"
-            }
+            params={"force_locale": "ja-JP", "locale": "de-DE"},
         )
 
         assert data is not None
-        assert data.get('data') is not None
+        assert data.get("data") is not None
 
         seasons = data.get("items") or data.get("data") or []
 
@@ -97,17 +75,13 @@ class TestContentAPIIntegration:
     def test_season_episodes(self, api_client):
         """Test fetching episodes for a season - uses 'items'"""
 
-        season_id = 'GYE5CQNJ2'
+        season_id = "GYE5CQNJ2"
         data = api_client.make_request(
-            method="GET",
-            url=api_client.EPISODES_ENDPOINT.format(season_id),
-            params={
-                "locale": "de-DE"
-            }
+            method="GET", url=api_client.EPISODES_ENDPOINT.format(season_id), params={"locale": "de-DE"}
         )
 
         assert data is not None
-        assert data.get('data') is not None
+        assert data.get("data") is not None
 
         episodes = data.get("items") or data.get("data") or []
 
@@ -125,9 +99,7 @@ class TestContentAPIIntegration:
             pytest.skip("Account ID not provided in .env")
 
         data = api_client.make_request(
-            method="GET",
-            url=api_client.WATCHLIST_LIST_ENDPOINT.format(account_id),
-            params={"locale": "en-US"}
+            method="GET", url=api_client.WATCHLIST_LIST_ENDPOINT.format(account_id), params={"locale": "en-US"}
         )
 
         assert data is not None
@@ -137,23 +109,11 @@ class TestContentAPIIntegration:
     def test_pagination(self, api_client):
         """Test pagination works correctly - uses 'items'"""
         data1 = api_client.make_request(
-            method="GET",
-            url=api_client.BROWSE_ENDPOINT,
-            params={
-                "start": 0,
-                "n": 5,
-                "locale": "en-US"
-            }
+            method="GET", url=api_client.BROWSE_ENDPOINT, params={"start": 0, "n": 5, "locale": "en-US"}
         )
 
         data2 = api_client.make_request(
-            method="GET",
-            url=api_client.BROWSE_ENDPOINT,
-            params={
-                "start": 5,
-                "n": 5,
-                "locale": "en-US"
-            }
+            method="GET", url=api_client.BROWSE_ENDPOINT, params={"start": 5, "n": 5, "locale": "en-US"}
         )
 
         assert data1 is not None
@@ -167,23 +127,11 @@ class TestContentAPIIntegration:
     def test_locale_parameter(self, api_client):
         """Test locale parameter affects response"""
         data_en = api_client.make_request(
-            method="GET",
-            url=api_client.BROWSE_ENDPOINT,
-            params={
-                "start": 0,
-                "n": 1,
-                "locale": "en-US"
-            }
+            method="GET", url=api_client.BROWSE_ENDPOINT, params={"start": 0, "n": 1, "locale": "en-US"}
         )
 
         data_de = api_client.make_request(
-            method="GET",
-            url=api_client.BROWSE_ENDPOINT,
-            params={
-                "start": 0,
-                "n": 1,
-                "locale": "de-DE"
-            }
+            method="GET", url=api_client.BROWSE_ENDPOINT, params={"start": 0, "n": 1, "locale": "de-DE"}
         )
 
         assert data_en is not None

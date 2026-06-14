@@ -16,14 +16,11 @@ class TestAPIAuthUnit:
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"), patch("resources.lib.globals.G"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer',
-                'access_token': 'test_access_token'
-            })
+            self.api.account_data = AccountData(
+                {"refresh_token": "test_refresh_token", "token_type": "Bearer", "access_token": "test_access_token"}
+            )
 
     def test_token_refresh_success(self):
         """Test successful token refresh flow via cloudscraper"""
@@ -34,9 +31,9 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper), \
-             patch.object(self.api, '_finalize_session_from_tokens') as mock_finalize:
-
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper), patch.object(
+            self.api, "_finalize_session_from_tokens"
+        ) as mock_finalize:
             self.api._handle_refresh_flow()
 
             mock_finalize.assert_called_once_with(AUTH_TOKEN_RESPONSE, action="refresh")
@@ -50,7 +47,7 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
                 self.api._handle_refresh_flow()
 
@@ -63,8 +60,7 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
-
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             result = self.api.request_device_code()
 
             assert result["user_code"] == DEVICE_CODE_RESPONSE["user_code"]
@@ -72,9 +68,9 @@ class TestAPIAuthUnit:
 
     def test_device_token_polling_pending(self):
         """Test device token polling returns pending status"""
-        with patch.object(self.api, '_process_device_token_response', return_value={"status": "pending"}), \
-             patch.object(self.api, 'create_auth_scraper', return_value=Mock()):
-
+        with patch.object(self.api, "_process_device_token_response", return_value={"status": "pending"}), patch.object(
+            self.api, "create_auth_scraper", return_value=Mock()
+        ):
             result = self.api.poll_device_token("mock_device_code")
 
             assert result["status"] == "pending"
@@ -82,10 +78,8 @@ class TestAPIAuthUnit:
     def test_device_token_polling_success(self):
         """Test successful device token polling"""
         with patch.object(
-                self.api, '_process_device_token_response',
-                return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE}), \
-             patch.object(self.api, 'create_auth_scraper', return_value=Mock()):
-
+            self.api, "_process_device_token_response", return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE}
+        ), patch.object(self.api, "create_auth_scraper", return_value=Mock()):
             result = self.api.poll_device_token("mock_device_code")
 
             assert result["status"] == "success"
@@ -93,7 +87,7 @@ class TestAPIAuthUnit:
 
     def test_cloudscraper_failure_raises_login_error(self):
         """Test that LoginError is raised when cloudscraper initialization fails"""
-        with patch.object(self.api, 'create_auth_scraper', return_value=None):
+        with patch.object(self.api, "create_auth_scraper", return_value=None):
             with pytest.raises(LoginError):
                 self.api._handle_refresh_flow()
 
@@ -107,7 +101,7 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
                 self.api._handle_refresh_flow()
 
@@ -120,8 +114,7 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, 'create_auth_scraper', return_value=mock_scraper):
-
+        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
             self.api.request_device_code()
 
             call_args = mock_scraper.post.call_args

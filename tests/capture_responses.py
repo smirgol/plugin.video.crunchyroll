@@ -165,6 +165,7 @@ def test_capture_all_responses(api_client):
     assert len(fixtures) > 0, "No responses captured!"
 """
 
+
 def _run_capture() -> int:
     # Write temporary test file
     test_file = Path("tests/integration/test_capture.py")
@@ -173,10 +174,10 @@ def _run_capture() -> int:
     try:
         # Run with pytest (--extra test pulls in pytest/python-dotenv)
         import subprocess
+
         result = subprocess.run(
-            ["uv", "run", "--extra", "test", "pytest",
-             str(test_file), "-m", "integration", "-v", "-s"],
-            capture_output=False
+            ["uv", "run", "--extra", "test", "pytest", str(test_file), "-m", "integration", "-v", "-s"],
+            capture_output=False,
         )
         return result.returncode
     finally:
