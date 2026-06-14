@@ -8,8 +8,6 @@ Run it as a plain script (NOT via `pytest`):
 Requires valid credentials in tests/.env (see tests/.env.example).
 """
 
-import json
-import time
 from pathlib import Path
 
 # Run a custom test that captures responses

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 smirgol
 #
@@ -16,14 +15,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import asyncio
 import datetime
+import http.server
 import os
+import socketserver
 import sys
 import threading
-import http.server
-import socketserver
-import urllib.parse
 import time
-from typing import Union, Dict, Optional, Any
+import urllib.parse
+from typing import Any
 
 import requests
 import xbmc
@@ -32,10 +31,17 @@ import xbmcplugin
 import xbmcvfs
 
 from resources.lib.globals import G
-from resources.lib.model import Object, CrunchyrollError, PlayableItem
-from resources.lib.utils import log_error_with_trace, crunchy_log, \
-    get_playheads_from_api, get_cms_object_data_by_ids, get_listables_from_response
+from resources.lib.model import CrunchyrollError, Object, PlayableItem
+from resources.lib.utils import (
+    crunchy_log,
+    get_cms_object_data_by_ids,
+    get_listables_from_response,
+    get_playheads_from_api,
+    log_error_with_trace,
+)
+
 from ..modules import cloudscraper
+
 
 class CloudflareProxy:
     """
@@ -224,8 +230,8 @@ class VideoPlayerStreamData(Object):
     def __init__(self):
         self.stream_url: str | None = None
         self.subtitle_urls: list[str] | None = None
-        self.skip_events_data: Dict = {}
-        self.playheads_data: Dict = {}
+        self.skip_events_data: dict = {}
+        self.playheads_data: dict = {}
         # PlayableItem which is about to be played, that contains cms object data
         self.playable_item: PlayableItem | None = None
         # PlayableItem which contains cms obj data of playable_item's parent, if exists (Episodes, not Movies). currently not used.
@@ -251,7 +257,7 @@ class VideoStream(Object):
         # cache cleanup
         self._clean_cache_subtitles()
 
-    def get_player_stream_data(self) -> Optional[VideoPlayerStreamData]:
+    def get_player_stream_data(self) -> VideoPlayerStreamData | None:
         """ retrieve a VideoPlayerStreamData containing stream url + subtitle urls for playback """
 
         if not G.args.get_arg('stream_id'):
@@ -278,7 +284,7 @@ class VideoStream(Object):
 
         return video_player_stream_data
 
-    async def _gather_async_data(self) -> Dict[str, Any]:
+    async def _gather_async_data(self) -> dict[str, Any]:
         """ gather data asynchronously and return them as a dictionary """
 
         # create threads
@@ -307,7 +313,7 @@ class VideoStream(Object):
         }
 
     @staticmethod
-    async def _get_stream_data_from_api() -> Union[Dict, bool]:
+    async def _get_stream_data_from_api() -> dict | bool:
         """ get json stream data from cr api for given args.stream_id using new endpoint b/c drm """
 
         # from utils import crunchy_log
@@ -338,7 +344,7 @@ class VideoStream(Object):
         return req
 
     @staticmethod
-    def _get_stream_url_from_api_data_v2(api_data: Dict) -> Union[str, None]:
+    def _get_stream_url_from_api_data_v2(api_data: dict) -> str | None:
         """ uses new endpoint to retrieve encryption data along with stream url """
 
         try:
@@ -369,7 +375,7 @@ class VideoStream(Object):
 
         return url
 
-    def _get_subtitles_from_api_data(self, api_stream_data) -> Union[str, None]:
+    def _get_subtitles_from_api_data(self, api_stream_data) -> str | None:
         """ retrieve appropriate subtitle urls from api data, using local caching and renaming """
 
         # we only need those urls if soft-subs are enabled in addon settings
@@ -435,7 +441,7 @@ class VideoStream(Object):
             subtitle_url: str,
             subtitle_language: str,
             subtitle_format: str
-    ) -> Union[str, None]:
+    ) -> str | None:
         """ try to get a subtitle using its url, language info and format either from cache or api """
 
         if not subtitle_url or not subtitle_language or not subtitle_format:
@@ -506,7 +512,7 @@ class VideoStream(Object):
         return filename.encode(sys.getfilesystemencoding(), "ignore").decode(sys.getfilesystemencoding())
 
     @staticmethod
-    async def _get_skip_events(episode_id) -> Optional[Dict]:
+    async def _get_skip_events(episode_id) -> dict | None:
         """ fetch skip events data from api and return a prepared object for supported skip types if data is valid """
 
         # if none of the skip options are enabled in setting, don't fetch that data

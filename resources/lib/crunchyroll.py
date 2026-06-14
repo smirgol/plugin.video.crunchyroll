@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
 # Copyright (C) 2023 smirgol
@@ -24,9 +23,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from . import controller
-from . import utils
-from . import view
+from . import controller, utils, view
 from .globals import G
 from .model import CrunchyrollError, LoginError
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 smirgol
 #
@@ -18,20 +17,19 @@ import json
 import re
 from datetime import datetime
 from json import dumps
-from typing import Dict, Union, List, Optional
 
 import requests
 import xbmc
 import xbmcgui
 
 from .globals import G
-from .model import CrunchyrollError, ListableItem, EpisodeData, MovieData, SeriesData, SeasonData
+from .model import CrunchyrollError, EpisodeData, ListableItem, MovieData, SeasonData, SeriesData
 
 
 # @todo we could change the return type and along with the listables return additional data that we preload
 #       like info what is on watchlist, artwork, playhead, ...
 #       for that we should use async requests (asyncio)
-def get_listables_from_response(data: List[dict], item_type_hint: Optional[str] = None) -> List[ListableItem]:
+def get_listables_from_response(data: list[dict], item_type_hint: str | None = None) -> list[ListableItem]:
     """ takes an API response object, determines type of its contents and creates DTOs for further processing
 
     For mixed lists (browse, search, watchlist) the type is detected per item. The newer content/v2 endpoints
@@ -102,7 +100,7 @@ async def get_cms_object_data_by_ids(ids: list) -> dict:
     return {item.get('id'): item for item in req.get('data')}
 
 
-def get_stream_id_from_item(item: Dict) -> Union[str, None]:
+def get_stream_id_from_item(item: dict) -> str | None:
     """ takes a URL string and extracts the stream ID from it """
 
     pattern = '/videos/([^/]+)/streams'
@@ -117,7 +115,7 @@ def get_stream_id_from_item(item: Dict) -> Union[str, None]:
     return stream_id[1]
 
 
-async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
+async def get_playheads_from_api(episode_ids: str | list) -> dict:
     """ Retrieve playhead data from API for given episode / movie ids """
 
     if isinstance(episode_ids, str):
@@ -172,7 +170,7 @@ async def get_watchlist_status_from_api(ids: list) -> list:
     return [item.get('id') for item in req.get('data')]
 
 
-def get_img_from_static(image, image_type='normal') -> Optional[str]:
+def get_img_from_static(image, image_type='normal') -> str | None:
     if image is None:
         return None
 
@@ -184,7 +182,7 @@ def get_img_from_static(image, image_type='normal') -> Optional[str]:
     return path + image
 
 
-def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[str, None]:
+def get_img_from_struct(item: dict, image_type: str, depth: int = 2) -> str | None:
     """ dive into API info structure and extract requested image from its struct """
 
     # @todo: add option to specify quality / max size
@@ -201,7 +199,7 @@ def get_img_from_struct(item: Dict, image_type: str, depth: int = 2) -> Union[st
     return None
 
 
-def infer_img_from_id(id: str, image_type: str) -> Optional[str]:
+def infer_img_from_id(id: str, image_type: str) -> str | None:
     """
     Generate Crunchyroll artwork URL based on ID and image type.
 
@@ -312,7 +310,7 @@ def show_user_friendly_error(error_type: str, technical_message: str = None) -> 
     )
 
 
-def filter_series(seriesItem: Dict) -> bool:
+def filter_series(seriesItem: dict) -> bool:
     """ takes an API info struct and returns if it matches user language settings """
 
     if G.args.addon.getSetting("filter_dubs_by_language") != "true":
@@ -348,7 +346,7 @@ def filter_series(seriesItem: Dict) -> bool:
 
     return False
 
-def filter_seasons(item: Dict) -> bool:
+def filter_seasons(item: dict) -> bool:
     """ takes an API info struct and returns if it matches user language settings """
 
     if G.args.addon.getSetting("filter_dubs_by_language") != "true":
@@ -418,7 +416,7 @@ def convert_text_to_date(date_str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def sort_episodes(listables: List[ListableItem]) -> List[ListableItem]:
+def sort_episodes(listables: list[ListableItem]) -> list[ListableItem]:
     """ Sort episodes list to move all unwatched episodes to top """
 
     watched = []

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 smirgol
 #
@@ -18,7 +17,7 @@ import json
 import re
 import sys
 from abc import abstractmethod
-from typing import Any, Dict, Union
+from typing import Any
 
 import xbmcgui
 import xbmcvfs
@@ -36,7 +35,7 @@ from . import router
 from .globals import G
 
 
-class Args(object):
+class Args:
     """Arguments class
     Hold all arguments passed to the script and also persistent user data and
     reference to the addon. It is intended to hold all data necessary for the
@@ -84,7 +83,7 @@ class Args(object):
     def set_arg(self, key: str, value=Any):
         self._args[key] = value
 
-    def set_args(self, data: Union[Dict, dict, list]):
+    def set_args(self, data: dict | dict | list):
         self._args.update(data)
 
     @property
@@ -255,7 +254,7 @@ class ListableItem(Object):
         self.clearart: str | None = None
 
     @abstractmethod
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """ return a dict with info to set on the kodi ListItem (filtered) and access some data """
 
         pass
@@ -271,7 +270,7 @@ class ListableItem(Object):
 
         # only allow to overwrite the local playcount if we sync the playtime with the server
         if G.args.addon.getSetting("sync_playtime") == "true" and hasattr(self, 'playcount'):
-            list_info["playcount"] = getattr(self, 'playcount')
+            list_info["playcount"] = self.playcount
 
         li = xbmcgui.ListItem()
         li.setLabel(self.title)
@@ -279,13 +278,13 @@ class ListableItem(Object):
         # if is a playable item, set some things
         if hasattr(self, 'duration'):
             li.setProperty("IsPlayable", "true")
-            li.setProperty('TotalTime', str(float(getattr(self, 'duration'))))
+            li.setProperty('TotalTime', str(float(self.duration)))
             # set resume if not fully watched and playhead > x
-            if hasattr(self, 'playcount') and getattr(self, 'playcount') == 0:
-                if hasattr(self, 'playhead') and getattr(self, 'playhead') > 0:
-                    resume = int(getattr(self, 'playhead') / getattr(self, 'duration') * 100)
+            if hasattr(self, 'playcount') and self.playcount == 0:
+                if hasattr(self, 'playhead') and self.playhead > 0:
+                    resume = int(self.playhead / self.duration * 100)
                     if 5 <= resume <= 90:
-                        li.setProperty('ResumeTime', str(float(getattr(self, 'playhead'))))
+                        li.setProperty('ResumeTime', str(float(self.playhead)))
 
         li.setInfo('video', list_info)
         artworks = {}
@@ -308,13 +307,13 @@ class ListableItem(Object):
 
         return li
 
-    def update_playcount_from_playhead(self, playhead_data: Dict):
+    def update_playcount_from_playhead(self, playhead_data: dict):
         if not isinstance(self, (EpisodeData, MovieData)):
             return
 
-        setattr(self, 'playhead', playhead_data.get('playhead'))
+        self.playhead = playhead_data.get('playhead')
         if playhead_data.get('fully_watched'):
-            setattr(self, 'playcount', 1)
+            self.playcount = 1
         else:
             self.recalc_playcount()
 
@@ -329,7 +328,7 @@ class PlayableItem(ListableItem):
         self.playcount: int = 0
 
     @abstractmethod
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """ return a dict with info to set on the kodi ListItem (filtered) and access some data """
 
         pass
@@ -339,7 +338,7 @@ class PlayableItem(ListableItem):
     Crunchyroll           XBMC
     series                collection
     season                season
-    episode               episode   
+    episode               episode
 """
 
 
@@ -381,7 +380,7 @@ class SeriesData(ListableItem):
         # @todo: not sure how to get that without checking all child seasons and their episodes
         pass
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         # in theory, we could also omit this method and just iterate over the objects properties and use them
         # to set data on the Kodi ListItem, but this way we are decoupled from their naming convention
         return {
@@ -443,7 +442,7 @@ class SeasonData(ListableItem):
         # @todo: not sure how to get that without checking all child episodes
         pass
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         return {
             'title': self.title,
             'tvshowtitle': self.tvshowtitle,
@@ -516,7 +515,7 @@ class EpisodeData(PlayableItem):
         if self.playhead is not None and self.duration is not None:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         return {
             'title': self.title,
             'tvshowtitle': self.tvshowtitle,
@@ -591,7 +590,7 @@ class MovieData(PlayableItem):
         if self.playhead is not None and self.duration is not None:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         return {
             'title': self.title,
             'tvshowtitle': self.tvshowtitle,
@@ -643,7 +642,7 @@ class ProfileData(ListableItem, Cacheable):
     def get_cache_file_name(self) -> str:
         return 'profile_data.json'
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         return {
             'profile_id': self.profile_id,
             'title': self.profile_name,

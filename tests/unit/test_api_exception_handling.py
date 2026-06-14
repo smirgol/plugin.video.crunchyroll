@@ -11,7 +11,7 @@ import pytest
 import requests
 
 from resources.lib.api import API
-from resources.lib.model import LoginError, AccountData
+from resources.lib.model import AccountData, LoginError
 
 
 class TestRefreshFlowExceptionHandling:

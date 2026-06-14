@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 smirgol
 #
@@ -16,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
 import time
-from typing import Optional, List
 from urllib.parse import urlencode
 
 import requests
@@ -27,7 +25,7 @@ import xbmcplugin
 from resources.lib import utils
 from resources.lib.globals import G
 from resources.lib.gui import SkipModalDialog, show_modal_dialog
-from resources.lib.model import Object, CrunchyrollError, LoginError
+from resources.lib.model import CrunchyrollError, LoginError, Object
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
 
@@ -39,7 +37,7 @@ class VideoPlayer(Object):
 
     def __init__(self):
         self._stream_data: VideoPlayerStreamData | None = None  # @todo: maybe rename prop and class?
-        self._player: Optional[xbmc.Player] = xbmc.Player()  # @todo: what about garbage collection?
+        self._player: xbmc.Player | None = xbmc.Player()  # @todo: what about garbage collection?
         self._skip_modal_duration_max = 10
         self.waitForStart = True
         self.lastUpdatePlayhead = 0
@@ -279,7 +277,7 @@ class VideoPlayer(Object):
         self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get('end', 0))
         self.update_playhead()
 
-    def clear_active_stream(self, token: Optional[str] = None):
+    def clear_active_stream(self, token: str | None = None):
         """ Tell Crunchyroll that we no longer use the stream.
             Crunchyroll keeps track of started streams. If they are not released, CR will block starting a new one.
         """
@@ -301,7 +299,7 @@ class VideoPlayer(Object):
 
         utils.crunchy_log("Cleared active stream for episode: %s" % G.args.get_arg('episode_id'))
 
-    def get_active_streams(self) -> List[str]:
+    def get_active_streams(self) -> list[str]:
         try:
             req = G.api.make_request(
                 method="GET",

@@ -9,10 +9,8 @@ explicit item_type_hint. Mixed lists (browse) must keep auto-detecting per item.
 import json
 from pathlib import Path
 
-import pytest
-
+from resources.lib.model import EpisodeData, SeasonData, SeriesData
 from resources.lib.utils import get_listables_from_response
-from resources.lib.model import SeasonData, EpisodeData, SeriesData
 
 
 def load_captured_response(name):

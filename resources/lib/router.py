@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 lumiru
 #
@@ -16,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-from typing import Optional
 
 # A URL is formatted with {parameters}, each parameter are passed to controller args.
 # The "mode" option will be passed to args if set.
@@ -76,7 +74,7 @@ plugin_routes: dict = {
 }
 
 
-def extract_url_params(url: str) -> Optional[dict]:
+def extract_url_params(url: str) -> dict | None:
     """
     The router logic itself.
     It iterates over routes and return params for the first found matching pattern (which should be the only one).
@@ -98,7 +96,7 @@ def extract_url_params(url: str) -> Optional[dict]:
     return None
 
 
-def build_path(args: dict) -> Optional[str]:
+def build_path(args: dict) -> str | None:
     """
     Build URL from plugin list item args.
     It will use the route configuration designated by "route" arg.
@@ -113,7 +111,7 @@ def build_path(args: dict) -> Optional[str]:
     return create_path_from_route(route_name, args)
 
 
-def find_route_matching_args(args: dict) -> Optional[str]:
+def find_route_matching_args(args: dict) -> str | None:
     """
     Try to get the best matching route to given "mode" arg and plugin list item args.
     """
@@ -143,7 +141,7 @@ def find_route_matching_args(args: dict) -> Optional[str]:
     return selected_route
 
 
-def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
+def create_path_from_route(route_name: str, args: dict) -> str | None:
     """
     Build URL from a route name and plugin list item args.
     """

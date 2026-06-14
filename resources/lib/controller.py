@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
 # Copyright (C) 2023 smirgol
@@ -23,8 +22,7 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from . import utils
-from . import view
+from . import utils, view
 from .globals import G
 from .model import CrunchyrollError, ProfileData
 from .utils import get_listables_from_response
