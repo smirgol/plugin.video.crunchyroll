@@ -37,28 +37,43 @@ from .utils import get_listables_from_response
 from .videoplayer import VideoPlayer
 
 
-def show_profiles():
+def _api_from(ctx):
+    """Return ctx.api if provided, otherwise fall back to G.api."""
+    return ctx.api if ctx is not None else G.api
+
+
+def _args_from(ctx):
+    """Return ctx.args if provided, otherwise fall back to G.args."""
+    return ctx.args if ctx is not None else G.args
+
+
+def _monitor_from(ctx):
+    """Return ctx.monitor if provided, otherwise fall back to G.monitor."""
+    return ctx.monitor if ctx is not None else G.monitor
+
+
+def show_profiles(ctx=None):
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.PROFILES_LIST_ENDPOINT,
+        url=_api_from(ctx).PROFILES_LIST_ENDPOINT,
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     profiles = req.get("profiles")
     profile_list_items = list(map(lambda profile: ProfileData(profile).to_item(), profiles))
     current_profile = 0
 
-    if bool(G.api.profile_data.profile_id):
+    if bool(_api_from(ctx).profile_data.profile_id):
         current_profile = [
-            i for i in range(len(profiles)) if profiles[i].get("profile_id") == G.api.profile_data.profile_id
+            i for i in range(len(profiles)) if profiles[i].get("profile_id") == _api_from(ctx).profile_data.profile_id
         ][0]
 
     selected = xbmcgui.Dialog().select(
-        G.args.addon.getLocalizedString(30073),
+        _args_from(ctx).addon.getLocalizedString(30073),
         profile_list_items,
         preselect=current_profile,
         useDetails=True,
@@ -67,113 +82,117 @@ def show_profiles():
     if selected == -1:
         return True
     else:
-        G.api.create_session(action="refresh_profile", profile_id=profiles[selected].get("profile_id"))
+        _api_from(ctx).create_session(action="refresh_profile", profile_id=profiles[selected].get("profile_id"))
         return True
 
 
-def show_queue():
+def show_queue(ctx=None):
     """shows anime queue/playlist"""
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.WATCHLIST_LIST_ENDPOINT.format(G.api.account_data.account_id),
+        url=_api_from(ctx).WATCHLIST_LIST_ENDPOINT.format(_api_from(ctx).account_data.account_id),
         params={
             "n": 1024,
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("items")),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
 
-    view.end_of_directory("episodes", cache_to_disc=False)
+    view.end_of_directory(ctx, "episodes", cache_to_disc=False)
     return True
 
 
-def search_anime():
+def search_anime(ctx=None):
     """Search for anime"""
 
     # ask for search string
-    if not G.args.get_arg("search"):
-        d = xbmcgui.Dialog().input(G.args.addon.getLocalizedString(30041), type=xbmcgui.INPUT_ALPHANUM)
+    if not _args_from(ctx).get_arg("search"):
+        d = xbmcgui.Dialog().input(_args_from(ctx).addon.getLocalizedString(30041), type=xbmcgui.INPUT_ALPHANUM)
         if not d:
             return None
     else:
-        d = G.args.get_arg("search")
+        d = _args_from(ctx).get_arg("search")
 
     # api request
     # available types seem to be: music,series,episode,top_results,movie_listing
     # @todo: we could search for all types, then first present a listing of the types we have search results for
     #        the user then could pick one of these types and get presented with a filtered search result for that
     #        type only.
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.SEARCH_ENDPOINT,
+        url=_api_from(ctx).SEARCH_ENDPOINT,
         params={
             "n": 50,
             "q": d,
-            "locale": G.args.subtitle,
-            "start": G.args.get_arg("offset", 0, int),
+            "locale": _args_from(ctx).subtitle,
+            "start": _args_from(ctx).get_arg("offset", 0, int),
             "type": "series",
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     if not req.get("items") or len(req.get("items")) == 0:
-        return render_error_directory(title_id=30090)
+        return render_error_directory(ctx, title_id=30090)
 
     type_data = req.get("items")[0]  # @todo: for now we support only the first type, which should be series
 
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(type_data.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
-    items_left = type_data.get("total") - (G.args.get_arg("offset", 0, int) * 50) - len(type_data.get("items"))
+    items_left = type_data.get("total") - (_args_from(ctx).get_arg("offset", 0, int) * 50) - len(type_data.get("items"))
     if items_left > 0:
         add_next_page_item(
-            offset=G.args.get_arg("offset", 0, int) + 50,
-            mode=G.args.get_arg("mode"),
+            ctx,
+            offset=_args_from(ctx).get_arg("offset", 0, int) + 50,
+            mode=_args_from(ctx).get_arg("mode"),
             search=d,
         )
 
-    view.end_of_directory("tvshows")
+    view.end_of_directory(ctx, "tvshows")
     return True
 
 
-def show_history():
+def show_history(ctx=None):
     """shows history of watched anime"""
     items_per_page = 50
-    current_page = G.args.get_arg("offset", 1, int)
+    current_page = _args_from(ctx).get_arg("offset", 1, int)
 
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.HISTORY_ENDPOINT.format(G.api.account_data.account_id),
+        url=_api_from(ctx).HISTORY_ENDPOINT.format(_api_from(ctx).account_data.account_id),
         params={
             "page_size": items_per_page,
             "page": current_page,
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("data")),
         is_folder=False,
     )
@@ -182,66 +201,69 @@ def show_history():
     num_pages = int(math.ceil(req["total"] / items_per_page))
     if current_page < num_pages:
         add_next_page_item(
-            offset=G.args.get_arg("offset", 1, int) + 1,
-            mode=G.args.get_arg("mode"),
+            ctx,
+            offset=_args_from(ctx).get_arg("offset", 1, int) + 1,
+            mode=_args_from(ctx).get_arg("mode"),
         )
 
-    view.end_of_directory("episodes", cache_to_disc=False)
+    view.end_of_directory(ctx, "episodes", cache_to_disc=False)
     return True
 
 
-def show_resume_episodes():
+def show_resume_episodes(ctx=None):
     """shows episode to resume for watching animes"""
     items_per_page = 50
 
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.RESUME_ENDPOINT.format(G.api.account_data.account_id),
+        url=_api_from(ctx).RESUME_ENDPOINT.format(_api_from(ctx).account_data.account_id),
         params={
             "n": items_per_page,
-            "locale": G.args.subtitle,
-            "start": G.args.get_arg("offset", 0, int),
+            "locale": _args_from(ctx).subtitle,
+            "start": _args_from(ctx).get_arg("offset", 0, int),
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("data")),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
     # pagination
-    items_left = req.get("total") - (G.args.get_arg("offset", 0, int) * items_per_page) - len(req.get("data"))
+    items_left = req.get("total") - (_args_from(ctx).get_arg("offset", 0, int) * items_per_page) - len(req.get("data"))
     if items_left > 0:
         add_next_page_item(
-            offset=G.args.get_arg("offset", 0, int) + items_per_page,
-            mode=G.args.get_arg("mode"),
+            ctx,
+            offset=_args_from(ctx).get_arg("offset", 0, int) + items_per_page,
+            mode=_args_from(ctx).get_arg("mode"),
         )
 
-    view.end_of_directory("episodes", cache_to_disc=False)
+    view.end_of_directory(ctx, "episodes", cache_to_disc=False)
 
     return True
 
 
-def list_anime_seasons():
+def list_anime_seasons(ctx=None):
     """view all available anime seasons and filter by selected season"""
-    season_filter: str = G.args.get_arg("season_filter", "")
+    season_filter: str = _args_from(ctx).get_arg("season_filter", "")
 
     # if no seasons filter applied, list all available seasons
     if not season_filter:
         return list_anime_seasons_without_filter()
 
     # else, if we have a season filter, show all from season
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.BROWSE_ENDPOINT,
+        url=_api_from(ctx).BROWSE_ENDPOINT,
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
             "season_tag": season_filter,
             "n": 100,
         },
@@ -249,52 +271,54 @@ def list_anime_seasons():
 
     # check for error
     if is_response_error_strict(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
-    view.end_of_directory("seasons")
+    view.end_of_directory(ctx, "seasons")
     return None
 
 
-def list_anime_seasons_without_filter():
+def list_anime_seasons_without_filter(ctx=None):
     """view all available anime seasons and filter by selected season"""
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.SEASONAL_TAGS_ENDPOINT,
+        url=_api_from(ctx).SEASONAL_TAGS_ENDPOINT,
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error_strict(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     for season_tag_item in req.get("data"):
         # add to view
         view.add_item(
+            ctx,
             {
                 "title": season_tag_item.get("localization", {}).get("title"),
                 "season_filter": season_tag_item.get("id", {}),
-                "mode": G.args.get_arg("mode"),
+                "mode": _args_from(ctx).get_arg("mode"),
             },
             is_folder=True,
         )
 
-    view.end_of_directory("seasons")
+    view.end_of_directory(ctx, "seasons")
 
     return True
 
 
-def list_filter():
+def list_filter(ctx=None):
     """view all anime from selected mode"""
-    category_filter: str = G.args.get_arg("category_filter", "")
+    category_filter: str = _args_from(ctx).get_arg("category_filter", "")
 
     # we re-use this method which is normally used for the categories to also show some special views, that share
     # the same logic
@@ -306,14 +330,14 @@ def list_filter():
 
     # else, if we have a category filter, show all from category
 
-    items_per_page = G.args.get_arg("items_per_page", 50, int)  # change this if desired
+    items_per_page = _args_from(ctx).get_arg("items_per_page", 50, int)  # change this if desired
 
     # default query params - might get modified by special categories below
     params = {
-        "locale": G.args.subtitle,
+        "locale": _args_from(ctx).subtitle,
         "categories": category_filter,
         "n": items_per_page,
-        "start": G.args.get_arg("offset", 0, int),
+        "start": _args_from(ctx).get_arg("offset", 0, int),
         "ratings": "true",
     }
 
@@ -323,56 +347,59 @@ def list_filter():
         params.pop("categories")
 
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.BROWSE_ENDPOINT,
+        url=_api_from(ctx).BROWSE_ENDPOINT,
         params=params,
     )
 
     # check for error
     if is_response_error_strict(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # series / collection  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("items")),
         is_folder=True,
         options=view.OPT_CTX_WATCHLIST | view.OPT_MARK_ON_WATCHLIST | view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
-    items_left = req.get("total") - G.args.get_arg("offset", 0, int) - len(req.get("items"))
+    items_left = req.get("total") - _args_from(ctx).get_arg("offset", 0, int) - len(req.get("items"))
 
     # show next page button
     if items_left > 0:
         add_next_page_item(
-            offset=G.args.get_arg("offset", 0, int) + items_per_page,
-            mode=G.args.get_arg("mode"),
+            ctx,
+            offset=_args_from(ctx).get_arg("offset", 0, int) + items_per_page,
+            mode=_args_from(ctx).get_arg("mode"),
             category_filter=category_filter,
         )
 
-    view.end_of_directory("tvshows")
+    view.end_of_directory(ctx, "tvshows")
 
     return True
 
 
-def list_filter_without_category():
+def list_filter_without_category(ctx=None):
     # api request for category names / tags
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.CATEGORIES_ENDPOINT,
+        url=_api_from(ctx).CATEGORIES_ENDPOINT,
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error_strict(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     for category_item in req.get("items"):
         try:
             # add to view
             view.add_item(
+                ctx,
                 {
                     "title": category_item.get("localization", {}).get("title"),
                     "plot": category_item.get("localization", {}).get("description"),
@@ -380,7 +407,7 @@ def list_filter_without_category():
                     "thumb": utils.get_img_from_struct(category_item, "low", 1),
                     "fanart": utils.get_img_from_struct(category_item, "background", 1),
                     "category_filter": category_item.get("tenant_category", {}),
-                    "mode": G.args.get_arg("mode"),
+                    "mode": _args_from(ctx).get_arg("mode"),
                 },
                 is_folder=True,
             )
@@ -389,93 +416,95 @@ def list_filter_without_category():
                 f"Failed to add category name item to list_filter view: {json.dumps(category_item, indent=4)}"
             )
 
-    view.end_of_directory("tvshows")
+    view.end_of_directory(ctx, "tvshows")
 
     return True
 
 
-def view_season():
+def view_season(ctx=None):
     """view all seasons/arcs of an anime"""
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.SEASONS_ENDPOINT.format(G.args.get_arg("series_id")),
+        url=_api_from(ctx).SEASONS_ENDPOINT.format(_args_from(ctx).get_arg("series_id")),
         params={
-            "locale": G.args.subtitle,
-            "preferred_audio_language": G.api.account_data.default_audio_language,
+            "locale": _args_from(ctx).subtitle,
+            "preferred_audio_language": _api_from(ctx).account_data.default_audio_language,
             "force_locale": "",
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # season / season  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("data") or req.get("items"), item_type_hint="season"),
         is_folder=True,
     )
 
-    view.end_of_directory("seasons")
+    view.end_of_directory(ctx, "seasons")
     return True
 
 
-def view_episodes():
+def view_episodes(ctx=None):
     """view all episodes of season"""
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.EPISODES_ENDPOINT.format(G.args.get_arg("season_id")),
+        url=_api_from(ctx).EPISODES_ENDPOINT.format(_args_from(ctx).get_arg("season_id")),
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("data") or req.get("items"), item_type_hint="episode"),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE,
     )
 
-    view.end_of_directory("episodes", cache_to_disc=False)
+    view.end_of_directory(ctx, "episodes", cache_to_disc=False)
     return True
 
 
-def start_playback():
+def start_playback(ctx=None):
     """plays an episode"""
     video_player = VideoPlayer()
     video_player.start_playback()
 
     utils.crunchy_log("Starting loop", xbmc.LOGINFO)
     # stay in this method while playing to not lose video_player, as backgrounds threads reference it
-    while (not G.monitor.abortRequested()) and video_player.isStartingOrPlaying():
+    while (not _monitor_from(ctx).abortRequested()) and video_player.isStartingOrPlaying():
         video_player.check_skipping()
-        if G.args.addon.getSetting("sync_playtime") == "true":
+        if _args_from(ctx).addon.getSetting("sync_playtime") == "true":
             video_player.update_playhead()
-        G.monitor.waitForAbort(1)
+        _monitor_from(ctx).waitForAbort(1)
     video_player.finished()
     del video_player
 
 
-def add_to_queue() -> bool:
+def add_to_queue(ctx=None) -> bool:
     from .model import LoginError
 
     try:
-        req = G.api.make_scraper_request(
+        req = _api_from(ctx).make_scraper_request(
             method="POST",
-            url=G.api.WATCHLIST_V2_ENDPOINT.format(G.api.account_data.account_id),
+            url=_api_from(ctx).WATCHLIST_V2_ENDPOINT.format(_api_from(ctx).account_data.account_id),
             json_data={
-                "content_id": G.args.get_arg("content_id"),
+                "content_id": _args_from(ctx).get_arg("content_id"),
             },
             params={
-                "locale": G.args.subtitle,
-                "preferred_audio_language": G.api.account_data.default_audio_language,
+                "locale": _args_from(ctx).subtitle,
+                "preferred_audio_language": _api_from(ctx).account_data.default_audio_language,
             },
             headers={
                 "Content-Type": "application/json",
@@ -486,7 +515,7 @@ def add_to_queue() -> bool:
             error_msg = req.get("error", "Unknown error")
             if "content.add_watchlist_item_v2.item_already_exists" in error_msg:
                 xbmcgui.Dialog().notification(
-                    f"{G.args.addon_name} Error", "Item already in watchlist", xbmcgui.NOTIFICATION_ERROR, 3
+                    f"{_args_from(ctx).addon_name} Error", "Item already in watchlist", xbmcgui.NOTIFICATION_ERROR, 3
                 )
                 return False
             else:
@@ -495,7 +524,7 @@ def add_to_queue() -> bool:
     except CrunchyrollError as e:
         if "content.add_watchlist_item_v2.item_already_exists" in str(e):
             xbmcgui.Dialog().notification(
-                f"{G.args.addon_name} Error",
+                f"{_args_from(ctx).addon_name} Error",
                 "Item already in watchlist",
                 xbmcgui.NOTIFICATION_ERROR,
                 3,
@@ -504,7 +533,7 @@ def add_to_queue() -> bool:
         else:
             utils.log_error_with_trace(f"Failed to add to queue: {e}")
             xbmcgui.Dialog().notification(
-                f"{G.args.addon_name} Error",
+                f"{_args_from(ctx).addon_name} Error",
                 "Failed to add item to watchlist",
                 xbmcgui.NOTIFICATION_ERROR,
                 3,
@@ -513,7 +542,7 @@ def add_to_queue() -> bool:
     except LoginError as e:
         utils.log_error_with_trace(f"Authentication error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            f"{G.args.addon_name} Error",
+            f"{_args_from(ctx).addon_name} Error",
             "Authentication failed - it's broken, Jim! :(",
             xbmcgui.NOTIFICATION_ERROR,
             3,
@@ -522,7 +551,7 @@ def add_to_queue() -> bool:
     except Exception as e:
         utils.log_error_with_trace(f"Unexpected error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            f"{G.args.addon_name} Error",
+            f"{_args_from(ctx).addon_name} Error",
             "Failed to add item to watchlist",
             xbmcgui.NOTIFICATION_ERROR,
             3,
@@ -530,8 +559,8 @@ def add_to_queue() -> bool:
         return False
 
     xbmcgui.Dialog().notification(
-        G.args.addon_name,
-        G.args.addon.getLocalizedString(30071),
+        _args_from(ctx).addon_name,
+        _args_from(ctx).addon.getLocalizedString(30071),
         xbmcgui.NOTIFICATION_INFO,
         2,
         False,
@@ -555,8 +584,8 @@ def add_to_queue() -> bool:
 #
 #     # check for error - probably does not work
 #     if req and "error" in req:
-#         view.add_item({"title": G.args.addon.getLocalizedString(30061)})
-#         view.end_of_directory()
+#         view.add_item(ctx,{"title": G.args.addon.getLocalizedString(30061)})
+#         view.end_of_directory(ctx,)
 #         xbmcgui.Dialog().notification(
 #             f'{G.args.addon_name} Error',
 #             'Failed to remove item from watchlist',
@@ -575,65 +604,67 @@ def add_to_queue() -> bool:
 #     return True
 
 
-def crunchylists_lists():
+def crunchylists_lists(ctx=None):
     """Retrieve all crunchylists"""
 
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.CRUNCHYLISTS_LISTS_ENDPOINT.format(G.api.account_data.account_id),
+        url=_api_from(ctx).CRUNCHYLISTS_LISTS_ENDPOINT.format(_api_from(ctx).account_data.account_id),
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     for crunchy_list in req.get("data"):
         # add to view
         view.add_item(
+            ctx,
             {
                 "title": crunchy_list.get("title"),
-                "fanart": xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart")),
+                "fanart": xbmcvfs.translatePath(_args_from(ctx).addon.getAddonInfo("fanart")),
                 "mode": "crunchylists_item",
                 "crunchylists_item_id": crunchy_list.get("list_id"),
             },
             is_folder=True,
         )
 
-    view.end_of_directory("tvshows")
+    view.end_of_directory(ctx, "tvshows")
 
     return None
 
 
-def crunchylists_item():
+def crunchylists_item(ctx=None):
     """Retrieve all items for a crunchylist"""
 
-    utils.crunchy_log(f"Fetching crunchylist: {G.args.get_arg('crunchylists_item_id')}")
+    utils.crunchy_log(f"Fetching crunchylist: {_args_from(ctx).get_arg('crunchylists_item_id')}")
 
     # api request
-    req = G.api.make_request(
+    req = _api_from(ctx).make_request(
         method="GET",
-        url=G.api.CRUNCHYLISTS_VIEW_ENDPOINT.format(
-            G.api.account_data.account_id, G.args.get_arg("crunchylists_item_id")
+        url=_api_from(ctx).CRUNCHYLISTS_VIEW_ENDPOINT.format(
+            _api_from(ctx).account_data.account_id, _args_from(ctx).get_arg("crunchylists_item_id")
         ),
         params={
-            "locale": G.args.subtitle,
+            "locale": _args_from(ctx).subtitle,
         },
     )
 
     # check for error
     if is_response_error(req):
-        return render_error_directory()
+        return render_error_directory(ctx)
 
     view.add_listables(
+        ctx,
         listables=get_listables_from_response(req.get("data")),
         is_folder=True,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
 
-    view.end_of_directory("tvshows")
+    view.end_of_directory(ctx, "tvshows")
 
     return None

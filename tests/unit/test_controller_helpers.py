@@ -64,8 +64,8 @@ class TestRenderErrorDirectory:
 
         result = render_error_directory()
 
-        mock_view.add_item.assert_called_once_with({"title": "String_30061"})
-        mock_view.end_of_directory.assert_called_once_with()
+        mock_view.add_item.assert_called_once_with(None, {"title": "String_30061"})
+        mock_view.end_of_directory.assert_called_once_with(None)
         assert result is False
 
     @patch("resources.lib.controller_helpers.view")
@@ -74,8 +74,8 @@ class TestRenderErrorDirectory:
 
         result = render_error_directory(title_id=30090)
 
-        mock_view.add_item.assert_called_once_with({"title": "String_30090"})
-        mock_view.end_of_directory.assert_called_once_with()
+        mock_view.add_item.assert_called_once_with(None, {"title": "String_30090"})
+        mock_view.end_of_directory.assert_called_once_with(None)
         assert result is False
 
 
@@ -87,6 +87,7 @@ class TestAddNextPageItem:
         add_next_page_item(offset=50, mode="search")
 
         mock_view.add_item.assert_called_once_with(
+            None,
             {
                 "title": "String_30044",
                 "offset": 50,
@@ -102,6 +103,7 @@ class TestAddNextPageItem:
         add_next_page_item(offset=100, mode="filter", search="naruto", category_filter="action")
 
         mock_view.add_item.assert_called_once_with(
+            None,
             {
                 "title": "String_30044",
                 "offset": 100,
