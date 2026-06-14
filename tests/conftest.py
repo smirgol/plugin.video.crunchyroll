@@ -41,3 +41,16 @@ sys.modules["resources.lib.globals"] = fake_globals
 # with AttributeError even though the module is present in sys.modules.
 resources_lib = importlib.import_module("resources.lib")
 resources_lib.globals = fake_globals
+
+
+import pytest  # noqa: E402
+
+from resources.lib.context import PluginContext  # noqa: E402
+
+
+@pytest.fixture
+def ctx():
+    """Provide a PluginContext backed by the mocked G used by the test suite."""
+    mock_api = MagicMock()
+    mock_monitor = MagicMock()
+    return PluginContext(api=mock_api, args=mock_args, monitor=mock_monitor)

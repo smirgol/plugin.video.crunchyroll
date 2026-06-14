@@ -26,9 +26,10 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib.model import EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
+from resources.lib.model import Args, EpisodeData, ListableItem, PlayableItem, SeasonData, SeriesData
 
 from . import presentation, router, utils
+from .context import PluginContext
 from .globals import G
 
 # Fix for bug in old python version on windows
@@ -42,20 +43,31 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 types = presentation.KODI_INFO_TYPES
 
 
-def end_of_directory(content_type=None, update_listing=False, cache_to_disc=True):
+def _args_from(ctx: PluginContext | None) -> Args:
+    """Return ctx.args if a context is provided, otherwise fall back to G.args.
+
+    This helper keeps view.py callable from legacy code during the PluginContext
+    transition. It will be removed in Phase 9c when the G singleton is deleted.
+    """
+    return ctx.args if ctx is not None else G.args
+
+
+def end_of_directory(ctx: PluginContext | None = None, content_type=None, update_listing=False, cache_to_disc=True):
+    args = _args_from(ctx)
     # let xbmc know the items type in current directory
     if content_type is not None:
-        xbmcplugin.setContent(int(G.args.argv[1]), content_type)
+        xbmcplugin.setContent(int(args.argv[1]), content_type)
 
     # sort methods are required in library mode
-    xbmcplugin.addSortMethod(int(G.args.argv[1]), xbmcplugin.SORT_METHOD_NONE)
+    xbmcplugin.addSortMethod(int(args.argv[1]), xbmcplugin.SORT_METHOD_NONE)
 
     # let xbmc know the script is done adding items to the list
-    xbmcplugin.endOfDirectory(handle=int(G.args.argv[1]), updateListing=update_listing, cacheToDisc=cache_to_disc)
+    xbmcplugin.endOfDirectory(handle=int(args.argv[1]), updateListing=update_listing, cacheToDisc=cache_to_disc)
 
 
 def add_item(
-    info,
+    ctx: PluginContext | None = None,
+    info=None,
     is_folder=True,
     total_items=0,
     mediatype="video",
@@ -66,19 +78,23 @@ def add_item(
     This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
 
+    args = _args_from(ctx)
+    if info is None:
+        info = {}
+
     path_params = {}
-    path_params.update(G.args.args)
+    path_params.update(args.args)
     path_params.update(info)
 
     # get url
-    u = presentation.build_url(path_params, G.args.addonurl)
+    u = presentation.build_url(path_params, args.addonurl)
 
     # create list item
-    li = xbmcgui.ListItem(label=info["title"], path=u)
+    li = xbmcgui.ListItem(label=info.get("title", ""), path=u)
 
-    sync = G.args.addon.getSetting("sync_playtime") == "true"
+    sync = args.addon.getSetting("sync_playtime") == "true"
     # get infoLabels
-    info_labels = presentation.make_info_label(info, G.args.args, sync_playtime=sync)
+    info_labels = presentation.make_info_label(info, args.args, sync_playtime=sync)
 
     if is_folder:
         # directory
@@ -93,13 +109,13 @@ def add_item(
         # add context menu to jump to seasons xor episodes
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
-        addonurl = G.args.addonurl
+        addonurl = args.addonurl
         if path_params.get("series_id"):
             url = presentation.build_url(path_params, addonurl, "series_view")
-            cm.append((G.args.addon.getLocalizedString(30045), f"Container.Update({url})"))
+            cm.append((args.addon.getLocalizedString(30045), f"Container.Update({url})"))
         if path_params.get("collection_id"):
             url = presentation.build_url(path_params, addonurl, "season_view")
-            cm.append((G.args.addon.getLocalizedString(30046), f"Container.Update({url})"))
+            cm.append((args.addon.getLocalizedString(30046), f"Container.Update({url})"))
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
@@ -107,7 +123,7 @@ def add_item(
     # set media image
     artworks = {
         "thumb": info.get("thumb", "DefaultFolder.png"),
-        "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
+        "fanart": info.get("fanart", xbmcvfs.translatePath(args.addon.getAddonInfo("fanart"))),
         "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
         "landscape": info.get("landscape", info.get("thumb", "DefaultFolder.png")),
         "banner": info.get("poster", info.get("thumb", "DefaultFolder.png")),
@@ -127,7 +143,7 @@ def add_item(
 
     # add item to list
     xbmcplugin.addDirectoryItem(
-        handle=int(G.args.argv[1]),
+        handle=int(args.argv[1]),
         url=u,
         listitem=li,
         isFolder=is_folder,
@@ -280,12 +296,18 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
 
 
 def add_listables(
-    listables: list[ListableItem],
+    ctx: PluginContext | None = None,
+    listables: list[ListableItem] = None,
     is_folder=True,
     options: int = 0,
     callbacks: list[Callable[[xbmcgui.ListItem, ListableItem], None]] | None = None,
 ):
+    if listables is None:
+        listables = []
+
     from .utils import crunchy_log, highlight_list_item_title
+
+    args = _args_from(ctx)
 
     crunchy_log("add_listables: Starting to retrieve data async")
     complement_data = asyncio.run(complement_listables(listables))
@@ -299,7 +321,7 @@ def add_listables(
     # add listable items to kodi
     for listable in listables:
         # get url
-        u = presentation.build_url(listable.get_info(), G.args.addonurl)
+        u = presentation.build_url(listable.get_info(), args.addonurl)
 
         # get xbmc list item
         list_item = listable.to_item()
@@ -318,20 +340,20 @@ def add_listables(
         if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get("watchlist"):
             cm.append(
                 (
-                    G.args.addon.getLocalizedString(30067),
-                    f"RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})",
+                    args.addon.getLocalizedString(30067),
+                    f"RunPlugin({args.argv[0]}?mode=add_to_queue&content_id={listable.id})",
                 )
             )
 
         if options & OPT_CTX_SEASONS and hasattr(listable, "series_id") and listable.series_id is not None:
-            route = G.args.addonurl + router.create_path_from_route("series_view", {"series_id": listable.series_id})
-            cm.append((G.args.addon.getLocalizedString(30045), f"Container.Update({route})"))
+            route = args.addonurl + router.create_path_from_route("series_view", {"series_id": listable.series_id})
+            cm.append((args.addon.getLocalizedString(30045), f"Container.Update({route})"))
 
         if options & OPT_CTX_EPISODES and hasattr(listable, "season_id") and listable.season_id is not None:
-            route = G.args.addonurl + router.create_path_from_route(
+            route = args.addonurl + router.create_path_from_route(
                 "season_view", {"series_id": listable.series_id, "season_id": listable.season_id}
             )
-            cm.append((G.args.addon.getLocalizedString(30046), f"Container.Update({route})"))
+            cm.append((args.addon.getLocalizedString(30046), f"Container.Update({route})"))
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
             list_item.setInfo(
@@ -343,19 +365,25 @@ def add_listables(
 
         # add item to list
         xbmcplugin.addDirectoryItem(
-            handle=int(G.args.argv[1]),
+            handle=int(args.argv[1]),
             url=u,
             listitem=list_item,
             isFolder=is_folder,
         )
 
 
-def build_url(path_params: dict, route_name: str = None) -> str:
+def build_url(ctx: PluginContext | None = None, path_params: dict = None, route_name: str = None) -> str:
     """Create url. Backward-compat wrapper around presentation.build_url()."""
-    return presentation.build_url(path_params, G.args.addonurl, route_name)
+    args = _args_from(ctx)
+    if path_params is None:
+        path_params = {}
+    return presentation.build_url(path_params, args.addonurl, route_name)
 
 
-def make_info_label(info) -> dict:
+def make_info_label(ctx: PluginContext | None = None, info=None) -> dict:
     """Generate info_labels from existing dict. Backward-compat wrapper."""
-    sync = G.args.addon.getSetting("sync_playtime") == "true"
-    return presentation.make_info_label(info, G.args.args, sync_playtime=sync)
+    args = _args_from(ctx)
+    if info is None:
+        info = {}
+    sync = args.addon.getSetting("sync_playtime") == "true"
+    return presentation.make_info_label(info, args.args, sync_playtime=sync)
