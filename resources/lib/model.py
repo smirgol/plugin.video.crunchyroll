@@ -435,7 +435,7 @@ class SeasonData(ListableItem):
         self.clearlogo: str | None = None
         self.clearart: str | None = None
         self.rating: int = 0
-        self.playcount: int = 1 if data.get('is_complete') == 'true' else 0
+        self.playcount: int = 1 if data.get('is_complete') else 0
 
         self.recalc_playcount()
 
