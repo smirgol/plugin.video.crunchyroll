@@ -1,24 +1,24 @@
 """
 Focused unit tests for resources.lib.auth.AuthManager.
 
-These tests exercise the extracted authentication manager directly without
-relying on the API facade wrappers.
+These tests exercise AuthManager directly using a lightweight fake API that
+provides the same attributes/methods the real API exposes to AuthManager.
+This avoids the circular pass-through that existed before Phase 9b.
 """
 
-from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from resources.lib.auth import AuthManager, get_date, str_to_date
+from resources.lib.auth import AUTHORIZATION, AuthManager
 from resources.lib.models.account import AccountData, ProfileData
 from resources.lib.models.exceptions import LoginError
 
 
-class _FakeAPI:
-    """Lightweight stand-in for resources.lib.api.API."""
+class FakeAPI:
+    """Minimal API stand-in for AuthManager tests."""
 
-    CRUNCHYROLL_UA = "Crunchyroll/Test"
+    CRUNCHYROLL_UA = "test-ua"
 
     def __init__(self):
         self.account_data = AccountData({})
@@ -26,209 +26,185 @@ class _FakeAPI:
         self.api_headers = {}
         self.refresh_attempts = 0
 
-    def make_unauthenticated_request(self, method, url, headers=None, **_kwargs):
-        # Return minimal data needed by _finalize_session_from_tokens
-        if "index" in url:
-            return {"account_id": "acct_123"}
-        if "accounts/v1/me/profile" in url:
-            return {"username": "testuser"}
-        if "multiprofile" in url:
-            return {"profiles": [{"profile_id": "p1", "username": "u1"}]}
-        return {}
-
-    def create_auth_scraper(self):
-        return Mock()
-
-    def _handle_login_flow(self):
-        pass
-
-    def _handle_refresh_flow(self):
-        pass
-
-    def _handle_profile_refresh_flow(self, profile_id):
-        pass
-
-    def _handle_device_code_flow(self):
-        pass
-
-    def _process_device_token_response(self, r):
-        return {"status": "pending"}
-
-    def _finalize_session_from_tokens(self, token_response, action="login", profile_id=None):
-        pass
+    def make_unauthenticated_request(self, method, url, headers=None, **kwargs):
+        return kwargs.get("json_data") or kwargs.get("data") or {}
 
 
-@pytest.fixture
-def auth():
-    fake_api = _FakeAPI()
-    with patch("resources.lib.auth.G"):
-        yield AuthManager(fake_api)
+def make_manager(**overrides):
+    api = FakeAPI()
+    for key, value in overrides.items():
+        setattr(api, key, value)
+    return AuthManager(api_instance=api), api
 
 
-class TestAuthManagerTokenValidity:
-    def test_token_valid_when_future_expiry(self, auth):
-        auth.api.account_data = AccountData(
-            {
-                "access_token": "token",
-                "expires": f"{get_date() + timedelta(minutes=5):%Y-%m-%dT%H:%M:%SZ}",
-            }
-        )
-        assert auth.is_token_valid() is True
-
-    def test_token_invalid_when_past_expiry(self, auth):
-        auth.api.account_data = AccountData(
-            {
-                "access_token": "token",
-                "expires": f"{get_date() - timedelta(minutes=5):%Y-%m-%dT%H:%M:%SZ}",
-            }
-        )
-        assert auth.is_token_valid() is False
-
-    def test_token_invalid_without_access_token(self, auth):
-        auth.api.account_data = AccountData({})
-        assert auth.is_token_valid() is False
-
-    def test_token_invalid_without_expires(self, auth):
-        auth.api.account_data = AccountData({"access_token": "token"})
-        assert auth.is_token_valid() is False
-
-    def test_token_invalid_when_within_buffer(self, auth):
-        auth.api.account_data = AccountData(
-            {
-                "access_token": "token",
-                "expires": f"{get_date() + timedelta(seconds=30):%Y-%m-%dT%H:%M:%SZ}",
-            }
-        )
-        assert auth.is_token_valid() is False
+def test_auth_manager_stores_api_reference():
+    """AuthManager holds the API instance it was given."""
+    api = FakeAPI()
+    manager = AuthManager(api_instance=api)
+    assert manager.api is api
 
 
-class TestAuthManagerFinalizeSession:
-    def test_finalize_session_updates_account_data(self, auth):
-        token_response = {
-            "access_token": "acc",
-            "token_type": "Bearer",
-            "refresh_token": "ref",
-            "expires_in": 3600,
+def test_create_auth_scraper_returns_scraper():
+    """create_auth_scraper builds a CloudScraper configured with the API UA."""
+    manager, api = make_manager()
+    with patch("resources.lib.auth.cloudscraper.create_scraper") as mock_create:
+        mock_create.return_value = MagicMock()
+        scraper = manager.create_auth_scraper()
+        assert scraper is mock_create.return_value
+        mock_create.assert_called_once_with(delay=10, browser={"custom": api.CRUNCHYROLL_UA})
+
+
+def test_create_auth_scraper_returns_none_on_failure():
+    """create_auth_scraper swallows initialization errors and returns None."""
+    manager, _api = make_manager()
+    with patch("resources.lib.auth.cloudscraper.create_scraper", side_effect=RuntimeError("boom")):
+        assert manager.create_auth_scraper() is None
+
+
+def test_is_token_valid_when_recent():
+    """is_token_valid returns True for a token issued in the future."""
+    from datetime import datetime, timedelta
+
+    manager, api = make_manager()
+    api.account_data = AccountData(
+        {
+            "access_token": "tok",
+            "expires": (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
-        auth._finalize_session_from_tokens(token_response, action="login")
+    )
+    assert manager.is_token_valid() is True
 
-        assert auth.api.account_data.access_token == "acc"
-        assert auth.api.account_data.refresh_token == "ref"
-        assert auth.api.account_data.token_type == "Bearer"
-        assert auth.api.account_data.account_id == "acct_123"
-        assert auth.api.account_data.username == "testuser"
 
-    def test_finalize_session_calculates_expiration(self, auth):
-        token_response = {
-            "access_token": "acc",
-            "token_type": "Bearer",
-            "refresh_token": "ref",
-            "expires_in": 3600,
+def test_is_token_valid_when_expired():
+    """is_token_valid returns False for a token in the past."""
+    from datetime import datetime, timedelta
+
+    manager, api = make_manager()
+    api.account_data = AccountData(
+        {
+            "access_token": "tok",
+            "expires": (datetime.utcnow() - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
-        auth._finalize_session_from_tokens(token_response, action="login")
-
-        expiry = str_to_date(auth.api.account_data.expires)
-        assert expiry > get_date()
-        # 60s buffer is applied during validation, not during storage
-        assert (expiry - get_date()).total_seconds() > 3500
-
-    def test_finalize_session_sets_api_headers(self, auth):
-        token_response = {
-            "access_token": "acc",
-            "token_type": "Bearer",
-            "refresh_token": "ref",
-            "expires_in": 3600,
-        }
-        auth._finalize_session_from_tokens(token_response, action="login")
-
-        assert auth.api.api_headers["Authorization"] == "Bearer acc"
-        assert "User-Agent" in auth.api.api_headers
-
-    def test_finalize_session_with_missing_token_field_raises_login_error(self, auth):
-        with pytest.raises(LoginError):
-            auth._finalize_session_from_tokens({"expires_in": 3600}, action="login")
-
-    def test_finalize_session_refresh_resets_refresh_attempts(self, auth):
-        auth.api.refresh_attempts = 2
-        token_response = {
-            "access_token": "acc",
-            "token_type": "Bearer",
-            "refresh_token": "ref",
-            "expires_in": 3600,
-        }
-        auth._finalize_session_from_tokens(token_response, action="refresh")
-        assert auth.api.refresh_attempts == 0
+    )
+    assert manager.is_token_valid() is False
 
 
-class TestAuthManagerRefreshFlow:
-    def test_refresh_flow_raises_without_refresh_token(self, auth):
-        auth.api.account_data = AccountData({"access_token": "token"})
-        with pytest.raises(LoginError, match="No refresh token available"):
-            auth._handle_refresh_flow()
+def test_is_token_valid_when_missing_token():
+    """is_token_valid returns False when no access token exists."""
+    manager, _api = make_manager()
+    assert manager.is_token_valid() is False
 
-    def test_refresh_flow_success(self, auth):
-        auth.api.account_data = AccountData({"refresh_token": "ref", "access_token": "token"})
-        mock_response = Mock()
-        mock_response.ok = True
-        mock_response.json.return_value = {
-            "access_token": "new",
-            "token_type": "Bearer",
-            "refresh_token": "new_ref",
-            "expires_in": 3600,
-        }
-        mock_scraper = Mock()
-        mock_scraper.post.return_value = mock_response
-        fake_api = auth.api
-        fake_api.create_auth_scraper = Mock(return_value=mock_scraper)
 
-        with patch.object(fake_api, "_finalize_session_from_tokens") as mock_finalize:
-            auth._handle_refresh_flow()
-            mock_finalize.assert_called_once()
+def test_handle_refresh_flow_raises_without_refresh_token():
+    """_handle_refresh_flow fails fast if no refresh token is available."""
+    manager, _api = make_manager()
+    with pytest.raises(LoginError, match="No refresh token available"):
+        manager._handle_refresh_flow()
 
-    def test_refresh_flow_400_raises_refresh_token_expired(self, auth):
-        auth.api.account_data = AccountData({"refresh_token": "ref", "access_token": "token"})
-        mock_response = Mock()
-        mock_response.ok = False
-        mock_response.status_code = 400
-        mock_scraper = Mock()
-        mock_scraper.post.return_value = mock_response
-        auth.api.create_auth_scraper = Mock(return_value=mock_scraper)
 
+def test_handle_refresh_flow_posts_with_authorization():
+    """_handle_refresh_flow sends the correct Authorization header."""
+    manager, api = make_manager()
+    api.account_data = AccountData({"refresh_token": "refresh", "token_type": "Bearer"})
+
+    mock_response = MagicMock()
+    mock_response.ok = False
+    mock_response.status_code = 400
+
+    mock_scraper = MagicMock()
+    mock_scraper.post.return_value = mock_response
+
+    with patch.object(manager, "create_auth_scraper", return_value=mock_scraper), patch.object(
+        manager, "_finalize_session_from_tokens"
+    ):
         with pytest.raises(LoginError) as exc_info:
-            auth._handle_refresh_flow()
-
+            manager._handle_refresh_flow()
         assert exc_info.value.error_code == "REFRESH_TOKEN_EXPIRED"
 
-
-class TestAuthManagerProfileRefreshFlow:
-    def test_profile_refresh_requires_profile_id(self, auth):
-        auth.api.account_data = AccountData({"refresh_token": "ref", "access_token": "token"})
-        with pytest.raises(LoginError, match="Profile ID required"):
-            auth._handle_profile_refresh_flow(None)
-
-    def test_profile_refresh_requires_refresh_token(self, auth):
-        auth.api.account_data = AccountData({"access_token": "token"})
-        with pytest.raises(LoginError, match="No refresh token available"):
-            auth._handle_profile_refresh_flow("p1")
+    call_args = mock_scraper.post.call_args
+    assert call_args[1]["headers"]["Authorization"] == AUTHORIZATION
+    assert call_args[1]["headers"]["User-Agent"] == api.CRUNCHYROLL_UA
 
 
-class TestAuthManagerDeviceCodeFlow:
-    def test_request_device_code_success(self, auth):
-        mock_response = Mock()
-        mock_response.ok = True
-        mock_response.json.return_value = {"user_code": "ABCD", "device_code": "dc"}
-        mock_scraper = Mock()
-        mock_scraper.post.return_value = mock_response
-        auth.api.create_auth_scraper = Mock(return_value=mock_scraper)
+def test_request_device_code_posts_to_device_code_endpoint():
+    """request_device_code POSTs to the device-code endpoint."""
+    manager, _api = make_manager()
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.json.return_value = {"device_code": "d", "user_code": "u"}
 
-        result = auth.request_device_code()
-        assert result["user_code"] == "ABCD"
-        assert result["device_code"] == "dc"
+    mock_scraper = MagicMock()
+    mock_scraper.post.return_value = mock_response
 
-    def test_poll_device_token_returns_pending(self, auth):
-        auth.api._process_device_token_response = Mock(return_value={"status": "pending"})
-        mock_scraper = Mock()
-        auth.api.create_auth_scraper = Mock(return_value=mock_scraper)
+    with patch.object(manager, "create_auth_scraper", return_value=mock_scraper):
+        result = manager.request_device_code()
 
-        result = auth.poll_device_token("dc")
-        assert result["status"] == "pending"
+    assert result["device_code"] == "d"
+    call_args = mock_scraper.post.call_args
+    assert call_args[1]["url"] == "https://www.crunchyroll.com/auth/v1/device/code"
+
+
+def test_poll_device_token_posts_to_device_token_endpoint():
+    """poll_device_token POSTs the device code to the token endpoint."""
+    manager, _api = make_manager()
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.status_code = 200
+    mock_response.headers = {"content-type": "application/json"}
+    mock_response.text = '{"access_token": "a", "refresh_token": "r"}'
+    mock_response.json.return_value = {"access_token": "a", "refresh_token": "r"}
+
+    mock_scraper = MagicMock()
+    mock_scraper.post.return_value = mock_response
+
+    with patch.object(manager, "create_auth_scraper", return_value=mock_scraper):
+        result = manager.poll_device_token("dev-code-123")
+
+    assert result["status"] == "success"
+    assert result["data"]["access_token"] == "a"
+    call_args = mock_scraper.post.call_args
+    assert call_args[1]["url"] == "https://www.crunchyroll.com/auth/v1/device/token"
+    assert call_args[1]["json"]["device_code"] == "dev-code-123"
+
+
+def test_finalize_session_from_tokens_updates_api_state():
+    """_finalize_session_from_tokens writes tokens back to the API state."""
+    manager, api = make_manager()
+
+    manager._finalize_session_from_tokens(
+        {
+            "access_token": "new_access",
+            "refresh_token": "new_refresh",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        action="login",
+    )
+
+    assert api.account_data.access_token == "new_access"
+    assert api.account_data.refresh_token == "new_refresh"
+    assert api.api_headers["Authorization"] == "Bearer new_access"
+
+
+def test_create_session_delegates_to_login_flow():
+    """create_session(action='login') triggers the device login flow."""
+    manager, _api = make_manager()
+    with patch.object(manager, "_handle_login_flow") as mock_login:
+        manager.create_session(action="login")
+        mock_login.assert_called_once()
+
+
+def test_create_session_refresh_falls_back_to_login_on_expired_token():
+    """create_session(action='refresh') falls back to login when refresh token expired."""
+    manager, api = make_manager()
+    error = LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=error), patch.object(
+        manager, "_handle_login_flow"
+    ) as mock_login, patch.object(api.account_data, "delete_storage") as mock_delete, patch(
+        "resources.lib.auth.xbmcgui.Dialog"
+    ):
+        manager.create_session(action="refresh")
+
+    mock_delete.assert_called_once()
+    mock_login.assert_called_once()

@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from resources.lib.api import API
+from resources.lib.auth import AUTHORIZATION
 from resources.lib.models.account import AccountData
 from resources.lib.models.exceptions import LoginError
 from tests.fixtures.api_responses import (
@@ -32,10 +33,10 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper), patch.object(
-            self.api, "_finalize_session_from_tokens"
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper), patch.object(
+            self.api.auth_manager, "_finalize_session_from_tokens"
         ) as mock_finalize:
-            self.api._handle_refresh_flow()
+            self.api.auth_manager._handle_refresh_flow()
 
             mock_finalize.assert_called_once_with(AUTH_TOKEN_RESPONSE, action="refresh")
 
@@ -48,9 +49,9 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
     def test_device_code_generation(self):
         """Test device code generation"""
@@ -61,36 +62,38 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
-            result = self.api.request_device_code()
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
+            result = self.api.auth_manager.request_device_code()
 
             assert result["user_code"] == DEVICE_CODE_RESPONSE["user_code"]
             assert result["device_code"] == DEVICE_CODE_RESPONSE["device_code"]
 
     def test_device_token_polling_pending(self):
         """Test device token polling returns pending status"""
-        with patch.object(self.api, "_process_device_token_response", return_value={"status": "pending"}), patch.object(
-            self.api, "create_auth_scraper", return_value=Mock()
-        ):
-            result = self.api.poll_device_token("mock_device_code")
+        with patch.object(
+            self.api.auth_manager, "_process_device_token_response", return_value={"status": "pending"}
+        ), patch.object(self.api.auth_manager, "create_auth_scraper", return_value=Mock()):
+            result = self.api.auth_manager.poll_device_token("mock_device_code")
 
             assert result["status"] == "pending"
 
     def test_device_token_polling_success(self):
         """Test successful device token polling"""
         with patch.object(
-            self.api, "_process_device_token_response", return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE}
-        ), patch.object(self.api, "create_auth_scraper", return_value=Mock()):
-            result = self.api.poll_device_token("mock_device_code")
+            self.api.auth_manager,
+            "_process_device_token_response",
+            return_value={"status": "success", "data": AUTH_TOKEN_RESPONSE},
+        ), patch.object(self.api.auth_manager, "create_auth_scraper", return_value=Mock()):
+            result = self.api.auth_manager.poll_device_token("mock_device_code")
 
             assert result["status"] == "success"
             assert "data" in result
 
     def test_cloudscraper_failure_raises_login_error(self):
         """Test that LoginError is raised when cloudscraper initialization fails"""
-        with patch.object(self.api, "create_auth_scraper", return_value=None):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=None):
             with pytest.raises(LoginError):
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
     def test_server_error_handling(self):
         """Test handling of 500 server errors via cloudscraper"""
@@ -102,9 +105,9 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
             with pytest.raises(LoginError):
-                self.api._handle_refresh_flow()
+                self.api.auth_manager._handle_refresh_flow()
 
     def test_authorization_header_device_auth(self):
         """Test correct authorization header for device auth"""
@@ -115,11 +118,11 @@ class TestAPIAuthUnit:
         mock_scraper = Mock()
         mock_scraper.post.return_value = mock_response
 
-        with patch.object(self.api, "create_auth_scraper", return_value=mock_scraper):
-            self.api.request_device_code()
+        with patch.object(self.api.auth_manager, "create_auth_scraper", return_value=mock_scraper):
+            self.api.auth_manager.request_device_code()
 
             call_args = mock_scraper.post.call_args
             headers = call_args[1]["headers"]
 
-            assert headers["Authorization"] == API.AUTHORIZATION
+            assert headers["Authorization"] == AUTHORIZATION
             assert headers["User-Agent"] == API.CRUNCHYROLL_UA

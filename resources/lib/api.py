@@ -23,7 +23,6 @@ from datetime import datetime, timedelta
 import requests
 import xbmc
 
-from ..modules import cloudscraper
 from .auth import AuthManager
 from .http_utils import default_request_headers, get_json_from_response
 from .models.account import AccountData, ProfileData
@@ -38,11 +37,9 @@ class API:
 
     # User Agent - single device-only identity
     CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
-    # Authentication credentials - single device-only identity (AndroidTV for device auth)
-    AUTHORIZATION = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
-    INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
+
     PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
 
     # Authentication endpoints (www) - Required for device code flow with cloudscraper
@@ -116,46 +113,20 @@ class API:
         self.account_data.delete_storage()
         self.profile_data.delete_storage()
 
+    # Auth surface is delegated entirely to ``AuthManager``.  Public auth helpers
+    # stay here for backward compatibility with external callers/tests.
+
     def is_token_valid(self) -> bool:
         return self.auth_manager.is_token_valid()
 
     def create_auth_scraper(self):
-        try:
-            scraper = cloudscraper.create_scraper(
-                delay=10,
-                browser={"custom": self.CRUNCHYROLL_UA},
-            )
-            crunchy_log("CloudScraper initialized for auth endpoints", xbmc.LOGDEBUG)
-            return scraper
-        except Exception as e:
-            crunchy_log(f"CloudScraper initialization failed: {e}", xbmc.LOGDEBUG)
-            return None
+        return self.auth_manager.create_auth_scraper()
 
     def request_device_code(self) -> dict | None:
         return self.auth_manager.request_device_code()
 
     def poll_device_token(self, device_code: str) -> dict:
         return self.auth_manager.poll_device_token(device_code)
-
-    def _handle_login_flow(self) -> None:
-        self.auth_manager._handle_login_flow()
-
-    def _handle_refresh_flow(self) -> None:
-        self.auth_manager._handle_refresh_flow()
-
-    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
-        self.auth_manager._handle_profile_refresh_flow(profile_id)
-
-    def _handle_device_code_flow(self) -> None:
-        self.auth_manager._handle_device_code_flow()
-
-    def _process_device_token_response(self, r) -> dict:
-        return self.auth_manager._process_device_token_response(r)
-
-    def _finalize_session_from_tokens(
-        self, token_response: dict, action: str = "login", profile_id: str | None = None
-    ) -> None:
-        self.auth_manager._finalize_session_from_tokens(token_response, action=action, profile_id=profile_id)
 
     def make_request(
         self,
