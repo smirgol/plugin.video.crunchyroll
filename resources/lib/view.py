@@ -119,7 +119,7 @@ def add_item(
         "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
         "landscape": info.get("landscape", info.get("thumb", 'DefaultFolder.png')),
         "banner": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-        "icon": info.get("thumb", "DefaultFolder.png")
+        "icon": info.get("thumb", "DefaultFolder.png"),
     }
 
     if info.get("clearlogo"):
@@ -134,11 +134,13 @@ def add_item(
             cb(li)
 
     # add item to list
-    xbmcplugin.addDirectoryItem(handle=int(G.args.argv[1]),
-                                url=u,
-                                listitem=li,
-                                isFolder=is_folder,
-                                totalItems=total_items)
+    xbmcplugin.addDirectoryItem(
+        handle=int(G.args.argv[1]),
+        url=u,
+        listitem=li,
+        isFolder=is_folder,
+        totalItems=total_items,
+    )
 
 
 OPT_MARK_ON_WATCHLIST = 1  # highlight title if item is on watchlist
@@ -199,7 +201,7 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
     result_obj = {
         'playheads': {},
         'objects': {},
-        'watchlist': {}
+        'watchlist': {},
     }
     for idx, task in enumerate(tasks_added):
         result_obj[task] = results[idx]
@@ -317,7 +319,7 @@ def add_listables(
         if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
             cm.append((
                 G.args.addon.getLocalizedString(30067),
-                f'RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})'
+                f'RunPlugin({G.args.argv[0]}?mode=add_to_queue&content_id={listable.id})',
             ))
 
         if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and listable.series_id is not None:
@@ -348,7 +350,7 @@ def add_listables(
             handle=int(G.args.argv[1]),
             url=u,
             listitem=list_item,
-            isFolder=is_folder
+            isFolder=is_folder,
         )
 
 

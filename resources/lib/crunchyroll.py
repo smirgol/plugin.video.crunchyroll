@@ -68,7 +68,7 @@ def main(argv):
             f'{G.args.addon_name} INFO',
             'Language settings have changed. Please adjust settings.',
             xbmcgui.NOTIFICATION_INFO,
-            10
+            10,
         )
 
     # handle settings->clear session data
@@ -76,7 +76,7 @@ def main(argv):
         G.api.delete_account_data()
         xbmcgui.Dialog().ok(
             G.args.addon_name,
-            G.args.addon.getLocalizedString(30244)
+            G.args.addon.getLocalizedString(30244),
         )
         return True
 
@@ -190,7 +190,7 @@ def check_mode():
         xbmcgui.Dialog().notification(
             G.args.addon_name,
             G.args.addon.getLocalizedString(30061),
-            xbmcgui.NOTIFICATION_ERROR
+            xbmcgui.NOTIFICATION_ERROR,
         )
         show_main_menu()
 
