@@ -65,7 +65,7 @@ def main(argv):
     # @todo: remove eventually
     if G.args.subtitle is int or G.args.subtitle_fallback is int or re.match("^([0-9]+)$", G.args.subtitle):
         xbmcgui.Dialog().notification(
-            '%s INFO' % G.args.addon_name,
+            f'{G.args.addon_name} INFO',
             'Language settings have changed. Please adjust settings.',
             xbmcgui.NOTIFICATION_INFO,
             10
@@ -185,7 +185,7 @@ def check_mode():
         controller.show_profiles()
     else:
         # unknown mode
-        utils.crunchy_log("Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
+        utils.crunchy_log(f"Failed in check_mode '{str(mode)}'", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             G.args.addon_name,
             G.args.addon.getLocalizedString(30061),

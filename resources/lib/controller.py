@@ -419,7 +419,7 @@ def list_filter_without_category():
             )
         except Exception:
             utils.log_error_with_trace(
-                "Failed to add category name item to list_filter view: %s" % (json.dumps(category_item, indent=4))
+                f"Failed to add category name item to list_filter view: {json.dumps(category_item, indent=4)}"
             )
 
     view.end_of_directory("tvshows")
@@ -526,7 +526,7 @@ def add_to_queue() -> bool:
             error_msg = req.get("error", "Unknown error")
             if 'content.add_watchlist_item_v2.item_already_exists' in error_msg:
                 xbmcgui.Dialog().notification(
-                    '%s Error' % G.args.addon_name,
+                    f'{G.args.addon_name} Error',
                     'Item already in watchlist',
                     xbmcgui.NOTIFICATION_ERROR,
                     3
@@ -538,7 +538,7 @@ def add_to_queue() -> bool:
     except CrunchyrollError as e:
         if 'content.add_watchlist_item_v2.item_already_exists' in str(e):
             xbmcgui.Dialog().notification(
-                '%s Error' % G.args.addon_name,
+                f'{G.args.addon_name} Error',
                 'Item already in watchlist',
                 xbmcgui.NOTIFICATION_ERROR,
                 3
@@ -547,7 +547,7 @@ def add_to_queue() -> bool:
         else:
             utils.log_error_with_trace(f"Failed to add to queue: {e}")
             xbmcgui.Dialog().notification(
-                '%s Error' % G.args.addon_name,
+                f'{G.args.addon_name} Error',
                 'Failed to add item to watchlist',
                 xbmcgui.NOTIFICATION_ERROR,
                 3
@@ -556,7 +556,7 @@ def add_to_queue() -> bool:
     except LoginError as e:
         utils.log_error_with_trace(f"Authentication error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            '%s Error' % G.args.addon_name,
+            f'{G.args.addon_name} Error',
             'Authentication failed - it\'s broken, Jim! :(',
             xbmcgui.NOTIFICATION_ERROR,
             3
@@ -565,7 +565,7 @@ def add_to_queue() -> bool:
     except Exception as e:
         utils.log_error_with_trace(f"Unexpected error adding to queue: {e}")
         xbmcgui.Dialog().notification(
-            '%s Error' % G.args.addon_name,
+            f'{G.args.addon_name} Error',
             'Failed to add item to watchlist',
             xbmcgui.NOTIFICATION_ERROR,
             3
@@ -600,7 +600,7 @@ def add_to_queue() -> bool:
 #         view.add_item({"title": G.args.addon.getLocalizedString(30061)})
 #         view.end_of_directory()
 #         xbmcgui.Dialog().notification(
-#             '%s Error' % G.args.addon_name,
+#             f'{G.args.addon_name} Error',
 #             'Failed to remove item from watchlist',
 #             xbmcgui.NOTIFICATION_ERROR,
 #             3
@@ -655,7 +655,7 @@ def crunchylists_lists():
 def crunchylists_item():
     """ Retrieve all items for a crunchylist """
 
-    utils.crunchy_log("Fetching crunchylist: %s" % G.args.get_arg('crunchylists_item_id'))
+    utils.crunchy_log(f"Fetching crunchylist: {G.args.get_arg('crunchylists_item_id')}")
 
     # api request
     req = G.api.make_request(

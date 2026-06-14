@@ -322,7 +322,7 @@ class VideoStream(Object):
         crunchy_log("Using AndroidTV streaming endpoint")
 
         stream_url = stream_endpoint.format(G.args.get_arg('episode_id'))
-        crunchy_log("Stream URL: %s" % stream_url)
+        crunchy_log(f"Stream URL: {stream_url}")
         crunchy_log(f"Current API User-Agent: {G.api.CRUNCHYROLL_UA}")
         crunchy_log(f"Current API Headers User-Agent: {G.api.api_headers.get('User-Agent', 'Unknown')}", xbmc.LOGDEBUG)
 
@@ -419,7 +419,7 @@ class VideoStream(Object):
         except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
             raise CrunchyrollError(
-                "Failed to download subtitle for language %s from url %s" % (subtitle_language, subtitle_url)
+                f"Failed to download subtitle for language {subtitle_language} from url {subtitle_url}"
             ) from e
 
         if not subtitles_req.get('data', None):
@@ -479,7 +479,7 @@ class VideoStream(Object):
         for cache_dir in dirs:
             mtime = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(cache_base_dir, cache_dir)))
             if mtime < expires:
-                crunchy_log("Cache dir %s is older than 7 days - removing" % os.path.join(cache_base_dir, cache_dir))
+                crunchy_log(f"Cache dir {os.path.join(cache_base_dir, cache_dir)} is older than 7 days - removing")
                 xbmcvfs.rmdir(os.path.join(cache_base_dir, cache_dir) + '/', force=True)
 
         return True
@@ -521,7 +521,7 @@ class VideoStream(Object):
             return None
 
         try:
-            crunchy_log("Requesting skip data from %s" % G.api.SKIP_EVENTS_ENDPOINT.format(episode_id))
+            crunchy_log(f"Requesting skip data from {G.api.SKIP_EVENTS_ENDPOINT.format(episode_id)}")
 
             # api request streams
             req = G.api.make_unauthenticated_request(
@@ -560,9 +560,9 @@ class VideoStream(Object):
                 prepared.update({
                     skip_type: dict(start=req.get(skip_type).get('start'), end=req.get(skip_type).get('end'))
                 })
-                crunchy_log("_get_skip_events: check for %s PASSED" % skip_type, xbmc.LOGINFO)
+                crunchy_log(f"_get_skip_events: check for {skip_type} PASSED", xbmc.LOGINFO)
             else:
-                crunchy_log("_get_skip_events: check for %s FAILED" % skip_type, xbmc.LOGINFO)
+                crunchy_log(f"_get_skip_events: check for {skip_type} FAILED", xbmc.LOGINFO)
 
         if G.args.addon.getSetting("enable_skip_intro") != "true" and prepared.get('intro'):
             prepared.pop('intro', None)

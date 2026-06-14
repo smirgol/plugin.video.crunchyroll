@@ -26,7 +26,7 @@ _addon = xbmcaddon.Addon(id=re.sub(r"^plugin://([^/]+)/.*$", r"\1", sys.argv[0])
 _plugin = _addon.getAddonInfo("name")
 _version = _addon.getAddonInfo("version")
 
-xbmc.log("[PLUGIN] %s: version %s initialized" % (_plugin, _version))
+xbmc.log(f"[PLUGIN] {_plugin}: version {_version} initialized")
 
 if __name__ == "__main__":
     from resources.lib import crunchyroll
