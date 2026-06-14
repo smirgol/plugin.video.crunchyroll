@@ -7,12 +7,22 @@ Unit and integration tests for the Crunchyroll Kodi plugin.
 ### Install Dependencies
 
 ```bash
-uv sync
+uv sync --extra test --extra dev
 ```
 
-Test tooling (pytest, python-dotenv, ...) lives in the optional `test` extra.
-`uv run pytest` pulls it in automatically; standalone scripts need it
-explicitly via `uv run --extra test python ...`.
+Dependencies are split into optional extras in `pyproject.toml`:
+
+- `test` - pytest, python-dotenv, requests-mock, ... (running the test suite)
+- `dev` - ruff (linting/formatting)
+
+`uv sync --extra test --extra dev` materialises a `.venv` with everything pinned
+by `uv.lock`. `uv run pytest` also pulls in the `test` extra automatically;
+standalone scripts need it explicitly via `uv run --extra test python ...`.
+
+`pyproject.toml` and `uv.lock` are committed (like `composer.json` /
+`composer.lock`) so the test and lint environment is reproducible. They are dev
+tooling only - the shipped Kodi addon resolves its runtime imports via
+`addon.xml`, not via `pyproject.toml`.
 
 ### Run Unit Tests
 
@@ -28,6 +38,23 @@ Unit tests run against captured fixtures (`tests/fixtures/captured_responses.jso
 and mocked HTTP. They do not hit the network. If you switched API endpoints,
 re-capture the fixtures first (see below) so the unit tests validate against
 real response shapes.
+
+## Linting
+
+Linting and formatting use [Ruff](https://docs.astral.sh/ruff/). Config lives in
+`pyproject.toml` under `[tool.ruff]` (line length 120, rule sets E/F/W/I/UP/B,
+`resources/modules` excluded as vendored third-party code).
+
+```bash
+# Report issues
+uv run ruff check .
+
+# Auto-fix the safe subset
+uv run ruff check --fix .
+
+# Format
+uv run ruff format .
+```
 
 ## Credentials Setup
 
@@ -110,7 +137,8 @@ tests/
 │   ├── test_api_content.py
 │   ├── test_api_streaming.py
 │   ├── test_api_exception_handling.py
-│   └── test_model_mapping.py
+│   ├── test_model_mapping.py
+│   └── test_get_listables.py  # Type detection + DTO mapping (content/v2)
 │
 ├── integration/             # Integration tests (real API)
 │   ├── test_auth_flow.py
@@ -128,14 +156,29 @@ tests/
 ### API Response Structure
 
 ```python
-# Browse, Search, Seasons, Episodes, Watchlist use "items"
+# Legacy beta-api endpoints (Browse, Search, Watchlist) use "items"
 data = api.make_request("GET", api.BROWSE_ENDPOINT)
 assert "items" in data
 
-# ONLY History uses "data"
+# Migrated content/v2 endpoints (Seasons, Episodes) and History use "data"
 data = api.make_request("GET", api.HISTORY_ENDPOINT)
 assert "data" in data
 ```
+
+### Type Detection / DTO Mapping
+
+`utils.get_listables_from_response()` maps API items to DTOs. Mixed lists
+(browse/search/watchlist) carry a type identifier per item (`panel.type` /
+`type` / `__class__`). The migrated content/v2 endpoints (seasons, episodes) no
+longer carry one, so the caller passes the known type explicitly:
+
+```python
+get_listables_from_response(req.get('data') or req.get('items'),
+                            item_type_hint='season')
+```
+
+Detection order: per-item type first, `item_type_hint` as fallback. See
+`test_get_listables.py`.
 
 ### make_request() Returns JSON Directly
 

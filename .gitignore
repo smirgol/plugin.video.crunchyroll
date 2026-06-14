@@ -1,8 +1,6 @@
 Thumbs.db
 *.pyo
 __pycache__
-pyproject.toml
-uv.lock
 /.idea/*
 api-new/
 /docs/
