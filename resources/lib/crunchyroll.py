@@ -140,7 +140,7 @@ def show_main_menu(ctx):
         {
             "title": ctx.args.addon.getLocalizedString(30072) % str(ctx.api.profile_data.profile_name),
             "mode": "profiles_list",
-            "thumb": get_img_from_static(ctx.api.profile_data.avatar),
+            "thumb": get_img_from_static(ctx.api.profile_data.avatar, ctx.api),
         },
     )
     view.end_of_directory(ctx, update_listing=True, cache_to_disc=False)

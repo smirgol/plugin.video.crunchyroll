@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import xbmcgui
 import xbmcplugin
@@ -32,6 +32,10 @@ from resources.lib.models.content import EpisodeData, SeasonData, SeriesData
 from . import presentation, router
 from .context import PluginContext
 from .utils.formatting import format_short_episode_title
+
+if TYPE_CHECKING:
+    from .api import API
+    from .models.args import Args
 
 # Fix for bug in old python version on windows
 # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/44
@@ -154,7 +158,7 @@ OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 
 # actually not sure if this works, as the requests lib is not async
 # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
-async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[str, Any]]:
+async def complement_listables(listables: list[ListableItem], api: API, args: Args) -> dict[str, dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
     from .utils.api_data import (
         get_cms_object_data_by_ids,
@@ -185,16 +189,16 @@ async def complement_listables(listables: list[ListableItem]) -> dict[str, dict[
     tasks_added = []
     tasks = []
     if ids_playhead:
-        tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead)))
+        tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead, api, args)))
         tasks_added.append("playheads")
     # @todo: for some reason objects endpoint stopped to deliver anything but thumbs in terms of images,
     #        but the sole reason for calling it are the additional images...
     #        for now we use the objects to fetch the series data only, to fetch its images and its rating
     if ids_objects:
-        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects)))
+        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects, api, args)))
         tasks_added.append("objects")
     if ids_watchlist:
-        tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist)))
+        tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist, api, args)))
         tasks_added.append("watchlist")
 
     # start async requests and fetch results
@@ -303,7 +307,7 @@ def add_listables(
     args = ctx.args
 
     crunchy_log("add_listables: Starting to retrieve data async", addon=args.addon)
-    complement_data = asyncio.run(complement_listables(listables))
+    complement_data = asyncio.run(complement_listables(listables, ctx.api, ctx.args))
     crunchy_log("add_listables: Finished to retrieve data async", addon=args.addon)
 
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
