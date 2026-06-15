@@ -26,7 +26,11 @@ Import ordering rule: this module may import from ``controller`` and
 circular imports.
 """
 
+import xbmc
+import xbmcgui
+
 from . import controller
+from .utils.logging import crunchy_log
 
 # Disabled modes that were once exposed in the menu but have no backend support
 # at the moment. Kept here so they do not accidentally get re-registered.
@@ -40,9 +44,28 @@ DEPRECATED_MODES = [
 
 
 def check_mode(ctx):
-    """Run mode-specific functions."""
+    """Run mode-specific functions.
+
+    A missing mode (top-level entry) silently shows the main menu.  A mode that
+    is set but not registered is treated as an error: it is logged and the user
+    is notified before falling back to the main menu, matching the original
+    ``check_mode`` behaviour.
+    """
     mode = derive_mode_from_args(ctx.args)
-    handler = MODE_REGISTRY.get(mode, show_main_menu)
+
+    if not mode:
+        return show_main_menu(ctx)
+
+    handler = MODE_REGISTRY.get(mode)
+    if handler is None:
+        crunchy_log(f"Failed in check_mode '{str(mode)}'", xbmc.LOGERROR, addon=ctx.args.addon)
+        xbmcgui.Dialog().notification(
+            ctx.args.addon_name,
+            ctx.args.addon.getLocalizedString(30061),
+            xbmcgui.NOTIFICATION_ERROR,
+        )
+        return show_main_menu(ctx)
+
     return handler(ctx)
 
 

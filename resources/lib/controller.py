@@ -566,41 +566,6 @@ def add_to_queue(ctx) -> bool:
     return True
 
 
-# NOTE: be super careful when moving the content_id to json or params. it might delete the whole playlist! *sadpanda*
-# def remove_from_queue():
-#     # we absolutely need a content_id, otherwise it will delete the whole playlist!
-#     if not G.args.content_id:
-#         return False
-#
-#     # api request
-#     req = G.api.make_request(
-#         method="DELETE",
-#         url=G.api.WATCHLIST_REMOVE_ENDPOINT.format(
-#             G.api.account_data.account_id, G.args.content_id, G.args.content_id),
-#     )
-#
-#     # check for error - probably does not work
-#     if req and "error" in req:
-#         view.add_item(ctx,{"title": G.args.addon.getLocalizedString(30061)})
-#         view.end_of_directory(ctx,)
-#         xbmcgui.Dialog().notification(
-#             f'{G.args.addon_name} Error',
-#             'Failed to remove item from watchlist',
-#             xbmcgui.NOTIFICATION_ERROR,
-#             3
-#         )
-#         return False
-#
-#     xbmcgui.Dialog().notification(
-#         '%s Success' % G.args.addon_name,
-#         'Item removed from watchlist',
-#         xbmcgui.NOTIFICATION_INFO,
-#         2
-#     )
-#
-#     return True
-
-
 def crunchylists_lists(ctx):
     """Retrieve all crunchylists"""
 
