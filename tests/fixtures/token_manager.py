@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 from resources.lib.api import API
+from resources.lib.auth import AUTHORIZATION, TOKEN_ENDPOINT
 
 # Add resources/modules to path for cloudscraper
 project_root = Path(__file__).parent.parent.parent
@@ -18,11 +19,12 @@ if str(modules_path) not in sys.path:
 class TokenManager:
     """Manages access token with automatic refresh for integration tests"""
 
-    # Reuse the production constants from api.py so there is a single source
-    # of truth. The AUTHORIZATION client credential rotates every few weeks;
-    # renew it in api.py and the tests pick it up automatically.
-    TOKEN_ENDPOINT = API.TOKEN_ENDPOINT
-    AUTHORIZATION = API.AUTHORIZATION
+    # Reuse the production constants so there is a single source of truth.
+    # The auth constants (TOKEN_ENDPOINT, AUTHORIZATION) live in auth.py; the
+    # AUTHORIZATION client credential rotates every few weeks - renew it in
+    # auth.py and the tests pick it up automatically. CRUNCHYROLL_UA stays on API.
+    TOKEN_ENDPOINT = TOKEN_ENDPOINT
+    AUTHORIZATION = AUTHORIZATION
     USER_AGENT = API.CRUNCHYROLL_UA
 
     def __init__(self, refresh_token: str, device_id: str):
