@@ -23,7 +23,7 @@ from requests import HTTPError, Response
 
 from .models.exceptions import CrunchyrollError, LoginError
 
-CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
+CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.65.0_22347 (Android 14; en-US; Chromecast)"
 
 
 def default_request_headers() -> dict:

@@ -39,7 +39,7 @@ class API:
     """
 
     # User Agent - single device-only identity
-    CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
+    CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.65.0_22347 (Android 14; en-US; Chromecast)"
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility.
     # Session-bootstrap endpoints are owned by auth.py (single source of truth)
