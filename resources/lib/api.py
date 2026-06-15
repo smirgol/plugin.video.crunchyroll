@@ -44,7 +44,7 @@ class API:
     # User Agents - Different clients for different purposes
     # @todo: remove legacy and mobile auth
     CRUNCHYROLL_UA = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Legacy UA
-    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"  # For device auth
+    CRUNCHYROLL_UA_DEVICE = "Crunchyroll/ANDROIDTV/3.65.0_22347 (Android 14; en-US; Chromecast)"  # For device auth
     CRUNCHYROLL_UA_MOBILE = "Crunchyroll/3.99.1 Android/14 Ktor http-client"  # Mobile fallback
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
@@ -87,7 +87,7 @@ class API:
     CRUNCHYLISTS_VIEW_ENDPOINT = "https://beta-api.crunchyroll.com/content/v2/{}/custom-lists/{}"
 
     # Authentication credentials - Multiple client types for different purposes
-    AUTHORIZATION_DEVICE = "Basic bm1oaGcwbDZ4eXhjZm02aHQ2aGY6SjR6bU1mdjNkMVFkWHk4dDk2d1NjeDdoUnkzclBHLTM="  # AndroidTV for device auth
+    AUTHORIZATION_DEVICE = "Basic cmpzMGx0eDBkYndrbGl3eGR6ZGY6NFY3cmYyMS1VRlhlWi01WEFkMFhfUVB3cjFndV9pMXM="  # AndroidTV for device auth
     AUTHORIZATION_MOBILE = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Mobile fallback
     AUTHORIZATION_LEGACY = "Basic Ymk1aXg3ZzR5ZTF1d216anJvbGg6VUNyaG02S2Z4bXlCMi1iNmkwdXRRMmNRWXN4RGhoLWE="  # Legacy compatibility
 
