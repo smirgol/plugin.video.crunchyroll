@@ -23,7 +23,7 @@ import requests
 import xbmc
 
 from .auth import INDEX_ENDPOINT, PROFILE_ENDPOINT, PROFILES_LIST_ENDPOINT, AuthManager
-from .http_utils import default_request_headers, get_json_from_response
+from .http_utils import CRUNCHYROLL_UA, default_request_headers, get_json_from_response
 from .models.account import AccountData, ProfileData
 from .models.exceptions import CrunchyrollError, LoginError
 from .utils.datetime import date_to_str, get_date
@@ -38,8 +38,8 @@ class API:
     compatibility with callers that expect ``api.is_token_valid()`` etc.
     """
 
-    # User Agent - single device-only identity
-    CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.65.0_22347 (Android 14; en-US; Chromecast)"
+    # User Agent - single source of truth lives in http_utils
+    CRUNCHYROLL_UA = CRUNCHYROLL_UA
 
     # Content endpoints (beta-api) - Keep existing for cross-domain compatibility.
     # Session-bootstrap endpoints are owned by auth.py (single source of truth)
