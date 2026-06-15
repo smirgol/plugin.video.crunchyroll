@@ -1,8 +1,8 @@
 """Tests for the extracted CloudflareProxy in resources/lib/proxy.py."""
 
-import http.server
-import socketserver
-from unittest.mock import MagicMock
+import urllib.error
+import urllib.request
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -110,38 +110,60 @@ def test_proxy_restart_resets_server(proxy):
     proxy.stop()
 
 
-def test_proxy_handler_reads_credentials_from_owner():
-    """The nested ProxyHandler reads user_agent and auth_token from the owner instance."""
-    owner = MagicMock()
-    owner.user_agent = "OwnerAgent"
-    owner.auth_token = "owner-token"
-    owner.token_type = "Basic"
+def test_proxy_handler_forwards_with_injected_credentials():
+    """The real ProxyHandler.do_GET fetches upstream using the injected credentials.
 
-    # Build a fake TCP server whose .owner points to our mock.
-    class FakeServer(socketserver.TCPServer):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.owner = owner
+    This drives the actual nested handler over a live HTTP request rather than a
+    replica, so the production Authorization/User-Agent header construction is
+    exercised end to end.
+    """
+    upstream_url = "https://www.crunchyroll.com/manifest.mpd"
 
-    class FakeHandler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            # Replicate the exact credential-read pattern from the real ProxyHandler
-            self.user_agent = self.server.owner.user_agent
-            self.auth_token = self.server.owner.auth_token
-            self.token_type = self.server.owner.token_type
-            self.send_response(200)
-            self.end_headers()
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.status_code = 200
+    mock_response.content = b"<manifest/>"
+    mock_response.headers = {"Content-Type": "application/dash+xml"}
 
-        def log_message(self, fmt, *args):
-            pass
+    mock_scraper = MagicMock()
+    mock_scraper.get.return_value = mock_response
 
-    server = FakeServer(("127.0.0.1", 0), FakeHandler)
+    proxy = CloudflareProxy(
+        user_agent="TestAgent/1.0",
+        auth_token="secret-token",
+        token_type="Bearer",
+        ttl_seconds=5,
+    )
+
+    with patch("resources.lib.proxy.cloudscraper.create_scraper", return_value=mock_scraper):
+        proxied_url = proxy.get_proxied_url(upstream_url)
+        try:
+            with urllib.request.urlopen(proxied_url, timeout=5) as resp:
+                body = resp.read()
+                assert resp.status == 200
+                assert body == b"<manifest/>"
+        finally:
+            proxy.stop()
+
+    # The handler must call upstream with the originally requested URL ...
+    args, kwargs = mock_scraper.get.call_args
+    assert args[0] == upstream_url
+    # ... and headers built from the injected credentials, not any global state.
+    headers = kwargs["headers"]
+    assert headers["Authorization"] == "Bearer secret-token"
+    assert headers["User-Agent"] == "TestAgent/1.0"
+
+
+def test_proxy_handler_returns_404_for_unknown_path():
+    """The real handler rejects paths that are not the /proxy?url= route."""
+    proxy = CloudflareProxy(user_agent="A", auth_token="B", ttl_seconds=5)
+    proxy._start_server()
     try:
-        assert server.owner.user_agent == "OwnerAgent"
-        assert server.owner.auth_token == "owner-token"
-        assert server.owner.token_type == "Basic"
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(f"http://127.0.0.1:{proxy.port}/nope", timeout=5)
+        assert exc_info.value.code == 404
     finally:
-        server.server_close()
+        proxy.stop()
 
 
 def test_proxy_uses_injected_credentials_not_globals():

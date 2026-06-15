@@ -95,9 +95,15 @@ def test_derive_mode_from_args_no_args(ctx):
     assert derive_mode_from_args(ctx.args) is None
 
 
+@patch("resources.lib.modes.xbmcgui")
+@patch("resources.lib.modes.crunchy_log")
 @patch("resources.lib.modes.show_main_menu")
-def test_check_mode_unknown_falls_back_to_main_menu(mock_show_main_menu, ctx):
-    """An unknown mode routes to show_main_menu."""
+def test_check_mode_unknown_logs_error_and_notifies(mock_show_main_menu, mock_crunchy_log, mock_xbmcgui, ctx):
+    """An unknown (but set) mode logs an error, notifies the user, then shows the main menu.
+
+    Mirrors the original check_mode behaviour where a set-but-unrecognised mode
+    is an error condition, distinct from a missing mode.
+    """
     ctx.args.get_arg.side_effect = lambda key, default=None, _cast=None: {
         "mode": "not_a_real_mode",
         "id": None,
@@ -106,12 +112,16 @@ def test_check_mode_unknown_falls_back_to_main_menu(mock_show_main_menu, ctx):
 
     check_mode(ctx)
 
+    mock_crunchy_log.assert_called_once()
+    mock_xbmcgui.Dialog.return_value.notification.assert_called_once()
     mock_show_main_menu.assert_called_once_with(ctx)
 
 
+@patch("resources.lib.modes.xbmcgui")
+@patch("resources.lib.modes.crunchy_log")
 @patch("resources.lib.modes.show_main_menu")
-def test_check_mode_no_mode_routes_to_main_menu(mock_show_main_menu, ctx):
-    """Missing mode routes to show_main_menu."""
+def test_check_mode_no_mode_routes_silently_to_main_menu(mock_show_main_menu, mock_crunchy_log, mock_xbmcgui, ctx):
+    """A missing mode silently shows the main menu without logging or notifying."""
     ctx.args.get_arg.side_effect = lambda key, default=None, _cast=None: {
         "mode": None,
         "id": None,
@@ -120,6 +130,8 @@ def test_check_mode_no_mode_routes_to_main_menu(mock_show_main_menu, ctx):
 
     check_mode(ctx)
 
+    mock_crunchy_log.assert_not_called()
+    mock_xbmcgui.Dialog.return_value.notification.assert_not_called()
     mock_show_main_menu.assert_called_once_with(ctx)
 
 

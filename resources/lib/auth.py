@@ -171,6 +171,15 @@ class AuthManager:
             crunchy_log(f"Device code authentication failed: {e}", xbmc.LOGERROR)
             raise
 
+    def refresh_session(self) -> None:
+        """Public entry point for a bare token refresh.
+
+        Unlike ``create_session(action="refresh")`` this performs only the
+        refresh attempt without the device-code fallback, for callers that want
+        to retry an expired access token in place (e.g. before a scraper call).
+        """
+        return self._handle_refresh_flow()
+
     def _handle_refresh_flow(self) -> None:
         """Handle token refresh using existing refresh token"""
         if not self.api.account_data.refresh_token:

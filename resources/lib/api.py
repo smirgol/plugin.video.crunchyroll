@@ -22,7 +22,7 @@ from datetime import timedelta
 import requests
 import xbmc
 
-from .auth import AuthManager
+from .auth import INDEX_ENDPOINT, PROFILE_ENDPOINT, PROFILES_LIST_ENDPOINT, AuthManager
 from .http_utils import default_request_headers, get_json_from_response
 from .models.account import AccountData, ProfileData
 from .models.exceptions import CrunchyrollError, LoginError
@@ -41,10 +41,12 @@ class API:
     # User Agent - single device-only identity
     CRUNCHYROLL_UA = "Crunchyroll/ANDROIDTV/3.61.0_22341 (Android 14; en-US; Chromecast)"
 
-    # Content endpoints (beta-api) - Keep existing for cross-domain compatibility
-    INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
-    PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
-    PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
+    # Content endpoints (beta-api) - Keep existing for cross-domain compatibility.
+    # Session-bootstrap endpoints are owned by auth.py (single source of truth)
+    # and re-exposed here for backward-compatible ``api.INDEX_ENDPOINT`` access.
+    INDEX_ENDPOINT = INDEX_ENDPOINT
+    PROFILE_ENDPOINT = PROFILE_ENDPOINT
+    PROFILES_LIST_ENDPOINT = PROFILES_LIST_ENDPOINT
     SEARCH_ENDPOINT = "https://beta-api.crunchyroll.com/content/v1/search"
     STREAMS_ENDPOINT = "https://beta-api.crunchyroll.com/cms/v2{}/videos/{}/streams"
     STREAMS_ENDPOINT_DRM_ANDROID_TV = "https://www.crunchyroll.com/playback/v2/{}/tv/android_tv/play"
@@ -248,7 +250,7 @@ class API:
                     f"Token refresh before scraper request (attempt {self.refresh_attempts}/3)",
                     xbmc.LOGINFO,
                 )
-                self.auth_manager._handle_refresh_flow()
+                self.auth_manager.refresh_session()
 
         if self.account_data:
             params.update(
