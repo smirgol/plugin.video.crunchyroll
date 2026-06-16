@@ -165,7 +165,7 @@ async def complement_listables(listables: list[ListableItem], api: API, args: Ar
         get_playheads_from_api,
         get_watchlist_status_from_api,
     )
-    from .utils.images import get_img_from_struct, infer_img_from_id
+    from .utils.images import ImageType, get_img_from_struct, infer_img_from_id
 
     # playheads
     ids_playhead = [
@@ -231,16 +231,16 @@ async def complement_listables(listables: list[ListableItem], api: API, args: Ar
             series_data = result_obj.get("objects").get(listable.series_id)
             series_id = series_data.get("id") if series_data else None
 
-            listable.thumb = get_img_from_struct(series_data, "poster_wide", 2) or listable.thumb
-            listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
+            listable.thumb = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.thumb
+            listable.landscape = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.landscape
             listable.fanart = (
-                infer_img_from_id(series_id, "backdrop_wide")
-                or get_img_from_struct(series_data, "poster_wide", 2)
+                infer_img_from_id(series_id, ImageType.BACKDROP_WIDE)
+                or get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2)
                 or listable.fanart
             )
-            listable.clearlogo = infer_img_from_id(series_id, "title_logo") or listable.clearlogo
-            listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
-            listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster
+            listable.clearlogo = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearlogo
+            listable.clearart = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearart
+            listable.poster = get_img_from_struct(series_data, ImageType.POSTER_TALL, 2) or listable.poster
 
         elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get("objects"):
             # for episodes, only thumb is provided, so we can use it
@@ -249,15 +249,15 @@ async def complement_listables(listables: list[ListableItem], api: API, args: Ar
             series_data = result_obj.get("objects").get(listable.series_id)
             series_id = series_data.get("id") if series_data else None
 
-            listable.landscape = get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape
+            listable.landscape = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.landscape
             listable.fanart = (
-                infer_img_from_id(series_id, "backdrop_wide")
-                or get_img_from_struct(series_data, "poster_wide", 2)
+                infer_img_from_id(series_id, ImageType.BACKDROP_WIDE)
+                or get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2)
                 or listable.fanart
             )
-            listable.clearlogo = infer_img_from_id(series_id, "title_logo") or listable.clearlogo
-            listable.clearart = infer_img_from_id(series_id, "title_logo") or listable.clearart
-            listable.poster = get_img_from_struct(series_data, "poster_tall", 2) or listable.poster
+            listable.clearlogo = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearlogo
+            listable.clearart = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearart
+            listable.poster = get_img_from_struct(series_data, ImageType.POSTER_TALL, 2) or listable.poster
 
         if (
             listable.id in result_obj.get("objects")
