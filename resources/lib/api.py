@@ -83,9 +83,6 @@ class API:
 
     LICENSE_ENDPOINT = "https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine"
 
-    STATIC_IMG_PROFILE = "https://static.crunchyroll.com/assets/avatar/170x170/"
-    STATIC_WALLPAPER_PROFILE = "https://static.crunchyroll.com/assets/wallpaper/720x180/"
-
     def __init__(self, locale: str = "en-US", args=None) -> None:
         self.http = requests.Session()
         self.locale: str = locale

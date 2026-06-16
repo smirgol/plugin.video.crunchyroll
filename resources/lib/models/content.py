@@ -25,6 +25,7 @@ class SeriesData(ListableItem):
     def __init__(self, data: dict):
         super().__init__()
         from .. import utils
+        from ..utils.images import ImageType
 
         panel = data.get("panel") or data
         meta = panel.get("series_metadata") or panel
@@ -43,12 +44,12 @@ class SeriesData(ListableItem):
         self.episode: int = meta.get("episode_count")
         self.season: int = meta.get("season_count")
 
-        self.thumb: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
-        self.landscape: str | None = utils.get_img_from_struct(panel, "poster_wide", 2)
-        self.fanart: str | None = utils.infer_img_from_id(self.id, "backdrop_wide")
-        self.clearlogo: str | None = utils.infer_img_from_id(self.id, "title_logo")
-        self.clearart: str | None = utils.infer_img_from_id(self.id, "title_logo")
-        self.poster: str | None = utils.get_img_from_struct(panel, "poster_tall", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, ImageType.POSTER_WIDE, 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, ImageType.POSTER_WIDE, 2)
+        self.fanart: str | None = utils.infer_img_from_id(self.id, ImageType.BACKDROP_WIDE)
+        self.clearlogo: str | None = utils.infer_img_from_id(self.id, ImageType.TITLE_LOGO)
+        self.clearart: str | None = utils.infer_img_from_id(self.id, ImageType.TITLE_LOGO)
+        self.poster: str | None = utils.get_img_from_struct(panel, ImageType.POSTER_TALL, 2)
         self.banner: str | None = None
         self.rating: int = 0
         self.playcount: int = 0
@@ -142,6 +143,7 @@ class EpisodeData(PlayableItem):
     def __init__(self, data: dict):
         super().__init__()
         from .. import utils
+        from ..utils.images import ImageType
 
         panel = data.get("panel") or data
         meta = panel.get("episode_metadata") or panel
@@ -164,9 +166,9 @@ class EpisodeData(PlayableItem):
         self.year: str = meta.get("episode_air_date")[:4] if meta.get("episode_air_date") is not None else ""
         self.aired: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
         self.premiered: str = meta.get("episode_air_date")[:10] if meta.get("episode_air_date") is not None else ""
-        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
-        self.landscape: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
         self.poster: str | None = None
         self.banner: str | None = None
         self.clearlogo: str | None = None
@@ -210,6 +212,7 @@ class MovieData(PlayableItem):
     def __init__(self, data: dict):
         super().__init__()
         from .. import utils
+        from ..utils.images import ImageType
 
         panel = data.get("panel") or data
         meta = panel.get("movie_metadata") or panel
@@ -236,9 +239,9 @@ class MovieData(PlayableItem):
         self.premiered: str = (
             meta.get("premium_available_date")[:10] if meta.get("premium_available_date") is not None else ""
         )
-        self.thumb: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
-        self.landscape: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
-        self.fanart: str | None = utils.get_img_from_struct(panel, "thumbnail", 2)
+        self.thumb: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
+        self.landscape: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
+        self.fanart: str | None = utils.get_img_from_struct(panel, ImageType.THUMBNAIL, 2)
         self.poster: str | None = None
         self.banner: str | None = None
         self.clearlogo: str | None = None

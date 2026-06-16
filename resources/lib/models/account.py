@@ -8,7 +8,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import xbmcgui
+
+if TYPE_CHECKING:
+    import xbmcaddon
 
 from .base import Cacheable, ListableItem, Object
 
@@ -82,19 +87,25 @@ class ProfileData(ListableItem, Cacheable):
             "mode": "profiles_list_with_id",
         }
 
-    def to_item(self) -> xbmcgui.ListItem:
-        """Convert ourselves to a Kodi ListItem"""
+    def to_item(self, addon: xbmcaddon.Addon | None = None) -> xbmcgui.ListItem:
+        """Convert ourselves to a Kodi ListItem.
+
+        Accepts the optional `addon` argument defined by the ListableItem base
+        class so callers such as controller.show_profiles can pass ctx.args.addon
+        without raising TypeError.
+        """
 
         from .. import utils
+        from ..utils.images import ImageType
 
         li = xbmcgui.ListItem(label=self.profile_name, label2=self.username)
         li.setArt(
             {
-                "thumb": utils.get_img_from_static(self.avatar),
-                "fanart": utils.get_img_from_static(self.avatar),
-                "poster": utils.get_img_from_static(self.avatar),
-                # 'fanart': utils.get_img_from_static(self.wallpaper, "wallpaper"),
-                # 'poster': utils.get_img_from_static(self.wallpaper, "wallpaper")
+                "thumb": utils.get_img_from_static(self.avatar, ImageType.NORMAL),
+                "fanart": utils.get_img_from_static(self.avatar, ImageType.NORMAL),
+                "poster": utils.get_img_from_static(self.avatar, ImageType.NORMAL),
+                # 'fanart': utils.get_img_from_static(self.wallpaper, ImageType.WALLPAPER),
+                # 'poster': utils.get_img_from_static(self.wallpaper, ImageType.WALLPAPER)
             }
         )
 

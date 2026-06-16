@@ -192,30 +192,35 @@ class TestFormatting:
 
 
 class TestImages:
-    def test_get_img_from_static_normal(self, mock_utils_api):
-        assert images.get_img_from_static("poster.jpg", api=mock_utils_api) == "https://static/img/poster.jpg"
+    def test_get_img_from_static_normal(self):
+        assert images.get_img_from_static("poster.jpg") == images.STATIC_IMG_PROFILE + "poster.jpg"
 
-    def test_get_img_from_static_wallpaper(self, mock_utils_api):
-        assert images.get_img_from_static("bg.jpg", image_type="wallpaper", api=mock_utils_api) == "https://static/wallpaper/bg.jpg"
+    def test_get_img_from_static_wallpaper(self):
+        result = images.get_img_from_static("bg.jpg", image_type=images.ImageType.WALLPAPER)
+        assert result == images.STATIC_WALLPAPER_PROFILE + "bg.jpg"
 
     def test_get_img_from_static_none(self):
-        assert images.get_img_from_static(None, api=MagicMock()) is None
+        assert images.get_img_from_static(None) is None
 
     def test_get_img_from_struct_extracts_source(self):
         item = {"images": {"poster_tall": [{"source": "https://img/1"}]}}
-        assert images.get_img_from_struct(item, "poster_tall", depth=1) == "https://img/1"
+        assert images.get_img_from_struct(item, images.ImageType.POSTER_TALL, depth=1) == "https://img/1"
 
     def test_get_img_from_struct_missing(self):
-        assert images.get_img_from_struct({}, "poster_tall") is None
+        assert images.get_img_from_struct({}, images.ImageType.POSTER_TALL) is None
 
     def test_infer_img_from_id_backdrop(self):
-        assert images.infer_img_from_id("GQWH0M1J3", "backdrop_wide").startswith("https://imgsrv.crunchyroll.com/")
+        result = images.infer_img_from_id("GQWH0M1J3", images.ImageType.BACKDROP_WIDE)
+        assert result is not None
+        assert result.startswith("https://imgsrv.crunchyroll.com/")
 
     def test_infer_img_from_id_title_logo(self):
-        assert images.infer_img_from_id("GQWH0M1J3", "title_logo").endswith("/keyart/GQWH0M1J3-title_logo-en-us")
+        result = images.infer_img_from_id("GQWH0M1J3", images.ImageType.TITLE_LOGO)
+        assert result is not None
+        assert result.endswith("/keyart/GQWH0M1J3-title_logo-en-us")
 
     def test_infer_img_from_id_invalid_type(self):
-        assert images.infer_img_from_id("GQWH0M1J3", "unknown") is None
+        assert images.infer_img_from_id("GQWH0M1J3", images.ImageType.NORMAL) is None
 
 
 class TestApiDataHelpers:
