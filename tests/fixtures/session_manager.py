@@ -12,9 +12,11 @@ def cloudscraper_session():
     """
     try:
         import cloudscraper
+
         scraper = cloudscraper.create_scraper()
     except ImportError:
         import requests
+
         scraper = requests.Session()
 
     yield scraper

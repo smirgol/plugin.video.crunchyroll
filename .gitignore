@@ -1,12 +1,10 @@
 Thumbs.db
 *.pyo
 __pycache__
-pyproject.toml
-uv.lock
 /.idea/*
 api-new/
 /docs/
 /tools/
 /tests/.env
-/tests/fixtures/captured_responses.json
+/tests/fixtures/captured_responses*
 /.coverage

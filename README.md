@@ -143,16 +143,19 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 ### Recent Changes
 
 #### Version 2.0.0+ (Device Authentication Update)
-- **🔐 New Authentication System**: Switched from email/password to secure device authentication
+- **🔐 Device-Only Authentication**: Removed legacy email/password and mobile auth code paths; only device code flow remains.
 - **📱 Device Code Flow**: Authenticate using your phone/computer browser
 - **🔄 Automatic Token Refresh**: No more manual re-login required
-- **🌐 Better CloudFlare Support**: Improved compatibility with Crunchyroll's protection
-- **🌍 Enhanced Translations**: All user-facing messages now properly translated
-- **⚡ Performance Improvements**: Optimized proxy handling and resource management
-- **🛡️ Improved Security**: No more storing passwords in Kodi settings
+- **🌐 CloudFlare Routing**: All external Crunchyroll API calls now go through cloudscraper
+- **🛡️ Improved Security**: No credentials stored in Kodi settings
+
+#### Version 3.7.0 (Legacy Auth Cleanup)
+- Removed legacy and mobile authentication code paths.
+- All API traffic to Crunchyroll endpoints is routed through cloudscraper.
+- Existing users with old sessions are prompted to re-authenticate via device flow.
 
 > [!IMPORTANT]
-> **Breaking Change**: Email/password authentication is no longer supported. Existing users will be migrated to device authentication automatically on next login.
+> **Breaking Change**: Email/password and mobile authentication are no longer supported. Only device authentication remains. Existing users may be prompted to re-authenticate once.
 
 ***
 

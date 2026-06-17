@@ -1,0 +1,29 @@
+[project]
+name = "plugin-video-crunchyroll"
+version = "0.2.0"
+description = "Test-Suite for plugin-video-crunchyroll"
+requires-python = ">=3.8"
+dependencies = [
+    "kodistubs>=21.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.12.0",
+    "python-dotenv>=1.0.0",
+    "requests-mock>=1.11.0",
+    "requests>=2.31.0",
+]
+dev = [
+    "ruff>=0.6.0",
+]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+extend-exclude = ["resources/modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]

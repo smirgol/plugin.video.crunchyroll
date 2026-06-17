@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from pathlib import Path
+
 import requests
+
+from resources.lib.api import API
+from resources.lib.auth import AUTHORIZATION, TOKEN_ENDPOINT
 
 # Add resources/modules to path for cloudscraper
 project_root = Path(__file__).parent.parent.parent
@@ -14,16 +19,20 @@ if str(modules_path) not in sys.path:
 class TokenManager:
     """Manages access token with automatic refresh for integration tests"""
 
-    TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
-    AUTHORIZATION = "Basic cG84NzF4ZnN3YXNrdGI4ODlncnM6UFMtM3BXUmRoSHFNVFl3V21EUU1DODdQOHItN0NmOU4="
-    USER_AGENT = "Crunchyroll/ANDROIDTV/3.54.3_22302 (Android 14; en-US; Chromecast)"
+    # Reuse the production constants so there is a single source of truth.
+    # The auth constants (TOKEN_ENDPOINT, AUTHORIZATION) live in auth.py; the
+    # AUTHORIZATION client credential rotates every few weeks - renew it in
+    # auth.py and the tests pick it up automatically. CRUNCHYROLL_UA stays on API.
+    TOKEN_ENDPOINT = TOKEN_ENDPOINT
+    AUTHORIZATION = AUTHORIZATION
+    USER_AGENT = API.CRUNCHYROLL_UA
 
     def __init__(self, refresh_token: str, device_id: str):
         self.refresh_token = refresh_token
         self.device_id = device_id
-        self.access_token: Optional[str] = None
-        self.token_expires_at: Optional[datetime] = None
-        self.account_id: Optional[str] = None
+        self.access_token: str | None = None
+        self.token_expires_at: datetime | None = None
+        self.account_id: str | None = None
 
     def get_valid_token(self) -> str:
         """Get valid access token, refresh if needed"""
@@ -51,7 +60,7 @@ class TokenManager:
         headers = {
             "Authorization": self.AUTHORIZATION,
             "User-Agent": self.USER_AGENT,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         data = {
@@ -60,19 +69,13 @@ class TokenManager:
             "scope": "offline_access",
             "device_id": self.device_id,
             "device_name": "Kodi",
-            "device_type": "MediaCenter"
+            "device_type": "MediaCenter",
         }
 
-        response = scraper.post(
-            self.TOKEN_ENDPOINT,
-            headers=headers,
-            data=data
-        )
+        response = scraper.post(self.TOKEN_ENDPOINT, headers=headers, data=data)
 
         if not response.ok:
-            raise RuntimeError(
-                f"Token refresh failed: {response.status_code} - {response.text}"
-            )
+            raise RuntimeError(f"Token refresh failed: {response.status_code} - {response.text}")
 
         token_data = response.json()
 
@@ -84,9 +87,9 @@ class TokenManager:
 
         self.account_id = token_data.get("account_id")
 
-    def get_auth_headers(self) -> Dict[str, str]:
+    def get_auth_headers(self) -> dict[str, str]:
         """Get authorization headers with valid token"""
         return {
             "Authorization": f"Bearer {self.get_valid_token()}",
-            "User-Agent": self.USER_AGENT
+            "User-Agent": self.USER_AGENT,
         }

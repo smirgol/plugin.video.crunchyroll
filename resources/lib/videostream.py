@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 smirgol
 #
@@ -14,16 +13,14 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import asyncio
 import datetime
 import os
 import sys
-import threading
-import http.server
-import socketserver
-import urllib.parse
-import time
-from typing import Union, Dict, Optional, Any
+from typing import Any
 
 import requests
 import xbmc
@@ -31,204 +28,30 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib.globals import G
-from resources.lib.model import Object, CrunchyrollError, PlayableItem
-from resources.lib.utils import log_error_with_trace, crunchy_log, \
-    get_playheads_from_api, get_cms_object_data_by_ids, get_listables_from_response
-from ..modules import cloudscraper
-
-class CloudflareProxy:
-    """
-    Minimal HTTP proxy to bypass Cloudflare for Kodi manifest access
-
-    Auto-terminates after TTL to prevent zombie processes
-    """
-
-    def __init__(self, ttl_seconds=30):
-        self.server = None
-        self.server_thread = None
-        self.port = None
-        self.ttl_seconds = ttl_seconds
-        self.start_time = None
-        self.shutdown_timer = None
-
-    def get_proxied_url(self, original_url: str) -> str:
-        """Get proxied URL for Cloudflare-protected manifest"""
-        try:
-            if not self.server:
-                self._start_server()
-
-            # Verify server is still running
-            if self.server_thread and not self.server_thread.is_alive():
-                crunchy_log("Proxy server thread died, restarting", xbmc.LOGDEBUG)
-                self.restart()
-
-            # Encode original URL as parameter
-            encoded_url = urllib.parse.quote(original_url, safe='')
-            return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
-
-        except Exception as e:
-            crunchy_log(f"Error in get_proxied_url: {e}")
-            # Try to restart proxy and return original URL as fallback
-            try:
-                self.restart()
-                encoded_url = urllib.parse.quote(original_url, safe='')
-                return f"http://127.0.0.1:{self.port}/proxy?url={encoded_url}"
-            except Exception as restart_error:
-                crunchy_log(f"Proxy restart failed: {restart_error}")
-                return original_url  # Fallback to original URL
-
-    def _start_server(self):
-        """Start minimal HTTP server for manifest proxying with auto-shutdown"""
-        try:
-            class ProxyHandler(http.server.BaseHTTPRequestHandler):
-                def do_GET(self):
-                    if self.path.startswith('/proxy?url='):
-                        # Extract original URL
-                        url_param = self.path.split('url=', 1)[1]
-                        original_url = urllib.parse.unquote(url_param)
-
-                        crunchy_log(f"Proxy request for: {original_url}")
-
-                        try:
-                            # Use CloudScraper to fetch manifest
-                            scraper = cloudscraper.create_scraper(
-                                delay=10,
-                                browser={'custom': G.api.CRUNCHYROLL_UA_DEVICE}
-                            )
-
-                            headers = {
-                                "Authorization": f"{G.api.account_data.token_type} {G.api.account_data.access_token}",
-                                "User-Agent": G.api.CRUNCHYROLL_UA_DEVICE,
-                            }
-
-                            response = scraper.get(original_url, headers=headers, timeout=30)
-
-                            if response.ok:
-                                # Forward response to Kodi
-                                self.send_response(200)
-                                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/dash+xml'))
-                                self.send_header('Content-Length', str(len(response.content)))
-                                self.end_headers()
-                                self.wfile.write(response.content)
-                                crunchy_log(f"Proxy served: {len(response.content)} bytes", xbmc.LOGDEBUG)
-                            else:
-                                self.send_error(response.status_code, f"Upstream error: {response.status_code}")
-
-                        except Exception as e:
-                            crunchy_log(f"Proxy error: {e}")
-                            self.send_error(500, f"Proxy error: {str(e)}")
-                    else:
-                        self.send_error(404, "Not found")
-
-                def log_message(self, format, *args):
-                    # Suppress default HTTP server logging
-                    pass
-
-            # Start server on random port
-            self.server = socketserver.TCPServer(("127.0.0.1", 0), ProxyHandler)
-            self.port = self.server.server_address[1]
-
-            # Start in background thread
-            self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-            self.server_thread.start()
-
-            # Set start time and schedule auto-shutdown
-            self.start_time = time.time()
-            self._schedule_auto_shutdown()
-
-            crunchy_log(f"CloudFlare proxy started on port {self.port} (TTL: {self.ttl_seconds}s)")
-
-        except Exception as e:
-            crunchy_log(f"Failed to start CloudFlare proxy: {e}")
-            raise
-
-    def stop(self):
-        """Stop proxy server"""
-        # Cancel auto-shutdown timer
-        if self.shutdown_timer:
-            self.shutdown_timer.cancel()
-            self.shutdown_timer = None
-
-        if self.server:
-            self.server.shutdown()
-            self.server.server_close()
-            self.server = None
-            self.server_thread = None
-            self.port = None
-            self.start_time = None
-            crunchy_log("CloudFlare proxy stopped")
-
-    def restart(self):
-        """Restart proxy server if it fails"""
-        crunchy_log("Restarting CloudFlare proxy")
-        self.stop()
-        self._start_server()
-
-    def _schedule_auto_shutdown(self):
-        """Schedule automatic shutdown after TTL"""
-        def auto_shutdown():
-            if self.server:  # Check if still running
-                crunchy_log(f"CloudFlare proxy auto-shutdown after {self.ttl_seconds}s TTL")
-                self.stop()
-
-        self.shutdown_timer = threading.Timer(self.ttl_seconds, auto_shutdown)
-        self.shutdown_timer.daemon = True
-        self.shutdown_timer.start()
-
-    def extend_ttl(self, additional_seconds=30):
-        """Extend proxy TTL if needed (for longer operations)"""
-        if self.server and self.start_time:
-            # Cancel current timer
-            if self.shutdown_timer:
-                self.shutdown_timer.cancel()
-
-            # Calculate new TTL
-            elapsed = time.time() - self.start_time
-            new_ttl = elapsed + additional_seconds
-
-            crunchy_log(f"Extending proxy TTL by {additional_seconds}s", xbmc.LOGDEBUG)
-            self.shutdown_timer = threading.Timer(additional_seconds, lambda: self.stop())
-            self.shutdown_timer.daemon = True
-            self.shutdown_timer.start()
-
-
-# Global proxy instance (lazy loaded)
-_cloudflare_proxy = None
-
-
-def get_cloudflare_proxy() -> CloudflareProxy:
-    """Get global CloudFlare proxy instance"""
-    global _cloudflare_proxy
-    if not _cloudflare_proxy:
-        _cloudflare_proxy = CloudflareProxy()
-    return _cloudflare_proxy
-
-
-def cleanup_cloudflare_proxy():
-    """Cleanup global CloudFlare proxy instance"""
-    global _cloudflare_proxy
-    if _cloudflare_proxy:
-        try:
-            _cloudflare_proxy.stop()
-            crunchy_log("CloudFlare proxy cleaned up", xbmc.LOGDEBUG)
-        except Exception as e:
-            crunchy_log(f"Error during proxy cleanup: {e}", xbmc.LOGDEBUG)
-        finally:
-            _cloudflare_proxy = None
+from resources.lib.context import PluginContext
+from resources.lib.models.base import Object, PlayableItem
+from resources.lib.models.exceptions import CrunchyrollError
+from resources.lib.proxy import get_cloudflare_proxy
+from resources.lib.utils.api_data import (
+    get_cms_object_data_by_ids,
+    get_listables_from_response,
+    get_playheads_from_api,
+)
+from resources.lib.utils.logging import crunchy_log, log_error_with_trace
 
 
 class VideoPlayerStreamData(Object):
-    """ DTO to hold all relevant data for playback """
+    """DTO to hold all relevant data for playback"""
 
     def __init__(self):
         self.stream_url: str | None = None
         self.subtitle_urls: list[str] | None = None
-        self.skip_events_data: Dict = {}
-        self.playheads_data: Dict = {}
+        self.skip_events_data: dict = {}
+        self.playheads_data: dict = {}
         # PlayableItem which is about to be played, that contains cms object data
         self.playable_item: PlayableItem | None = None
-        # PlayableItem which contains cms obj data of playable_item's parent, if exists (Episodes, not Movies). currently not used.
+        # PlayableItem which contains cms obj data of playable_item's parent, if exists
+        # (Episodes, not Movies). currently not used.
         self.playable_item_parent: PlayableItem | None = None
         self.token: str | None = None
         self.next_playable_item: PlayableItem | None = None
@@ -237,7 +60,7 @@ class VideoPlayerStreamData(Object):
 
 
 class VideoStream(Object):
-    """ Build a VideoPlayerStreamData DTO using args.stream_id
+    """Build a VideoPlayerStreamData DTO using args.stream_id
 
     Will download stream details from cr api and store the appropriate stream url
 
@@ -249,15 +72,19 @@ class VideoStream(Object):
     Finally, it will download any existing skip info, which can be used to skip intros / credits / summaries
     """
 
-    def __init__(self, ):
+    def __init__(
+        self,
+        ctx: PluginContext,
+    ):
+        self._ctx = ctx
         self.cache_expiration_time: int = 60 * 60 * 24 * 7  # 7 days
         # cache cleanup
         self._clean_cache_subtitles()
 
-    def get_player_stream_data(self) -> Optional[VideoPlayerStreamData]:
-        """ retrieve a VideoPlayerStreamData containing stream url + subtitle urls for playback """
+    def get_player_stream_data(self) -> VideoPlayerStreamData | None:
+        """retrieve a VideoPlayerStreamData containing stream url + subtitle urls for playback"""
 
-        if not G.args.get_arg('stream_id'):
+        if not self._ctx.args.get_arg("stream_id"):
             return None
 
         video_player_stream_data = VideoPlayerStreamData()
@@ -266,154 +93,174 @@ class VideoStream(Object):
         async_data = asyncio.run(self._gather_async_data())
         crunchy_log("VideoStream: Finished to retrieve data async")
 
-        api_stream_data = async_data.get('stream_data')
+        api_stream_data = async_data.get("stream_data")
         if not api_stream_data:
             raise CrunchyrollError("Failed to fetch stream data from api")
 
-        video_player_stream_data.stream_url = self._get_stream_url_from_api_data_v2(async_data.get('stream_data'))
-        video_player_stream_data.subtitle_urls = self._get_subtitles_from_api_data(async_data.get('stream_data'))
-        video_player_stream_data.token = async_data.get('stream_data').get('token')
+        video_player_stream_data.stream_url = self._get_stream_url_from_api_data_v2(
+            async_data.get("stream_data"),
+            api=self._ctx.api,
+            args=self._ctx.args,
+        )
+        video_player_stream_data.subtitle_urls = self._get_subtitles_from_api_data(async_data.get("stream_data"))
+        video_player_stream_data.token = async_data.get("stream_data").get("token")
 
-        video_player_stream_data.skip_events_data = async_data.get('skip_events_data')
-        video_player_stream_data.playheads_data = async_data.get('playheads_data')
-        video_player_stream_data.playable_item = async_data.get('playable_item')
-        video_player_stream_data.playable_item_parent = async_data.get('playable_item_parent')
-        video_player_stream_data.next_playable_item = async_data.get('next_playable_item')
+        video_player_stream_data.skip_events_data = async_data.get("skip_events_data")
+        video_player_stream_data.playheads_data = async_data.get("playheads_data")
+        video_player_stream_data.playable_item = async_data.get("playable_item")
+        video_player_stream_data.playable_item_parent = async_data.get("playable_item_parent")
+        video_player_stream_data.next_playable_item = async_data.get("next_playable_item")
 
-        video_end = self._compute_when_episode_ends(video_player_stream_data)
+        video_end = self._compute_when_episode_ends(
+            video_player_stream_data,
+            api=self._ctx.api,
+            args=self._ctx.args,
+        )
 
-        video_player_stream_data.end_marker = video_end.get('marker')
-        video_player_stream_data.end_timecode = video_end.get('timecode')
+        video_player_stream_data.end_marker = video_end.get("marker")
+        video_player_stream_data.end_timecode = video_end.get("timecode")
 
         return video_player_stream_data
 
-    async def _gather_async_data(self) -> Dict[str, Any]:
-        """ gather data asynchronously and return them as a dictionary """
+    async def _gather_async_data(self) -> dict[str, Any]:
+        """gather data asynchronously and return them as a dictionary"""
 
-        episode_id = G.args.get_arg('episode_id')
-        series_id = G.args.get_arg('series_id')
+        episode_id = self._ctx.args.get_arg("episode_id")
+        series_id = self._ctx.args.get_arg("series_id")
 
         # create threads
         # actually not sure if this works, as the requests lib is not async
         # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
         t_stream_data = asyncio.create_task(self._get_stream_data_from_api())
         t_skip_events_data = asyncio.create_task(self._get_skip_events(episode_id))
-        t_playheads = asyncio.create_task(get_playheads_from_api(episode_id))
-        t_item_data = asyncio.create_task(get_cms_object_data_by_ids([episode_id, series_id]))
-        t_upnext_data = asyncio.create_task(self._get_upnext_episode(episode_id))
+        t_playheads = asyncio.create_task(
+            get_playheads_from_api(
+                episode_id,
+                api=self._ctx.api,
+                args=self._ctx.args,
+            )
+        )
+        t_item_data = asyncio.create_task(
+            get_cms_object_data_by_ids(
+                [episode_id, series_id],
+                api=self._ctx.api,
+                args=self._ctx.args,
+            )
+        )
+        t_upnext_data = asyncio.create_task(
+            self._get_upnext_episode(
+                [episode_id],
+                api=self._ctx.api,
+                args=self._ctx.args,
+            )
+        )
 
         # start async requests and fetch results
         results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data, t_upnext_data)
 
-        listable_items = get_listables_from_response([value for key, value in results[3].items()]) if results[3] else []
+        listable_items = get_listables_from_response(
+            [value for key, value in results[3].items()],
+            args=self._ctx.args
+        ) if results[3] else []
         playable_items = [item for item in listable_items if item.id == episode_id]
         parent_listables = [item for item in listable_items if item.id == series_id]
         upnext_items = get_listables_from_response([results[4]]) if results[4] else None
 
         return {
-            'stream_data': results[0] or {},
-            'skip_events_data': results[1] or {},
-            'playheads_data': results[2] or {},
-            'playable_item': playable_items[0] if playable_items else None,
-            'playable_item_parent': parent_listables[0] if parent_listables else None,
-            'next_playable_item': upnext_items[0] if upnext_items else None,
+            "stream_data": results[0] or {},
+            "skip_events_data": results[1] or {},
+            "playheads_data": results[2] or {},
+            "playable_item": playable_items[0] if playable_items else None,
+            "playable_item_parent": parent_listables[0] if parent_listables else None,
+            "next_playable_item": upnext_items[0] if upnext_items else None,
         }
 
-    @staticmethod
-    async def _get_stream_data_from_api() -> Union[Dict, bool]:
-        """ get json stream data from cr api for given args.stream_id using new endpoint b/c drm """
+    async def _get_stream_data_from_api(self) -> dict | bool:
+        """get json stream data from cr api for given args.stream_id using new endpoint b/c drm"""
+
+        api = self._ctx.api
+        args = self._ctx.args
 
         # from utils import crunchy_log
-        # Dynamic endpoint selection based on authentication type
-        user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
+        # Use AndroidTV streaming endpoint for all sessions (device-only auth)
+        stream_endpoint = api.STREAMS_ENDPOINT_DRM_ANDROID_TV
+        crunchy_log("Using AndroidTV streaming endpoint")
 
-        if user_agent_type == "device":
-            # Use AndroidTV endpoint for device authentication
-            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM_ANDROID_TV
-            crunchy_log("Using AndroidTV streaming endpoint for device session")
-        else:
-            # Use mobile/phone endpoint for legacy authentication
-            stream_endpoint = G.api.STREAMS_ENDPOINT_DRM
-            crunchy_log("Using mobile streaming endpoint for legacy session")
-
-        stream_url = stream_endpoint.format(G.args.get_arg('episode_id'))
-        crunchy_log("Stream URL: %s" % stream_url)
-        crunchy_log(f"Current API User-Agent: {G.api.CRUNCHYROLL_UA}")
-        crunchy_log(f"Current API Headers User-Agent: {G.api.api_headers.get('User-Agent', 'Unknown')}", xbmc.LOGDEBUG)
+        stream_url = stream_endpoint.format(args.get_arg("episode_id"))
+        crunchy_log(f"Stream URL: {stream_url}")
+        crunchy_log(f"Current API User-Agent: {api.CRUNCHYROLL_UA}")
+        crunchy_log(f"Current API Headers User-Agent: {api.api_headers.get('User-Agent', 'Unknown')}", xbmc.LOGDEBUG)
 
         # Use CloudScraper for AndroidTV endpoint (www.crunchyroll.com is Cloudflare protected)
-        if user_agent_type == "device":
-            crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
-            req = G.api.make_scraper_request(
-                method="GET",
-                url=stream_url,
-                auth_type="device",
-                auto_refresh=True
-            )
-        else:
-            crunchy_log("Using regular request for mobile streaming endpoint")
-            req = G.api.make_request(
-                method="GET",
-                url=stream_url,
-            )
+        crunchy_log("Using CloudScraper for AndroidTV streaming endpoint")
+        req = api.make_scraper_request(
+            method="GET",
+            url=stream_url,
+            auto_refresh=True,
+        )
 
         # check for error
         if "error" in req or req is None:
-            item = xbmcgui.ListItem(G.args.get_arg('title', 'Title not provided'))
-            xbmcplugin.setResolvedUrl(int(G.args.argv[1]), False, item)
-            xbmcgui.Dialog().ok(G.args.addon_name, G.args.addon.getLocalizedString(30064))
+            item = xbmcgui.ListItem(args.get_arg("title", "Title not provided"))
+            xbmcplugin.setResolvedUrl(int(args.argv[1]), False, item)
+            xbmcgui.Dialog().ok(args.addon_name, args.addon.getLocalizedString(30064))
             return False
 
         return req
 
     @staticmethod
-    def _get_stream_url_from_api_data_v2(api_data: Dict) -> Union[str, None]:
-        """ uses new endpoint to retrieve encryption data along with stream url """
+    def _get_stream_url_from_api_data_v2(api_data: dict, api, args) -> str | None:
+        """uses new endpoint to retrieve encryption data along with stream url"""
 
         try:
-            if G.args.addon.getSetting("soft_subtitles") == "false":
+            if args.addon.getSetting("soft_subtitles") == "false":
                 url = api_data["hardSubs"]
 
-                if G.args.subtitle in url:
-                    url = url[G.args.subtitle]["url"]
-                elif G.args.subtitle_fallback in url:
-                    url = url[G.args.subtitle_fallback]["url"]
+                if args.subtitle in url:
+                    url = url[args.subtitle]["url"]
+                elif args.subtitle_fallback in url:
+                    url = url[args.subtitle_fallback]["url"]
                 else:
                     url = api_data["url"]
             else:
                 url = api_data["url"]
 
-            # Proxy Cloudflare-protected URLs for device authentication
-            user_agent_type = getattr(G.api.account_data, 'user_agent_type', 'mobile')
-            if user_agent_type == "device" and url and "www.crunchyroll.com" in url:
-                proxy = get_cloudflare_proxy()
+            # Proxy Cloudflare-protected manifest URLs
+            if url and "www.crunchyroll.com" in url:
+                proxy = get_cloudflare_proxy(
+                    user_agent=api.CRUNCHYROLL_UA,
+                    auth_token=api.account_data.access_token,
+                    token_type=api.account_data.token_type,
+                )
                 proxied_url = proxy.get_proxied_url(url)
                 crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
                 url = proxied_url
 
         except IndexError:
-            item = xbmcgui.ListItem(G.args.get_arg('title', 'Title not provided'))
-            xbmcplugin.setResolvedUrl(int(G.args.argv[1]), False, item)
-            xbmcgui.Dialog().ok(G.args.addon_name, G.args.addon.getLocalizedString(30064))
+            item = xbmcgui.ListItem(args.get_arg("title", "Title not provided"))
+            xbmcplugin.setResolvedUrl(int(args.argv[1]), False, item)
+            xbmcgui.Dialog().ok(args.addon_name, args.addon.getLocalizedString(30064))
             return None
 
         return url
 
-    def _get_subtitles_from_api_data(self, api_stream_data) -> Union[str, None]:
-        """ retrieve appropriate subtitle urls from api data, using local caching and renaming """
+    def _get_subtitles_from_api_data(self, api_stream_data) -> str | None:
+        """retrieve appropriate subtitle urls from api data, using local caching and renaming"""
+
+        args = self._ctx.args
 
         # we only need those urls if soft-subs are enabled in addon settings
-        if G.args.addon.getSetting("soft_subtitles") == "false":
+        if args.addon.getSetting("soft_subtitles") == "false":
             return None
 
         subtitles_data_raw = []
         subtitles_url_cached = []
 
-        if G.args.subtitle in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(G.args.subtitle))
+        if args.subtitle in api_stream_data["subtitles"]:
+            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle))
 
-        if G.args.subtitle_fallback and G.args.subtitle_fallback in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(G.args.subtitle_fallback))
+        if args.subtitle_fallback and args.subtitle_fallback in api_stream_data["subtitles"]:
+            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle_fallback))
 
         if not subtitles_data_raw:
             return None
@@ -421,9 +268,9 @@ class VideoStream(Object):
         # we need to download the subtitles, cache and rename them to show proper labels in the kodi video player
         for subtitle_data in subtitles_data_raw:
             cache_result = self._get_subtitle_from_cache(
-                subtitle_data.get('url', ""),
-                subtitle_data.get('language', ""),
-                subtitle_data.get('format', "")
+                subtitle_data.get("url", ""),
+                subtitle_data.get("language", ""),
+                subtitle_data.get("format", ""),
             )
 
             if cache_result is not None:
@@ -432,41 +279,41 @@ class VideoStream(Object):
         return subtitles_url_cached if subtitles_url_cached is not None else None
 
     def _cache_subtitle(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> bool:
-        """ cache a subtitle from the given url and rename it for kodi to label it correctly """
+        """cache a subtitle from the given url and rename it for kodi to label it correctly"""
+
+        api = self._ctx.api
+        args = self._ctx.args
 
         try:
             # api request streams
-            subtitles_req = G.api.make_request(
+            subtitles_req = api.make_request(
                 method="GET",
-                url=subtitle_url
+                url=subtitle_url,
             )
-        except Exception:
+        except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
             raise CrunchyrollError(
-                "Failed to download subtitle for language %s from url %s" % (subtitle_language, subtitle_url)
-            )
+                f"Failed to download subtitle for language {subtitle_language} from url {subtitle_url}"
+            ) from e
 
-        if not subtitles_req.get('data', None):
+        if not subtitles_req.get("data", None):
             # error
             raise CrunchyrollError("Returned data is not text")
 
-        cache_target = xbmcvfs.translatePath(self.get_cache_path() + G.args.get_arg('stream_id') + '/')
+        cache_target = xbmcvfs.translatePath(self.get_cache_path() + args.get_arg("stream_id") + "/")
         xbmcvfs.mkdirs(cache_target)
 
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
 
-        with open(cache_target + cache_file, 'w', encoding='utf-8') as file:
-            result = file.write(subtitles_req.get('data'))
+        with open(cache_target + cache_file, "w", encoding="utf-8") as file:
+            result = file.write(subtitles_req.get("data"))
 
         return True if result > 0 else False
 
-    def _get_subtitle_from_cache(
-            self,
-            subtitle_url: str,
-            subtitle_language: str,
-            subtitle_format: str
-    ) -> Union[str, None]:
-        """ try to get a subtitle using its url, language info and format either from cache or api """
+    def _get_subtitle_from_cache(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> str | None:
+        """try to get a subtitle using its url, language info and format either from cache or api"""
+
+        args = self._ctx.args
 
         if not subtitle_url or not subtitle_language or not subtitle_format:
             crunchy_log("get_subtitle_from_cache: missing argument", xbmc.LOGERROR)
@@ -476,7 +323,7 @@ class VideoStream(Object):
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
 
         # build full path to cached file
-        cache_target = xbmcvfs.translatePath(self.get_cache_path() + G.args.get_arg('stream_id') + '/') + cache_file
+        cache_target = xbmcvfs.translatePath(self.get_cache_path() + args.get_arg("stream_id") + "/") + cache_file
 
         # check if cached file exists
         if not xbmcvfs.exists(cache_target):
@@ -486,14 +333,17 @@ class VideoStream(Object):
                 log_error_with_trace("Failed to write subtitle to cache")
                 return None
 
-        cache_file_url = ('special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/' +
-                          G.args.get_arg('stream_id') +
-                          '/' + cache_file)
+        cache_file_url = (
+            "special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/"
+            + args.get_arg("stream_id")
+            + "/"
+            + cache_file
+        )
 
         return cache_file_url
 
     def _clean_cache_subtitles(self) -> bool:
-        """ clean up all cached subtitles """
+        """clean up all cached subtitles"""
 
         expires = datetime.datetime.now() - datetime.timedelta(seconds=self.cache_expiration_time)
 
@@ -503,72 +353,74 @@ class VideoStream(Object):
         for cache_dir in dirs:
             mtime = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(cache_base_dir, cache_dir)))
             if mtime < expires:
-                crunchy_log("Cache dir %s is older than 7 days - removing" % os.path.join(cache_base_dir, cache_dir))
-                xbmcvfs.rmdir(os.path.join(cache_base_dir, cache_dir) + '/', force=True)
+                crunchy_log(f"Cache dir {os.path.join(cache_base_dir, cache_dir)} is older than 7 days - removing")
+                xbmcvfs.rmdir(os.path.join(cache_base_dir, cache_dir) + "/", force=True)
 
         return True
 
-    @staticmethod
-    def get_cache_path() -> str:
-        """ return base path for subtitles caching """
+    def get_cache_path(self) -> str:
+        """return base path for subtitles caching"""
 
-        return xbmcvfs.translatePath(G.args.addon.getAddonInfo("profile") + 'cache_subtitles/')
+        args = self._ctx.args
+        return xbmcvfs.translatePath(args.addon.getAddonInfo("profile") + "cache_subtitles/")
 
     @staticmethod
     def get_cache_file_name(subtitle_language: str, subtitle_format: str) -> str:
-        """ build a file name for the subtitles file that kodi can display with a readable label """
+        """build a file name for the subtitles file that kodi can display with a readable label"""
 
         # kodi ignores the first part of e.g. de-DE - split and use only first part in uppercase
-        iso_parts = subtitle_language.split('-')
+        iso_parts = subtitle_language.split("-")
 
-        filename = xbmcvfs.makeLegalFilename(
-            subtitle_language +
-            '.' + iso_parts[0] +
-            '.' + subtitle_format
-        )
+        filename = xbmcvfs.makeLegalFilename(subtitle_language + "." + iso_parts[0] + "." + subtitle_format)
 
         # for some reason, makeLegalFilename likes to append a '/' at the end, effectively making the file a directory
-        if filename.endswith('/'):
+        if filename.endswith("/"):
             filename = filename[:-1]
 
         # have to use filesystemencoding since filename contains non ascii characters in some language (such as french)
         # and kodi file system encoding can be set to ASCII
         return filename.encode(sys.getfilesystemencoding(), "ignore").decode(sys.getfilesystemencoding())
 
-    @staticmethod
-    async def _get_skip_events(episode_id) -> Optional[Dict]:
-        """ fetch skip events data from api and return a prepared object for supported skip types if data is valid """
+    async def _get_skip_events(self, episode_id) -> dict | None:
+        """fetch skip events data from api and return a prepared object for supported skip types if data is valid"""
+
+        api = self._ctx.api
+        args = self._ctx.args
 
         # if none of the skip options are enabled in setting, don't fetch that data
-        if (G.args.addon.getSetting("enable_skip_intro") != "true" and
-                G.args.addon.getSetting("enable_skip_credits") != "true" and
-                G.args.addon.getSetting("upnext_mode") == "disabled"):
+        if (
+            args.addon.getSetting("enable_skip_intro") != "true"
+            and args.addon.getSetting("enable_skip_credits") != "true"
+            and args.addon.getSetting("upnext_mode") == "disabled"
+        ):
             return None
 
         try:
-            crunchy_log("Requesting skip data from %s" % G.api.SKIP_EVENTS_ENDPOINT.format(episode_id))
+            crunchy_log(f"Requesting skip data from {api.SKIP_EVENTS_ENDPOINT.format(episode_id)}")
 
             # api request streams
-            req = G.api.make_unauthenticated_request(
+            req = api.make_unauthenticated_request(
                 method="GET",
-                url=G.api.SKIP_EVENTS_ENDPOINT.format(episode_id)
+                url=api.SKIP_EVENTS_ENDPOINT.format(episode_id),
             )
         except (requests.exceptions.RequestException, CrunchyrollError):
             try:
                 # Some streams raise a 403 on SKIP_EVENTS endpoint but skip data are available in INTRO_V2 endpoint
-                intro_req = G.api.make_unauthenticated_request(
+                intro_req = api.make_unauthenticated_request(
                     method="GET",
-                    url=G.api.INTRO_V2_ENDPOINT.format(episode_id)
+                    url=api.INTRO_V2_ENDPOINT.format(episode_id),
                 )
-                req = {"intro": {
-                    "start": intro_req.get("startTime"),
-                    "end": intro_req.get("endTime"),
-                }}
+                req = {
+                    "intro": {
+                        "start": intro_req.get("startTime"),
+                        "end": intro_req.get("endTime"),
+                    }
+                }
             except (requests.exceptions.RequestException, CrunchyrollError):
                 # can be okay for e.g. movies, thus only log error, but don't show notification
                 crunchy_log(
                     "_get_skip_events: error in requesting skip events data from api. possibly no data available",
-                    False
+                    False,
                 )
                 return None
 
@@ -577,44 +429,47 @@ class VideoStream(Object):
             return None
 
         # prepare the data a bit
-        supported_skips = ['intro', 'credits', 'preview']
+        supported_skips = ["intro", "credits", "preview"]
         prepared = dict()
         for skip_type in supported_skips:
-            if req.get(skip_type) and req.get(skip_type).get('start') is not None and req.get(skip_type).get(
-                    'end') is not None:
-                prepared.update({
-                    skip_type: dict(start=req.get(skip_type).get('start'), end=req.get(skip_type).get('end'))
-                })
-                crunchy_log("_get_skip_events: check for %s PASSED" % skip_type, xbmc.LOGINFO)
+            if (
+                req.get(skip_type)
+                and req.get(skip_type).get("start") is not None
+                and req.get(skip_type).get("end") is not None
+            ):
+                prepared.update(
+                    {skip_type: dict(start=req.get(skip_type).get("start"), end=req.get(skip_type).get("end"))}
+                )
+                crunchy_log(f"_get_skip_events: check for {skip_type} PASSED", xbmc.LOGINFO)
             else:
-                crunchy_log("_get_skip_events: check for %s FAILED" % skip_type, xbmc.LOGINFO)
+                crunchy_log(f"_get_skip_events: check for {skip_type} FAILED", xbmc.LOGINFO)
 
-        if G.args.addon.getSetting("enable_skip_intro") != "true" and prepared.get('intro'):
-            prepared.pop('intro', None)
+        if args.addon.getSetting("enable_skip_intro") != "true" and prepared.get("intro"):
+            prepared.pop("intro", None)
 
-        if G.args.addon.getSetting("enable_skip_credits") != "true" and prepared.get('credits'):
-            prepared.pop('credits', None)
+        if args.addon.getSetting("enable_skip_credits") != "true" and prepared.get("credits"):
+            prepared.pop("credits", None)
 
         # delay the skip a bit if it starts right at the beginning, as it would show before the video otherwise
-        if prepared.get('intro') and prepared['intro']['start'] <= 0.5:
-            prepared['intro']['start'] += 2.0
+        if prepared.get("intro") and prepared["intro"]["start"] <= 0.5:
+            prepared["intro"]["start"] += 2.0
 
         return prepared if len(prepared) > 0 else None
 
     @staticmethod
-    async def _get_upnext_episode(id: str) -> Optional[Dict]:
+    async def _get_upnext_episode(id: str, api, args) -> Optional[Dict]:
         """ fetch upnext episode data from api """
 
         # if upnext integration is disabled, don't fetch data
-        if G.args.addon.getSetting("upnext_mode") == "disabled":
+        if args.addon.getSetting("upnext_mode") == "disabled":
             return None
 
         try:
-            req = G.api.make_request(
+            req = api.make_request(
                 method="GET",
-                url=G.api.UPNEXT_ENDPOINT.format(id),
+                url=api.UPNEXT_ENDPOINT.format(id),
                 params={
-                    "locale": G.args.subtitle
+                    "locale": args.subtitle
                 }
             )
         except (CrunchyrollError, requests.exceptions.RequestException) as e:
@@ -626,7 +481,7 @@ class VideoStream(Object):
         return req.get("data")[0]
 
     @staticmethod
-    def _compute_when_episode_ends(partial_stream_data: VideoPlayerStreamData) -> Dict[str, Any]:
+    def _compute_when_episode_ends(partial_stream_data: VideoPlayerStreamData, api, args) -> Dict[str, Any]:
         """ Extract timecode for video end from skip_events_data.
 
         Extracted timecode depends on *upnext_mode* user setting and available skip events data.
@@ -645,12 +500,12 @@ class VideoStream(Object):
             'marker': 'off',
             'timecode': None
         }
-        upnext_mode = G.args.addon.getSetting('upnext_mode')
+        upnext_mode = args.addon.getSetting('upnext_mode')
         if upnext_mode == 'disabled' or not partial_stream_data.next_playable_item:
             return result
 
         video_end = partial_stream_data.playable_item.duration
-        fixed_duration = int(G.args.addon.getSetting('upnext_fixed_duration'), 10)
+        fixed_duration = int(args.addon.getSetting('upnext_fixed_duration'), 10)
         # Standard behaviour is to show upnext 15s before the end of the video
         result = {
             'marker': 'fixed',

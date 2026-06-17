@@ -1,6 +1,6 @@
 import pytest
 
-from resources.lib.model import CrunchyrollError
+from resources.lib.models.exceptions import CrunchyrollError
 
 
 @pytest.mark.integration
@@ -27,7 +27,6 @@ class TestStreamingAPIIntegration:
             response = api_client.make_scraper_request(
                 method="GET",
                 url=api_client.STREAMS_ENDPOINT_GET_ACTIVE_STREAMS,
-                auth_type="device"
             )
         except Exception as e:
             pytest.skip(f"Could not fetch active streams: {e}")
@@ -40,8 +39,7 @@ class TestStreamingAPIIntegration:
             if token and content_id:
                 try:
                     api_client.make_request(
-                        method="DELETE",
-                        url=api_client.STREAMS_ENDPOINT_CLEAR_STREAM.format(content_id, token)
+                        method="DELETE", url=api_client.STREAMS_ENDPOINT_CLEAR_STREAM.format(content_id, token)
                     )
                 except Exception as e:
                     print(f"Warning: Failed to clear stream {content_id}: {e}")
@@ -49,21 +47,11 @@ class TestStreamingAPIIntegration:
     def _get_stream_data(self, api_client, test_episode_id):
         url = api_client.STREAMS_ENDPOINT_DRM_ANDROID_TV.format(test_episode_id)
         try:
-            return api_client.make_scraper_request(
-                method="GET",
-                url=url,
-                auth_type="device",
-                auto_refresh=True
-            )
+            return api_client.make_scraper_request(method="GET", url=url, auto_refresh=True)
         except CrunchyrollError as e:
             pytest.skip(f"Stream request rejected by API (stream limit or unavailable): {e}")
 
-    def test_get_stream_urls(
-        self,
-        api_client,
-        stream_cleanup,
-        test_episode_id
-    ):
+    def test_get_stream_urls(self, api_client, stream_cleanup, test_episode_id):
         """Test stream URL retrieval using the AndroidTV DRM endpoint"""
         data = self._get_stream_data(api_client, test_episode_id)
 
@@ -75,12 +63,7 @@ class TestStreamingAPIIntegration:
         assert data["url"].startswith("http")
         assert token is not None
 
-    def test_subtitle_tracks(
-        self,
-        api_client,
-        stream_cleanup,
-        test_episode_id
-    ):
+    def test_subtitle_tracks(self, api_client, stream_cleanup, test_episode_id):
         """Test subtitle track availability in stream response"""
         data = self._get_stream_data(api_client, test_episode_id)
 
@@ -98,12 +81,7 @@ class TestStreamingAPIIntegration:
             assert first_sub["url"].startswith("http")
             assert "format" in first_sub
 
-    def test_subtitle_file_download(
-        self,
-        api_client,
-        stream_cleanup,
-        test_episode_id
-    ):
+    def test_subtitle_file_download(self, api_client, stream_cleanup, test_episode_id):
         """Test that subtitle files can be downloaded and get_json_from_response handles the content-type.
 
         This test catches regressions where the CDN changes the content-type of subtitle responses
