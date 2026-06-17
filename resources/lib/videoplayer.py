@@ -30,6 +30,7 @@ from resources.lib.context import PluginContext
 from resources.lib.gui import SkipModalDialog, show_modal_dialog
 from resources.lib.models.base import Object
 from resources.lib.models.exceptions import CrunchyrollError, LoginError
+from resources.lib.presentation import build_url
 from resources.lib.utils.logging import crunchy_log, log, log_error_with_trace
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
 
@@ -216,22 +217,23 @@ class VideoPlayer(Object):
         try:
             next_episode = self._stream_data.next_playable_item
             if not next_episode:
-                utils.crunchy_log("_handle_upnext: No episode or disabled upnext integration")
+                crunchy_log("_handle_upnext: No episode or disabled upnext integration")
                 return
             args = self._ctx.args
-            next_url = view.build_url(
+            next_url = build_url(
                 {
                     "series_id": args.get_arg("series_id"),
                     "episode_id": next_episode.episode_id,
                     "stream_id": next_episode.stream_id
                 },
+                args.addonurl,
                 "video_episode_play"
             )
             show_next_at_seconds = self._stream_data.end_timecode
             if show_next_at_seconds is not None:
                 # Needs to wait 10s, otherwise, upnext will show next dialog at episode start...
                 xbmc.sleep(10000)
-                utils.crunchy_log("_handle_upnext: Next URL (shown at %ds / %ds): %s" % (
+                crunchy_log("_handle_upnext: Next URL (shown at %ds / %ds): %s" % (
                     show_next_at_seconds,
                     self._stream_data.playable_item.duration,
                     next_url
@@ -246,7 +248,7 @@ class VideoPlayer(Object):
                     self._stream_data.playable_item_parent
                 )
         except Exception:
-            utils.crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
+            crunchy_log("_handle_upnext: Cannot send upnext notification", xbmc.LOGERROR)
 
     def update_playhead(self):
         """background thread to update playback with crunchyroll in intervals"""
@@ -326,6 +328,8 @@ class VideoPlayer(Object):
                 "label": args.addon.getLocalizedString(30015),
                 "addon_path": args.addon.getAddonInfo("path"),
                 "content_id": args.get_arg("episode_id"),
+                "api": self._ctx.api,
+                "args": args,
             },
         )
 

@@ -18,7 +18,7 @@ from base64 import b64encode
 from json import dumps
 from typing import Optional
 
-from resources.lib.model import Args, PlayableItem, SeriesData
+from resources.lib.models import Args, PlayableItem, SeriesData
 
 from . import utils
 

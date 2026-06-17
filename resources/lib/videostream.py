@@ -149,7 +149,7 @@ class VideoStream(Object):
         )
         t_upnext_data = asyncio.create_task(
             self._get_upnext_episode(
-                [episode_id],
+                episode_id,
                 api=self._ctx.api,
                 args=self._ctx.args,
             )
@@ -164,7 +164,7 @@ class VideoStream(Object):
         ) if results[3] else []
         playable_items = [item for item in listable_items if item.id == episode_id]
         parent_listables = [item for item in listable_items if item.id == series_id]
-        upnext_items = get_listables_from_response([results[4]]) if results[4] else None
+        upnext_items = get_listables_from_response([results[4]], args=self._ctx.args) if results[4] else None
 
         return {
             "stream_data": results[0] or {},
