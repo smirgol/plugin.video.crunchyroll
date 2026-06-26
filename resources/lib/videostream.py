@@ -181,6 +181,10 @@ class VideoStream(Object):
         req = api.make_scraper_request(
             method="GET",
             url=stream_url,
+            params={
+                "preferred_audio_language": api.account_data.default_audio_language,
+                "force_locale": "",
+            },
             auto_refresh=True,
         )
 
