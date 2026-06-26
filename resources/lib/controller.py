@@ -448,6 +448,8 @@ def view_episodes(ctx):
         url=ctx.api.EPISODES_ENDPOINT.format(ctx.args.get_arg("season_id")),
         params={
             "locale": ctx.args.subtitle,
+            "preferred_audio_language": ctx.api.account_data.default_audio_language,
+            "force_locale": "",
         },
     )
 
