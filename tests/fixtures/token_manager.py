@@ -51,7 +51,6 @@ class TokenManager:
         """Refresh access token using refresh_token"""
         try:
             import cloudscraper
-
             scraper = cloudscraper.create_scraper()
             print(f"Using CloudScraper from: {cloudscraper.__file__}")
         except Exception as e:

@@ -54,6 +54,9 @@ class VideoPlayerStreamData(Object):
         # (Episodes, not Movies). currently not used.
         self.playable_item_parent: PlayableItem | None = None
         self.token: str | None = None
+        self.next_playable_item: PlayableItem | None = None
+        self.end_marker: str = "off"
+        self.end_timecode: int | None = None
 
 
 class VideoStream(Object):
@@ -106,58 +109,70 @@ class VideoStream(Object):
         video_player_stream_data.playheads_data = async_data.get("playheads_data")
         video_player_stream_data.playable_item = async_data.get("playable_item")
         video_player_stream_data.playable_item_parent = async_data.get("playable_item_parent")
+        video_player_stream_data.next_playable_item = async_data.get("next_playable_item")
+
+        video_end = self._compute_when_episode_ends(
+            video_player_stream_data,
+            api=self._ctx.api,
+            args=self._ctx.args,
+        )
+
+        video_player_stream_data.end_marker = video_end.get("marker")
+        video_player_stream_data.end_timecode = video_end.get("timecode")
 
         return video_player_stream_data
 
     async def _gather_async_data(self) -> dict[str, Any]:
         """gather data asynchronously and return them as a dictionary"""
 
+        episode_id = self._ctx.args.get_arg("episode_id")
+        series_id = self._ctx.args.get_arg("series_id")
+
         # create threads
         # actually not sure if this works, as the requests lib is not async
         # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
         t_stream_data = asyncio.create_task(self._get_stream_data_from_api())
-        t_skip_events_data = asyncio.create_task(self._get_skip_events(self._ctx.args.get_arg("episode_id")))
+        t_skip_events_data = asyncio.create_task(self._get_skip_events(episode_id))
         t_playheads = asyncio.create_task(
             get_playheads_from_api(
-                self._ctx.args.get_arg("episode_id"),
+                episode_id,
                 api=self._ctx.api,
                 args=self._ctx.args,
             )
         )
         t_item_data = asyncio.create_task(
             get_cms_object_data_by_ids(
-                [self._ctx.args.get_arg("episode_id")],
+                [episode_id, series_id],
                 api=self._ctx.api,
                 args=self._ctx.args,
             )
         )
-        # t_item_parent_data = asyncio.create_task(
-        #     get_cms_object_data_by_ids(
-        #         [self._ctx.args.get_arg("series_id")],
-        #         api=self._ctx.api,
-        #         args=self._ctx.args,
-        #     )
-        # )
-
-        # start async requests and fetch results
-        results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data)
-
-        playable_item = (
-            get_listables_from_response(
-                [results[3].get(self._ctx.args.get_arg("episode_id"))],
+        t_upnext_data = asyncio.create_task(
+            self._get_upnext_episode(
+                episode_id,
+                api=self._ctx.api,
                 args=self._ctx.args,
             )
-            if results[3]
-            else None
         )
+
+        # start async requests and fetch results
+        results = await asyncio.gather(t_stream_data, t_skip_events_data, t_playheads, t_item_data, t_upnext_data)
+
+        listable_items = get_listables_from_response(
+            [value for key, value in results[3].items()],
+            args=self._ctx.args
+        ) if results[3] else []
+        playable_items = [item for item in listable_items if item.id == episode_id]
+        parent_listables = [item for item in listable_items if item.id == series_id]
+        upnext_items = get_listables_from_response([results[4]], args=self._ctx.args) if results[4] else None
 
         return {
             "stream_data": results[0] or {},
             "skip_events_data": results[1] or {},
             "playheads_data": results[2] or {},
-            "playable_item": playable_item[0] if playable_item else None,
-            "playable_item_parent": None,
-            # get_listables_from_response([results[4]])[0] if results[4] else None
+            "playable_item": playable_items[0] if playable_items else None,
+            "playable_item_parent": parent_listables[0] if parent_listables else None,
+            "next_playable_item": upnext_items[0] if upnext_items else None,
         }
 
     async def _get_stream_data_from_api(self) -> dict | bool:
@@ -380,6 +395,7 @@ class VideoStream(Object):
         if (
             args.addon.getSetting("enable_skip_intro") != "true"
             and args.addon.getSetting("enable_skip_credits") != "true"
+            and args.addon.getSetting("upnext_mode") == "disabled"
         ):
             return None
 
@@ -417,7 +433,7 @@ class VideoStream(Object):
             return None
 
         # prepare the data a bit
-        supported_skips = ["intro", "credits"]
+        supported_skips = ["intro", "credits", "preview"]
         prepared = dict()
         for skip_type in supported_skips:
             if (
@@ -444,3 +460,90 @@ class VideoStream(Object):
 
         return prepared if len(prepared) > 0 else None
 
+    @staticmethod
+    async def _get_upnext_episode(id: str, api, args) -> Optional[Dict]:
+        """ fetch upnext episode data from api """
+
+        # if upnext integration is disabled, don't fetch data
+        if args.addon.getSetting("upnext_mode") == "disabled":
+            return None
+
+        try:
+            req = api.make_request(
+                method="GET",
+                url=api.UPNEXT_ENDPOINT.format(id),
+                params={
+                    "locale": args.subtitle
+                }
+            )
+        except (CrunchyrollError, requests.exceptions.RequestException) as e:
+            crunchy_log("_get_upnext_episode: failed to load for: %s" % id)
+            return None
+        if not req or "error" in req or len(req.get("data", [])) == 0:
+            return None
+
+        return req.get("data")[0]
+
+    @staticmethod
+    def _compute_when_episode_ends(partial_stream_data: VideoPlayerStreamData, api, args) -> Dict[str, Any]:
+        """ Extract timecode for video end from skip_events_data.
+
+        Extracted timecode depends on *upnext_mode* user setting and available skip events data.
+        upnext_mode can hold 4 different behaviour.
+        - "disabled", so no need to compute anything.
+        - "fixed", so we should send the timecode for the last 15s (user can change this duration by *upnext_fixed_duration* settings).
+        - "preview", which means we have to retrieve preview timecode from skip event API.
+           If preview timecode is not available, go back to the same behaviour as "fixed" mode.
+        - "credits", which means we have to retrieve credits and preview timecode from skip event API.
+           If credits timecode is not available, go back to the same behaviour as "preview" mode.
+           Additionaly, we have to check there is no additional scenes after credits,
+           so we check if preview starts at credits end. Otherwise, video end timecode will be the preview start timecode.
+        """
+
+        result = {
+            'marker': 'off',
+            'timecode': None
+        }
+        upnext_mode = args.addon.getSetting('upnext_mode')
+        if upnext_mode == 'disabled' or not partial_stream_data.next_playable_item:
+            return result
+
+        video_end = partial_stream_data.playable_item.duration
+        fixed_duration = int(args.addon.getSetting('upnext_fixed_duration'), 10)
+        # Standard behaviour is to show upnext 15s before the end of the video
+        result = {
+            'marker': 'fixed',
+            'timecode': video_end - fixed_duration
+        }
+
+        skip_events_data = partial_stream_data.skip_events_data
+        # If upnext selected mode is fixed or there is no available skip data
+        if upnext_mode == 'fixed' or not skip_events_data or (not skip_events_data.get('credits') and not skip_events_data.get('preview')):
+            return result
+
+        # Extract skip data
+        credits_start = skip_events_data.get('credits', {}).get('start')
+        credits_end = skip_events_data.get('credits', {}).get('end')
+        preview_start = skip_events_data.get('preview', {}).get('start')
+        preview_end = skip_events_data.get('preview', {}).get('end')
+
+        # If there is no data about preview but credits ends less than 20s before the end, consider time after credits_end is the preview
+        if not preview_start and credits_end and credits_end >= video_end - 20:
+            preview_start = credits_end
+            preview_end = video_end
+
+        # If there are outro and preview
+        # and if the outro ends when the preview start
+        if upnext_mode == 'credits' and credits_start and credits_end and preview_start and credits_end + 3 > preview_start:
+            result = {
+                'marker': 'credits',
+                'timecode': credits_start
+            }
+        # If there is a preview
+        elif preview_start:
+            result = {
+                'marker': 'preview',
+                'timecode': preview_start
+            }
+
+        return result
