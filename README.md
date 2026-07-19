@@ -129,13 +129,36 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 
 ***
 
-### Supported Languages
+### Supported Addon Languages
 
-* English
-* German
-* Portuguese
-* Spanish
-* French
+- English
+- German
+- Portuguese
+- Spanish
+- French
+
+### Supported Crunchyroll languages
+
+- Arabic
+- Chinese (Simplified)
+- Chinese (Traditional)
+- English
+- French (France)
+- German
+- Hindi
+- Indonesian
+- Italian
+- Malay
+- Polish
+- Portuguese (Brazil)
+- Portuguese (Portugal)
+- Russian
+- Spanish
+- Spanish (Spain)
+- Thai
+- Vietnamese
+
+
 
 ***
 
@@ -176,6 +199,7 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 * APachecoDiSanti
 * Acidzero2020
 * Centulus
+* Natsu Tadama
 * ...and all the forgotten heroes :)
 
 ***
