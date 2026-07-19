@@ -315,6 +315,10 @@ msgctxt "#30073"
 msgid "Choose your profile"
 msgstr "Profil auswählen"
 
+msgctxt "#30074"
+msgid "Polish"
+msgstr "Polnisch"
+
 msgctxt "#30080"
 msgid "There are too many active streams. Please try again later."
 msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."

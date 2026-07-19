@@ -39,6 +39,7 @@
                             <option label="30036">zh-TW</option>
                             <option label="30037">th-TH</option>
                             <option label="30022">vi-VN</option>
+                            <option label="30074">pl-PL</option>
                         </options>
                     </constraints>
                     <control type="list" format="string">
@@ -67,6 +68,7 @@
                             <option label="30036">zh-TW</option>
                             <option label="30037">th-TH</option>
                             <option label="30022">vi-VN</option>
+                            <option label="30074">pl-PL</option>
                         </options>
                         <allowempty>true</allowempty>
                     </constraints>

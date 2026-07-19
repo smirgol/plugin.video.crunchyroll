@@ -39,7 +39,7 @@ from .utils.datetime import date_to_str, get_date, str_to_date
 from .utils.logging import crunchy_log
 
 # Authentication credentials - single device-only identity (AndroidTV for device auth)
-AUTHORIZATION = "Basic cmpzMGx0eDBkYndrbGl3eGR6ZGY6NFY3cmYyMS1VRlhlWi01WEFkMFhfUVB3cjFndV9pMXM="
+AUTHORIZATION = "Basic bWMyNDBjZTc1dzduYmRoYmIwcTY6RWN5c2JiV2RYbzFSMFdXQ1RFNTVEUGxabndXNC1PNWI="
 
 TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
 DEVICE_CODE_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/code"
