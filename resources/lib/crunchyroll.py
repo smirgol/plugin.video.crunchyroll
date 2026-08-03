@@ -138,7 +138,9 @@ def check_mode():
         show_main_menu()
 
     elif mode == "queue":
-        controller.show_queue()
+        controller.show_queue(hide_played = False)
+    elif mode == "queue_unplayed":
+        controller.show_queue(hide_played = True)
     elif mode == "search":
         controller.search_anime()
     elif mode == "history":
@@ -202,6 +204,8 @@ def show_main_menu():
     """
     view.add_item({"title": G.args.addon.getLocalizedString(30040),
                    "mode": "queue"})
+    view.add_item({"title": G.args.addon.getLocalizedString(30048),
+                   "mode": "queue_unplayed"})
     view.add_item({"title": G.args.addon.getLocalizedString(30047),
                    "mode": "resume"})
     view.add_item({"title": G.args.addon.getLocalizedString(30041),

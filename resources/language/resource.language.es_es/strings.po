@@ -211,7 +211,9 @@ msgctxt "#30047"
 msgid "Resume"
 msgstr "Reanudar"
 
-# 30048 free
+msgctxt "#30048"
+msgid "Queue (Unplayed)"
+msgstr "Cola (No vistos)"
 
 msgctxt "#30049"
 msgid "Crunchylists"

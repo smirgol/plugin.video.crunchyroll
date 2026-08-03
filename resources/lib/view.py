@@ -143,6 +143,7 @@ OPT_CTX_SEASONS = 4  # add context menu to jump to series
 OPT_CTX_EPISODES = 8  # add context menu to jump to episodes
 OPT_NO_SEASON_TITLE = 16  # only show title of episode (with numbering)
 OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
+OPT_HIDE_WATCHED = 64  # filter out fully watched items
 
 
 # actually not sure if this works, as the requests lib is not async
@@ -291,6 +292,10 @@ def add_listables(
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
         from .utils import sort_episodes
         listables = sort_episodes(listables)
+
+    # filter out watched episodes if option is enabled
+    if options and options & OPT_HIDE_WATCHED:
+        listables = [listable for listable in listables if not hasattr(listable, 'playcount') or listable.playcount != 1]
 
     # add listable items to kodi
     for listable in listables:

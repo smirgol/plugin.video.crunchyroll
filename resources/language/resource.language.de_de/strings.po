@@ -212,6 +212,10 @@ msgctxt "#30047"
 msgid "Resume"
 msgstr "Fortsetzen"
 
+msgctxt "#30048"
+msgid "Queue (Unplayed)"
+msgstr "Playlist (Ungesehen)"
+
 msgctxt "#30049"
 msgid "Crunchylists"
 msgstr "Crunchylists"
