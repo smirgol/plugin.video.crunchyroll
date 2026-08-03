@@ -36,6 +36,8 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
         self.seek_time = kwargs["seek_time"]
         self.content_id = kwargs["content_id"]
         self.label = kwargs["label"]
+        self.api = kwargs["api"]
+        self.args = kwargs["args"]
         self.action_exit_keys_id = [ACTION_PREVIOUS_MENU, ACTION_PLAYER_STOP, ACTION_NAV_BACK, ACTION_NOOP]
         super().__init__(*args)
 
@@ -48,7 +50,7 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
         if control_id == 1000:
             xbmc.Player().seekTime(self.seek_time)
             try:
-                update_playhead(self.content_id, int(self.seek_time))
+                update_playhead(self.content_id, int(self.seek_time), self.api, self.args)
             finally:
                 self.close()
 
