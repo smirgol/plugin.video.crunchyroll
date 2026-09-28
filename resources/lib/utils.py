@@ -99,7 +99,7 @@ async def get_cms_object_data_by_ids(ids: list) -> dict:
 
 
 def get_stream_id_from_item(item: Dict) -> Union[str, None]:
-    """ takes a URL string and extracts the stream ID from it """
+    """Get the stream ID from the item, falling back to its content ID."""
 
     pattern = '/videos/([^/]+)/streams'
     stream_id = re.search(pattern, item.get('__links__', {}).get('streams', {}).get('href', ''))
@@ -107,10 +107,16 @@ def get_stream_id_from_item(item: Dict) -> Union[str, None]:
     if not stream_id:
         stream_id = re.search(pattern, item.get('streams_link', ''))
 
-    if not stream_id:
-        raise CrunchyrollError('Failed to get stream id')
+    if stream_id:
+        return stream_id[1]
 
-    return stream_id[1]
+    # Crunchyroll no longer consistently supplies __links__.streams or streams_link.
+    # The playback endpoint accepts the episode/movie content ID directly.
+    item_id = item.get('id')
+    if item_id:
+        return item_id
+
+    raise CrunchyrollError('Failed to get stream id')
 
 
 async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
@@ -147,7 +153,7 @@ async def get_playheads_from_api(episode_ids: Union[str, list]) -> Dict:
 
 
 async def get_watchlist_status_from_api(ids: list) -> list:
-    """ retrieve watchlist status for given media ids """
+    """ retrieve watchlist status from API for given ids """
 
     req = G.api.make_scraper_request(
         method="GET",
