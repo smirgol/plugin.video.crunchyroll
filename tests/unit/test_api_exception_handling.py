@@ -174,11 +174,11 @@ class TestCreateSessionRefreshTokenExpiredHandling:
 
         with patch.object(self.api.auth_manager, "_handle_refresh_flow", side_effect=refresh_error), patch.object(
             self.api.auth_manager, "_handle_login_flow", mock_login_flow
-        ), patch("xbmcgui.Dialog") as mock_dialog, patch.object(self.api.account_data, "delete_storage"):
+        ), patch("xbmcgui.Dialog") as mock_dialog, patch.object(self.api.account_data, "delete_storage") as mock_delete:
             self.api.create_session(action="refresh")
 
             mock_dialog.return_value.ok.assert_called_once()
-            self.api.account_data.delete_storage.assert_called_once()
+            mock_delete.assert_called_once()
             mock_login_flow.assert_called_once()
 
     def test_create_session_reraises_other_login_errors(self):

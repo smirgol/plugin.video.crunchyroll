@@ -1,5 +1,6 @@
 """Tests for the declarative mode registry in resources/lib/modes.py"""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -178,3 +179,56 @@ def test_check_mode_drama_routes_to_show_main_category(mock_show_main_category, 
     check_mode(ctx)
 
     mock_show_main_category.assert_called_once_with(ctx, "drama")
+
+
+def test_mode_registry_contains_reauth():
+    """'reauth' is a registered mode so a successful re-authentication lands on a known route."""
+    assert "reauth" in MODE_REGISTRY
+
+
+@pytest.fixture
+def reauth_ctx(ctx):
+    """ctx requesting mode=reauth; main-menu rendering is stubbed so it cannot touch shared Kodi stubs."""
+    ctx.args.get_arg.side_effect = lambda key, default=None, _cast=None: {
+        "mode": "reauth",
+        "id": None,
+        "url": None,
+    }.get(key, default)
+    ctx.args.addonurl = "plugin://plugin.video.crunchyroll"
+    ctx.args.argv = ["plugin://plugin.video.crunchyroll/", "7"]
+    with patch("resources.lib.crunchyroll.view") as mock_view, patch("resources.lib.crunchyroll.get_img_from_static"):
+        ctx.mock_view = mock_view
+        yield ctx
+
+
+# xbmc/xbmcplugin are the shared stub modules from conftest; patching attributes on them works
+# regardless of whether modes.py imports them at module level or lazily.
+@patch.object(sys.modules["xbmcplugin"], "endOfDirectory")
+def test_check_mode_reauth_closes_directory_unsuccessfully(mock_end_of_directory, reauth_ctx):
+    """Mode 'reauth' closes the current listing as failed so Kodi does not keep it in history."""
+    with patch.object(sys.modules["xbmc"], "executebuiltin"):
+        check_mode(reauth_ctx)
+
+    mock_end_of_directory.assert_called_once_with(handle=7, succeeded=False)
+
+
+@patch.object(sys.modules["xbmc"], "executebuiltin")
+def test_check_mode_reauth_redirects_to_root_replacing_history(mock_executebuiltin, reauth_ctx):
+    """Mode 'reauth' is one-shot: it redirects to the addon root and replaces the history entry."""
+    with patch.object(sys.modules["xbmcplugin"], "endOfDirectory"):
+        check_mode(reauth_ctx)
+
+    mock_executebuiltin.assert_called_once_with("Container.Update(plugin://plugin.video.crunchyroll/,replace)")
+
+
+@patch("resources.lib.modes.xbmcgui")
+@patch("resources.lib.modes.crunchy_log")
+def test_check_mode_reauth_renders_nothing_and_reports_no_error(mock_crunchy_log, mock_xbmcgui, reauth_ctx):
+    """Mode 'reauth' renders no menu items, raises no unknown-mode error and leaves args untouched."""
+    with patch.object(sys.modules["xbmcplugin"], "endOfDirectory"), patch.object(sys.modules["xbmc"], "executebuiltin"):
+        check_mode(reauth_ctx)
+
+    reauth_ctx.mock_view.add_item.assert_not_called()
+    mock_crunchy_log.assert_not_called()
+    mock_xbmcgui.Dialog.return_value.notification.assert_not_called()
+    reauth_ctx.args.set_arg.assert_not_called()
