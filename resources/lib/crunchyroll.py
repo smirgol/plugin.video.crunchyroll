@@ -87,6 +87,10 @@ def main(argv):
         )
         return True
 
+    # handle re-authentication after an expired session: wipe account and profile data, then log in again
+    if ctx.args.get_arg("mode") == "reauth":
+        ctx.api.destroy()
+
     # Start API authentication (uses device authentication)
     try:
         ctx.api.start()
@@ -101,25 +105,38 @@ def main(argv):
         return check_mode(ctx)
     except (LoginError, CrunchyrollError) as e:
         # login failed - determine error type and show user-friendly message
-        error_message = str(e).lower()
-
-        if "cancelled" in error_message:
-            error_type = "cancelled"
-        elif "expired" in error_message or "token" in error_message:
-            error_type = "auth_expired"
-        elif "network" in error_message or "connection" in error_message:
-            error_type = "network"
-        elif "server" in error_message or "unavailable" in error_message:
-            error_type = "server"
-        else:
-            error_type = "general"
+        error_type = classify_login_error(e)
 
         show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
 
-        view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30060)})
+        view.add_item(ctx, build_login_failed_item(ctx, error_type))
         view.end_of_directory(ctx)
 
         return False
+
+
+def classify_login_error(error: Exception) -> str:
+    """Map a login/API error to a user-facing error category"""
+    error_message = str(error).lower()
+
+    if "cancelled" in error_message:
+        return "cancelled"
+    if "expired" in error_message or "token" in error_message:
+        return "auth_expired"
+    if "network" in error_message or "connection" in error_message:
+        return "network"
+    if "server" in error_message or "unavailable" in error_message:
+        return "server"
+    return "general"
+
+
+def build_login_failed_item(ctx, error_type: str) -> dict:
+    """Build the list item shown when authentication failed"""
+    item = {"title": ctx.args.addon.getLocalizedString(30060)}
+    if error_type == "auth_expired":
+        # clicking the item wipes the stale session and starts a fresh login
+        item["mode"] = "reauth"
+    return item
 
 
 def check_mode(ctx):
