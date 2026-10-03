@@ -30,7 +30,7 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [x] Display various information
 - [x] Watch videos with premium subscription
 - [x] Synchronizes playback stats with Crunchyroll
-- [x] Optionally soft-subs only
+- [ ] Optionally soft-subs only (currently broken)
 - [x] Configure up to two languages for subtitles / dubs
 - [x] Crunchylists support
 - [x] Crunchyroll profiles
@@ -42,6 +42,10 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [ ] Browse all featured anime
 - [ ] Browse all new anime
 - [ ] Mark as watched from context menu and sync that to crunchyroll
+
+### Known issues
+- Softitles are currently broken, language selection does not work correctly
+
 
 ***
 
@@ -80,11 +84,11 @@ There are two types for each kodi version:
 |---------------|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
 | Omega / Nexus | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/main.zip)   | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/nexus-staging.zip)  |
 | Matrix        | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/matrix.zip) | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/matrix-staging.zip) |
-| Leia          | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/leia.zip)   | [Download](https://github.com/smirgol/plugin.video.crunchyroll/archive/refs/heads/leia-staging.zip)   |
+
 
 
 > [!NOTE]
-> *Leia* is discontinued, it will no longer receive new features. But I'll try to keep it alive as long as possible.
+> *Leia* is discontinued. Please upgrade.
 
 ***
 
@@ -125,17 +129,39 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 #### General Issues
 - **Videos won't play**: Ensure you have an active Crunchyroll Premium subscription
 - **Missing subtitles**: Check subtitle language settings in the addon configuration
-- **Performance issues**: Enable/disable "Soft Subtitles" setting to improve playback
 
 ***
 
-### Supported Languages
+### Supported Addon Languages
 
-* English
-* German
-* Portuguese
-* Spanish
-* French
+- English
+- German
+- Portuguese
+- Spanish
+- French
+
+### Supported Crunchyroll languages
+
+- Arabic
+- Chinese (Simplified)
+- Chinese (Traditional)
+- English
+- French (France)
+- German
+- Hindi
+- Indonesian
+- Italian
+- Malay
+- Polish
+- Portuguese (Brazil)
+- Portuguese (Portugal)
+- Russian
+- Spanish
+- Spanish (Spain)
+- Thai
+- Vietnamese
+
+
 
 ***
 
@@ -152,6 +178,11 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 - Removed legacy and mobile authentication code paths.
 - All API traffic to Crunchyroll endpoints is routed through cloudscraper.
 - Existing users with old sessions are prompted to re-authenticate via device flow.
+
+#### Version 3.8.0 (Refactoring and Endpoint changes)
+- Refactored code structure
+- All API traffic to Crunchyroll endpoints now point to live endpoints, not beta.
+- Existing users probably need to re-authenticate via device flow.
 
 > [!IMPORTANT]
 > **Breaking Change**: Email/password and mobile authentication are no longer supported. Only device authentication remains. Existing users may be prompted to re-authenticate once.
@@ -176,6 +207,7 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 * APachecoDiSanti
 * Acidzero2020
 * Centulus
+* Natsu Tadama
 * ...and all the forgotten heroes :)
 
 ***

@@ -410,15 +410,20 @@ def list_filter_without_category(ctx):
 
 def view_season(ctx):
     """view all seasons/arcs of an anime"""
+    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
+
+    params = {
+        "locale": ctx.args.subtitle,
+    }
+    if filter_dubs:
+        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
+        params["force_locale"] = ""
+
     # api request
     req = ctx.api.make_request(
         method="GET",
         url=ctx.api.SEASONS_ENDPOINT.format(ctx.args.get_arg("series_id")),
-        params={
-            "locale": ctx.args.subtitle,
-            "preferred_audio_language": ctx.api.account_data.default_audio_language,
-            "force_locale": "",
-        },
+        params=params,
     )
 
     # check for error
@@ -432,6 +437,7 @@ def view_season(ctx):
             req.get("data") or req.get("items"),
             item_type_hint="season",
             args=ctx.args,
+            expand_versions=not filter_dubs,
         ),
         is_folder=True,
     )
@@ -442,15 +448,20 @@ def view_season(ctx):
 
 def view_episodes(ctx):
     """view all episodes of season"""
+    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
+
+    params = {
+        "locale": ctx.args.subtitle,
+    }
+    if filter_dubs:
+        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
+        params["force_locale"] = ""
+
     # api request
     req = ctx.api.make_request(
         method="GET",
         url=ctx.api.EPISODES_ENDPOINT.format(ctx.args.get_arg("season_id")),
-        params={
-            "locale": ctx.args.subtitle,
-            "preferred_audio_language": ctx.api.account_data.default_audio_language,
-            "force_locale": "",
-        },
+        params=params,
     )
 
     # check for error
@@ -464,6 +475,7 @@ def view_episodes(ctx):
             req.get("data") or req.get("items"),
             item_type_hint="episode",
             args=ctx.args,
+            expand_versions=not filter_dubs,
         ),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE,
