@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
 # Copyright (C) 2023 smirgol
@@ -24,77 +23,82 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from . import controller
-from . import utils
-from . import view
-from .globals import G
-from .model import CrunchyrollError, LoginError
+from . import controller, modes, view
+from .api import API
+from .context import PluginContext
+from .models.args import Args
+from .models.exceptions import CrunchyrollError, LoginError
+from .utils.images import get_img_from_static
+from .utils.logging import show_user_friendly_error
 
 
 def main(argv):
-    """Main function for the addon
-    """
+    """Main function for the addon"""
 
-    G.init(argv)
+    args = Args.from_argv(argv)
+    api = API(args=args, locale=args.subtitle or "en-US")
+    monitor = xbmc.Monitor()
+    ctx = PluginContext(api=api, args=args, monitor=monitor)
 
     # inputstream adaptive settings
-    if G.args.get_arg('mode') == "hls":
+    if ctx.args.get_arg("mode") == "hls":
         from inputstreamhelper import Helper  # noqa
+
         is_helper = Helper("hls")
         if is_helper.check_inputstream():
             xbmcaddon.Addon(id="inputstream.adaptive").openSettings()
         return True
 
     # Initialize device ID if not present
-    G.args._device_id = G.args.addon.getSetting("device_id")
-    if not G.args.device_id:
+    ctx.args._device_id = ctx.args.addon.getSetting("device_id")
+    if not ctx.args.device_id:
         char_set = "0123456789abcdefghijklmnopqrstuvwxyz0123456789"
-        G.args._device_id = (
-                "".join(random.sample(char_set, 8)) +
-                "-KODI-" +
-                "".join(random.sample(char_set, 4)) +
-                "-" +
-                "".join(random.sample(char_set, 4)) +
-                "-" +
-                "".join(random.sample(char_set, 12))
+        ctx.args._device_id = (
+            "".join(random.sample(char_set, 8))
+            + "-KODI-"
+            + "".join(random.sample(char_set, 4))
+            + "-"
+            + "".join(random.sample(char_set, 4))
+            + "-"
+            + "".join(random.sample(char_set, 12))
         )
-        G.args.addon.setSetting("device_id", G.args.device_id)
+        ctx.args.addon.setSetting("device_id", ctx.args.device_id)
 
     # get subtitle language
-    G.args._subtitle = G.args.addon.getSetting("subtitle_language")
-    G.args._subtitle_fallback = G.args.addon.getSetting("subtitle_language_fallback")  # @todo: test with empty
+    ctx.args._subtitle = ctx.args.addon.getSetting("subtitle_language")
+    ctx.args._subtitle_fallback = ctx.args.addon.getSetting("subtitle_language_fallback")  # @todo: test with empty
 
     # temporary dialog to notify about subtitle settings change
     # @todo: remove eventually
-    if G.args.subtitle is int or G.args.subtitle_fallback is int or re.match("^([0-9]+)$", G.args.subtitle):
+    if ctx.args.subtitle is int or ctx.args.subtitle_fallback is int or re.match("^([0-9]+)$", ctx.args.subtitle):
         xbmcgui.Dialog().notification(
-            '%s INFO' % G.args.addon_name,
-            'Language settings have changed. Please adjust settings.',
+            f"{ctx.args.addon_name} INFO",
+            "Language settings have changed. Please adjust settings.",
             xbmcgui.NOTIFICATION_INFO,
-            10
+            10,
         )
 
     # handle settings->clear session data
-    if G.args.get_arg('mode') and G.args.get_arg('mode') == 'delete_account_data':
-        G.api.delete_account_data()
+    if ctx.args.get_arg("mode") and ctx.args.get_arg("mode") == "delete_account_data":
+        ctx.api.delete_account_data()
         xbmcgui.Dialog().ok(
-            G.args.addon_name,
-            G.args.addon.getLocalizedString(30244)
+            ctx.args.addon_name,
+            ctx.args.addon.getLocalizedString(30244),
         )
         return True
 
     # Start API authentication (uses device authentication)
     try:
-        G.api.start()
+        ctx.api.start()
 
         # request to select profile if not set already
-        if G.api.profile_data.profile_id is None:
-            controller.show_profiles()
+        if ctx.api.profile_data.profile_id is None:
+            controller.show_profiles(ctx)
 
         # list menu
-        xbmcplugin.setContent(int(G.args.argv[1]), "tvshows")
+        xbmcplugin.setContent(int(ctx.args.argv[1]), "tvshows")
 
-        return check_mode()
+        return check_mode(ctx)
     except (LoginError, CrunchyrollError) as e:
         # login failed - determine error type and show user-friendly message
         error_message = str(e).lower()
@@ -110,153 +114,68 @@ def main(argv):
         else:
             error_type = "general"
 
-        utils.show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
+        show_user_friendly_error(error_type, f"Authentication failed: {str(e)}")
 
-        view.add_item({"title": G.args.addon.getLocalizedString(30060)})
-        view.end_of_directory()
+        view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30060)})
+        view.end_of_directory(ctx)
 
         return False
 
 
-def check_mode():
-    """Run mode-specific functions
-    """
-    if G.args.get_arg('mode'):
-        mode = G.args.get_arg('mode')
-    elif G.args.get_arg('id'):
-        # call from other plugin
-        mode = "videoplay"
-        G.args.set_arg('url', "/media-" + G.args.get_arg('id'))
-    elif G.args.get_arg('url'):
-        # call from other plugin
-        mode = "videoplay"
-        G.args.set_arg('url', G.args.get_arg('url')[26:])  # @todo: does this actually work? truncated?
-    else:
-        mode = None
-
-    if not mode:
-        show_main_menu()
-
-    elif mode == "queue":
-        controller.show_queue()
-    elif mode == "search":
-        controller.search_anime()
-    elif mode == "history":
-        controller.show_history()
-    elif mode == "resume":
-        controller.show_resume_episodes()
-    # elif mode == "random":
-    #     controller.showRandom()
-
-    elif mode == "anime":
-        show_main_category("anime")
-    elif mode == "drama":
-        show_main_category("drama")
-
-    # elif mode == "featured":  # https://www.crunchyroll.com/content/v2/discover/account_id/home_feed -> hero_carousel ?
-    #     controller.list_series("featured", api)
-    elif mode == "popular":  # DONE
-        controller.list_filter()
-    # elif mode == "simulcast":  # https://www.crunchyroll.com/de/simulcasts/seasons/fall-2023 ???
-    #     controller.listSeries("simulcast", api)
-    # elif mode == "updated":
-    #    controller.listSeries("updated", api)
-    elif mode == "newest":
-        controller.list_filter()
-    elif mode == "alpha":
-        controller.list_filter()
-    elif mode == "season":  # DONE
-        controller.list_anime_seasons()
-    elif mode == "genre":  # DONE
-        controller.list_filter()
-
-    elif mode == "seasons":
-        controller.view_season()
-    elif mode == "episodes":
-        controller.view_episodes()
-    elif mode == "videoplay":
-        controller.start_playback()
-    elif mode == "add_to_queue":
-        controller.add_to_queue()
-    # elif mode == "remove_from_queue":
-    #     controller.remove_from_queue()
-    elif mode == "crunchylists_lists":
-        controller.crunchylists_lists()
-    elif mode == 'crunchylists_item':
-        controller.crunchylists_item()
-    elif mode == 'profiles_list':
-        controller.show_profiles()
-    else:
-        # unknown mode
-        utils.crunchy_log("Failed in check_mode '%s'" % str(mode), xbmc.LOGERROR)
-        xbmcgui.Dialog().notification(
-            G.args.addon_name,
-            G.args.addon.getLocalizedString(30061),
-            xbmcgui.NOTIFICATION_ERROR
-        )
-        show_main_menu()
+def check_mode(ctx):
+    """Run mode-specific functions via the declarative registry."""
+    return modes.check_mode(ctx)
 
 
-def show_main_menu():
-    """Show main menu
-    """
-    view.add_item({"title": G.args.addon.getLocalizedString(30040),
-                   "mode": "queue"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30047),
-                   "mode": "resume"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30041),
-                   "mode": "search"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30042),
-                   "mode": "history"})
-    # #view.add_item(args,
-    # #              {"title": G.args.addon.getLocalizedString(30043),
-    # #               "mode":  "random"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30050),
-                   "mode": "anime"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30049),
-                   "mode": "crunchylists_lists"})
-    view.add_item({"title": G.args.addon.getLocalizedString(30072) % str(G.api.profile_data.profile_name),
-                   "mode": "profiles_list", "thumb": utils.get_img_from_static(G.api.profile_data.avatar)})
-    # @TODO: i think there are no longer dramas. should we add music videos and movies?
-    # view.add_item(args,
-    #              {"title": G.args.addon.getLocalizedString(30051),
-    #               "mode":  "drama"})
-    view.end_of_directory(update_listing=True, cache_to_disc=False)
+def show_main_menu(ctx):
+    """Show main menu"""
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30040), "mode": "queue"})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30047), "mode": "resume"})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30041), "mode": "search"})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30042), "mode": "history"})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30050), "mode": "anime"})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30049), "mode": "crunchylists_lists"})
+    view.add_item(
+        ctx,
+        {
+            "title": ctx.args.addon.getLocalizedString(30072) % str(ctx.api.profile_data.profile_name),
+            "mode": "profiles_list",
+            "thumb": get_img_from_static(ctx.api.profile_data.avatar),
+        },
+    )
+    view.end_of_directory(ctx, update_listing=True, cache_to_disc=False)
 
 
-def show_main_category(genre):
-    """Show main category
-    """
-    # view.add_item(args,
-    #               {"title": G.args.addon.getLocalizedString(30058),
-    #                "mode": "featured",
-    #                "category_filter": "popular",
-    #                "genre": genre})
-    view.add_item({"title": G.args.addon.getLocalizedString(30052),
-                   "category_filter": "popularity",
-                   "mode": "popular",
-                   "genre": genre})
-    # view.add_item(args,
-    #               {"title": "TODO | " + G.args.addon.getLocalizedString(30053),
-    #                "mode": "simulcast",
-    #                "genre": genre})
-    # view.add_item(args,
-    #               {"title": "TODO | " + G.args.addon.getLocalizedString(30054),
-    #                "mode": "updated",
-    #                "genre": genre})
-    view.add_item({"title": G.args.addon.getLocalizedString(30059),
-                   "category_filter": "newly_added",
-                   "mode": "newest",
-                   "genre": genre})
-    view.add_item({"title": G.args.addon.getLocalizedString(30055),
-                   "category_filter": "alphabetical",
-                   "items_per_page": 100,
-                   "mode": "alpha",
-                   "genre": genre})
-    view.add_item({"title": G.args.addon.getLocalizedString(30057),
-                   "mode": "season",
-                   "genre": genre})
-    view.add_item({"title": G.args.addon.getLocalizedString(30056),
-                   "mode": "genre",
-                   "genre": genre})
-    view.end_of_directory()
+def show_main_category(ctx, genre):
+    """Show main category"""
+    view.add_item(
+        ctx,
+        {
+            "title": ctx.args.addon.getLocalizedString(30052),
+            "category_filter": "popularity",
+            "mode": "popular",
+            "genre": genre,
+        },
+    )
+    view.add_item(
+        ctx,
+        {
+            "title": ctx.args.addon.getLocalizedString(30059),
+            "category_filter": "newly_added",
+            "mode": "newest",
+            "genre": genre,
+        },
+    )
+    view.add_item(
+        ctx,
+        {
+            "title": ctx.args.addon.getLocalizedString(30055),
+            "category_filter": "alphabetical",
+            "items_per_page": 100,
+            "mode": "alpha",
+            "genre": genre,
+        },
+    )
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30057), "mode": "season", "genre": genre})
+    view.add_item(ctx, {"title": ctx.args.addon.getLocalizedString(30056), "mode": "genre", "genre": genre})
+    view.end_of_directory(ctx)

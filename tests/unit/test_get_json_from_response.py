@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from resources.lib.api import get_json_from_response
-from resources.lib.model import CrunchyrollError, LoginError
+from resources.lib.models.exceptions import CrunchyrollError, LoginError
 
 ASS_CONTENT = "[Script Info]\nTitle: Test\n"
 
@@ -21,7 +21,6 @@ def _mock_response(content_type: str, text: str, status_code: int = 200, ok: boo
 
 
 class TestPlainTextResponses:
-
     def test_text_plain_returns_data_dict(self):
         r = _mock_response("text/plain", ASS_CONTENT)
         assert get_json_from_response(r) == {"data": ASS_CONTENT}
@@ -42,7 +41,6 @@ class TestPlainTextResponses:
 
 
 class TestJsonResponses:
-
     def test_valid_json_returns_parsed_dict(self):
         r = _mock_response("application/json", '{"items": [], "total": 0}')
         r.json.return_value = {"items": [], "total": 0}
@@ -51,19 +49,19 @@ class TestJsonResponses:
     def test_json_decode_error_returns_none(self):
         r = _mock_response("application/json", "not json")
         r.json.side_effect = requests.exceptions.JSONDecodeError("", "", 0)
-        with patch("resources.lib.utils.log_error_with_trace"):
+        with patch("resources.lib.utils.logging.log_error_with_trace"):
             assert get_json_from_response(r) is None
 
     def test_error_response_raises_crunchyroll_error(self):
-        r = _mock_response("application/json", '{"message": "Not found", "code": "not_found"}',
-                           status_code=404, ok=False)
+        r = _mock_response(
+            "application/json", '{"message": "Not found", "code": "not_found"}', status_code=404, ok=False
+        )
         r.json.return_value = {"message": "Not found", "code": "not_found"}
         with pytest.raises(CrunchyrollError):
             get_json_from_response(r)
 
     def test_invalid_grant_raises_login_error(self):
-        r = _mock_response("application/json", '{"error": "invalid_grant"}',
-                           status_code=400, ok=False)
+        r = _mock_response("application/json", '{"error": "invalid_grant"}', status_code=400, ok=False)
         r.json.return_value = {"error": "invalid_grant"}
         with pytest.raises(LoginError):
             get_json_from_response(r)

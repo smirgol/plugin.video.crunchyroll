@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
 #
@@ -17,17 +16,17 @@
 import re
 import sys
 
-sys.modules['_asyncio'] = None  # @see: https://kodi.wiki/view/Python_Problems#asyncio
+sys.modules["_asyncio"] = None  # @see: https://kodi.wiki/view/Python_Problems#asyncio
 
-import xbmc
-import xbmcaddon
+import xbmc  # noqa: E402
+import xbmcaddon  # noqa: E402
 
 # plugin constants
 _addon = xbmcaddon.Addon(id=re.sub(r"^plugin://([^/]+)/.*$", r"\1", sys.argv[0]))
 _plugin = _addon.getAddonInfo("name")
 _version = _addon.getAddonInfo("version")
 
-xbmc.log("[PLUGIN] %s: version %s initialized" % (_plugin, _version))
+xbmc.log(f"[PLUGIN] {_plugin}: version {_version} initialized")
 
 if __name__ == "__main__":
     from resources.lib import crunchyroll

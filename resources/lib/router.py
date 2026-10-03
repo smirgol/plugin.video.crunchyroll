@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2023 lumiru
 #
@@ -15,68 +14,69 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import re
-from typing import Optional
 
 # A URL is formatted with {parameters}, each parameter are passed to controller args.
 # The "mode" option will be passed to args if set.
 plugin_routes: dict = {
     "main_submenu": {
-        "url": "/menu/{mode}"
+        "url": "/menu/{mode}",
     },
     "main_submenu_with_offset": {
-        "url": "/menu/{mode}/offset/{offset}"
+        "url": "/menu/{mode}/offset/{offset}",
     },
     "genre_submenu": {
-        "url": "/menu/{mode}/{genre}"
+        "url": "/menu/{mode}/{genre}",
     },
     "genre_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/offset/{offset}",
     },
     "category_submenu": {
-        "url": "/menu/{mode}/{genre}/category/{category_filter}"
+        "url": "/menu/{mode}/{genre}/category/{category_filter}",
     },
     "category_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/category/{category_filter}/offset/{offset}",
     },
     "season_submenu": {
-        "url": "/menu/{mode}/{genre}/season/{season_filter}"
+        "url": "/menu/{mode}/{genre}/season/{season_filter}",
     },
     "season_submenu_with_offset": {
-        "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}"
+        "url": "/menu/{mode}/{genre}/season/{season_filter}/offset/{offset}",
     },
     "crunchylist_view": {
         "url": "/crunchylist/{crunchylists_item_id}",
-        "mode": "crunchylists_item"
+        "mode": "crunchylists_item",
     },
     "series_view": {
         "url": "/series/{series_id}",
-        "mode": "seasons"
+        "mode": "seasons",
     },
     "season_view": {
         "url": "/series/{series_id}/{season_id}",
-        "mode": "episodes"
+        "mode": "episodes",
     },
     "season_view_with_offset": {
         "url": "/series/{series_id}/{season_id}/offset/{offset}",
-        "mode": "episodes"
+        "mode": "episodes",
     },
     "video_episode_play": {
         "url": "/video/{series_id}/{episode_id}/{stream_id}",
-        "mode": "videoplay"
+        "mode": "videoplay",
     },
     "video_movie_play": {
         "url": "/video/{episode_id}/{stream_id}",
-        "mode": "videoplay"
+        "mode": "videoplay",
     },
     "profiles_view": {
         "url": "/profiles/{mode}",
-        "mode": "profiles_list"
+        "mode": "profiles_list",
     },
 }
 
 
-def extract_url_params(url: str) -> Optional[dict]:
+def extract_url_params(url: str) -> dict | None:
     """
     The router logic itself.
     It iterates over routes and return params for the first found matching pattern (which should be the only one).
@@ -98,7 +98,7 @@ def extract_url_params(url: str) -> Optional[dict]:
     return None
 
 
-def build_path(args: dict) -> Optional[str]:
+def build_path(args: dict) -> str | None:
     """
     Build URL from plugin list item args.
     It will use the route configuration designated by "route" arg.
@@ -113,7 +113,7 @@ def build_path(args: dict) -> Optional[str]:
     return create_path_from_route(route_name, args)
 
 
-def find_route_matching_args(args: dict) -> Optional[str]:
+def find_route_matching_args(args: dict) -> str | None:
     """
     Try to get the best matching route to given "mode" arg and plugin list item args.
     """
@@ -143,7 +143,7 @@ def find_route_matching_args(args: dict) -> Optional[str]:
     return selected_route
 
 
-def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
+def create_path_from_route(route_name: str, args: dict) -> str | None:
     """
     Build URL from a route name and plugin list item args.
     """
@@ -156,7 +156,7 @@ def create_path_from_route(route_name: str, args: dict) -> Optional[str]:
     # Replace each {parameter} by its value from args
     pattern_params = extract_params_from_pattern(result)
     for param in pattern_params:
-        result = result.replace("{%s}" % param, str(args.get(param)))
+        result = result.replace(f"{{{param}}}", str(args.get(param)))
     return result
 
 

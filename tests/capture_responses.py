@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Simple script to capture API responses using integration test fixtures"""
+"""Standalone script to capture API responses using integration test fixtures.
 
-import json
-import time
+Run it as a plain script (NOT via `pytest`):
+
+    uv run python tests/capture_responses.py
+
+Requires valid credentials in tests/.env (see tests/.env.example).
+"""
+
 from pathlib import Path
-
-# Use pytest to get the fixtures
-import pytest
 
 # Run a custom test that captures responses
 test_code = """
@@ -73,10 +75,9 @@ def test_capture_all_responses(api_client):
     # 5. Seasons
     print("5. Capturing seasons...")
     try:
-        bucket = api_client.account_data.cms.bucket
         data = api_client.make_request(
-            "GET", api_client.SEASONS_ENDPOINT.format(bucket),
-            params={"series_id": "GQWH0M1J3", "locale": "de-DE"}
+            "GET", api_client.SEASONS_ENDPOINT.format("GQWH0M1J3"),
+            params={"locale": "de-DE", "force_locale": ""}
         )
         fixtures["seasons_response"] = data
         print("   ✓ Seasons captured")
@@ -88,10 +89,9 @@ def test_capture_all_responses(api_client):
     # 6. Episodes
     print("6. Capturing episodes...")
     try:
-        bucket = api_client.account_data.cms.bucket
         data = api_client.make_request(
-            "GET", api_client.EPISODES_ENDPOINT.format(bucket),
-            params={"season_id": "GYE5CQNJ2", "locale": "de-DE"}
+            "GET", api_client.EPISODES_ENDPOINT.format("GYE5CQNJ2"),
+            params={"locale": "de-DE"}
         )
         fixtures["episodes_response"] = data
         print("   ✓ Episodes captured")
@@ -165,17 +165,30 @@ def test_capture_all_responses(api_client):
     assert len(fixtures) > 0, "No responses captured!"
 """
 
-# Write temporary test file
-test_file = Path("tests/integration/test_capture.py")
-test_file.write_text(test_code)
 
-try:
-    # Run with pytest
-    import subprocess
-    result = subprocess.run(
-        ["uv", "run", "pytest", str(test_file), "-m", "integration", "-v", "-s"],
-        capture_output=False
+def _run_capture() -> int:
+    # Write temporary test file
+    test_file = Path("tests/integration/test_capture.py")
+    test_file.write_text(test_code)
+
+    try:
+        # Run with pytest (--extra test pulls in pytest/python-dotenv)
+        import subprocess
+
+        result = subprocess.run(
+            ["uv", "run", "--extra", "test", "pytest", str(test_file), "-m", "integration", "-v", "-s"],
+            capture_output=False,
+        )
+        return result.returncode
+    finally:
+        # Cleanup
+        test_file.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_capture())
+else:
+    raise RuntimeError(
+        "capture_responses.py is a standalone script, not a pytest test. "
+        "Run it with: uv run python tests/capture_responses.py"
     )
-finally:
-    # Cleanup
-    test_file.unlink(missing_ok=True)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Crunchyroll
 # Copyright (C) 2018 MrKrabat
 # Copyright (C) 2023 smirgol
@@ -15,23 +14,28 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import asyncio
 import sys
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
-from resources.lib.model import ListableItem, EpisodeData, SeasonData, SeriesData, PlayableItem
-
-try:
-    from urllib import quote_plus
-except ImportError:
-    from urllib.parse import quote_plus
-
-import xbmcvfs
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 
-from typing import Callable, Optional, List, Dict, Any
-from . import router, utils
-from .globals import G
+from resources.lib.models.base import ListableItem, PlayableItem
+from resources.lib.models.content import EpisodeData, SeasonData, SeriesData
+
+from . import presentation, router
+from .context import PluginContext
+from .utils.formatting import format_short_episode_title
+
+if TYPE_CHECKING:
+    from .api import API
+    from .models.args import Args
 
 # Fix for bug in old python version on windows
 # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/44
@@ -39,51 +43,55 @@ from .globals import G
 if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# keys allowed in setInfo
-types = ["count", "size", "date", "genre", "country", "year", "episode", "season", "sortepisode", "top250", "setid",
-         "tracknumber", "rating", "userrating", "watched", "overlay", "cast", "castandrole", "director",
-         "mpaa", "plot", "plotoutline", "title", "originaltitle", "sorttitle", "duration", "studio", "tagline",
-         "writer",
-         "tvshowtitle", "premiered", "status", "set", "setoverview", "tag", "imdbnumber", "code", "aired", "credits",
-         "lastplayed", "album", "artist", "votes", "path", "trailer", "dateadded", "mediatype", "dbid"]
+# keys allowed in setInfo - kept as backward-compat alias.
+# New code should import KODI_INFO_TYPES from presentation.
+types = presentation.KODI_INFO_TYPES
 
 
-def end_of_directory(content_type=None, update_listing=False, cache_to_disc=True):
+
+def end_of_directory(ctx: PluginContext, content_type=None, update_listing=False, cache_to_disc=True):
+    args = ctx.args
     # let xbmc know the items type in current directory
     if content_type is not None:
-        xbmcplugin.setContent(int(G.args.argv[1]), content_type)
+        xbmcplugin.setContent(int(args.argv[1]), content_type)
 
     # sort methods are required in library mode
-    xbmcplugin.addSortMethod(int(G.args.argv[1]), xbmcplugin.SORT_METHOD_NONE)
+    xbmcplugin.addSortMethod(int(args.argv[1]), xbmcplugin.SORT_METHOD_NONE)
 
     # let xbmc know the script is done adding items to the list
-    xbmcplugin.endOfDirectory(handle=int(G.args.argv[1]), updateListing=update_listing, cacheToDisc=cache_to_disc)
+    xbmcplugin.endOfDirectory(handle=int(args.argv[1]), updateListing=update_listing, cacheToDisc=cache_to_disc)
 
 
 def add_item(
-        info,
-        is_folder=True,
-        total_items=0,
-        mediatype="video",
-        callbacks: Optional[List[Callable[[xbmcgui.ListItem], None]]] = None
+    ctx: PluginContext,
+    info=None,
+    is_folder=True,
+    total_items=0,
+    mediatype="video",
+    callbacks: list[Callable[[xbmcgui.ListItem], None]] | None = None,
 ):
-    """ Add item to directory listing.
+    """Add item to directory listing.
 
-        This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
+    This is the old, more verbose approach. Try to use view.add_listables() for adding list items, if possible
     """
 
+    args = ctx.args
+    if info is None:
+        info = {}
+
     path_params = {}
-    path_params.update(G.args.args)
+    path_params.update(args.args)
     path_params.update(info)
 
     # get url
-    u = build_url(path_params)
+    u = presentation.build_url(path_params, args.addonurl)
 
     # create list item
-    li = xbmcgui.ListItem(label=info["title"], path=u)
+    li = xbmcgui.ListItem(label=info.get("title", ""), path=u)
 
+    sync = args.addon.getSetting("sync_playtime") == "true"
     # get infoLabels
-    info_labels = make_info_label(info)
+    info_labels = presentation.make_info_label(info, args.args, sync_playtime=sync)
 
     if is_folder:
         # directory
@@ -98,12 +106,13 @@ def add_item(
         # add context menu to jump to seasons xor episodes
         # @todo: this only makes sense in some very specific places, we need a way to handle these better.
         cm = []
+        addonurl = args.addonurl
         if path_params.get("series_id"):
-            cm.append((G.args.addon.getLocalizedString(30045),
-                       "Container.Update(%s)" % build_url(path_params, "series_view")))
+            url = presentation.build_url(path_params, addonurl, "series_view")
+            cm.append((args.addon.getLocalizedString(30045), f"Container.Update({url})"))
         if path_params.get("collection_id"):
-            cm.append((G.args.addon.getLocalizedString(30046),
-                       "Container.Update(%s)" % build_url(path_params, "season_view")))
+            url = presentation.build_url(path_params, addonurl, "season_view")
+            cm.append((args.addon.getLocalizedString(30046), f"Container.Update({url})"))
 
         if len(cm) > 0:
             li.addContextMenuItems(cm)
@@ -111,11 +120,11 @@ def add_item(
     # set media image
     artworks = {
         "thumb": info.get("thumb", "DefaultFolder.png"),
-        "fanart": info.get("fanart", xbmcvfs.translatePath(G.args.addon.getAddonInfo("fanart"))),
+        "fanart": info.get("fanart", xbmcvfs.translatePath(args.addon.getAddonInfo("fanart"))),
         "poster": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-        "landscape": info.get("landscape", info.get("thumb", 'DefaultFolder.png')),
+        "landscape": info.get("landscape", info.get("thumb", "DefaultFolder.png")),
         "banner": info.get("poster", info.get("thumb", "DefaultFolder.png")),
-        "icon": info.get("thumb", "DefaultFolder.png")
+        "icon": info.get("thumb", "DefaultFolder.png"),
     }
 
     if info.get("clearlogo"):
@@ -130,11 +139,13 @@ def add_item(
             cb(li)
 
     # add item to list
-    xbmcplugin.addDirectoryItem(handle=int(G.args.argv[1]),
-                                url=u,
-                                listitem=li,
-                                isFolder=is_folder,
-                                totalItems=total_items)
+    xbmcplugin.addDirectoryItem(
+        handle=int(args.argv[1]),
+        url=u,
+        listitem=li,
+        isFolder=is_folder,
+        totalItems=total_items,
+    )
 
 
 OPT_MARK_ON_WATCHLIST = 1  # highlight title if item is on watchlist
@@ -147,19 +158,25 @@ OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 
 # actually not sure if this works, as the requests lib is not async
 # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
-async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[str, Any]]:
+async def complement_listables(listables: list[ListableItem], api: API, args: Args) -> dict[str, dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
-    from .utils import get_playheads_from_api, get_cms_object_data_by_ids, get_watchlist_status_from_api, \
-        get_img_from_struct, infer_img_from_id
+    from .utils.api_data import (
+        get_cms_object_data_by_ids,
+        get_playheads_from_api,
+        get_watchlist_status_from_api,
+    )
+    from .utils.images import ImageType, get_img_from_struct, infer_img_from_id
 
     # playheads
-    ids_playhead = [listable.id for listable in listables if
-                    isinstance(listable, PlayableItem) and listable.playhead == 0]
+    ids_playhead = [
+        listable.id for listable in listables if isinstance(listable, PlayableItem) and listable.playhead == 0
+    ]
 
     # object data for e.g. poster images
     # for now we use the objects to fetch the series data only, to fetch its images and its rating
-    ids_objects_seasons = [listable.series_id for listable in listables if
-                           isinstance(listable, (SeasonData, EpisodeData, SeriesData))]
+    ids_objects_seasons = [
+        listable.series_id for listable in listables if isinstance(listable, (SeasonData, EpisodeData, SeriesData))
+    ]
     # ids_objects_other = [listable.id for listable in listables if
     #                      isinstance(listable, (EpisodeData, MovieData, SeriesData))]
     # ids_objects = ids_objects_seasons + ids_objects_other
@@ -172,25 +189,25 @@ async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[
     tasks_added = []
     tasks = []
     if ids_playhead:
-        tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead)))
-        tasks_added.append('playheads')
+        tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead, api, args)))
+        tasks_added.append("playheads")
     # @todo: for some reason objects endpoint stopped to deliver anything but thumbs in terms of images,
     #        but the sole reason for calling it are the additional images...
     #        for now we use the objects to fetch the series data only, to fetch its images and its rating
     if ids_objects:
-        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects)))
-        tasks_added.append('objects')
+        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects, api, args)))
+        tasks_added.append("objects")
     if ids_watchlist:
-        tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist)))
-        tasks_added.append('watchlist')
+        tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist, api, args)))
+        tasks_added.append("watchlist")
 
     # start async requests and fetch results
     results = await asyncio.gather(*tasks)
 
     result_obj = {
-        'playheads': {},
-        'objects': {},
-        'watchlist': {}
+        "playheads": {},
+        "objects": {},
+        "watchlist": {},
     }
     for idx, task in enumerate(tasks_added):
         result_obj[task] = results[idx]
@@ -206,68 +223,66 @@ async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[
     # add some of the info to the listables
     for listable in listables:
         # update playcount data, which might be missing
-        if listable.id in result_obj.get('playheads'):
-            listable.update_playcount_from_playhead(result_obj.get('playheads').get(listable.id))
+        if listable.id in result_obj.get("playheads"):
+            listable.update_playcount_from_playhead(result_obj.get("playheads").get(listable.id))
 
         # update images for SeasonData, as they come with none by default
-        if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get('objects'):
-            series_data = result_obj.get('objects').get(listable.series_id)
-            series_id = series_data.get('id') if series_data else None
+        if isinstance(listable, (SeriesData, SeasonData)) and listable.series_id in result_obj.get("objects"):
+            series_data = result_obj.get("objects").get(listable.series_id)
+            series_id = series_data.get("id") if series_data else None
 
-            setattr(listable, 'thumb',
-                    get_img_from_struct(series_data, "poster_wide", 2) or listable.thumb)
-            setattr(listable, 'landscape',
-                    get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape)
-            setattr(listable, 'fanart',
-                    infer_img_from_id(series_id, "backdrop_wide") or
-                    get_img_from_struct(series_data, "poster_wide", 2) or
-                    listable.fanart)
-            setattr(listable, 'clearlogo',
-                    infer_img_from_id(series_id, "title_logo") or listable.clearlogo)
-            setattr(listable, 'clearart',
-                    infer_img_from_id(series_id, "title_logo") or listable.clearart)
-            setattr(listable, 'poster',
-                    get_img_from_struct(series_data, "poster_tall", 2) or listable.poster)
+            listable.thumb = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.thumb
+            listable.landscape = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.landscape
+            listable.fanart = (
+                infer_img_from_id(series_id, ImageType.BACKDROP_WIDE)
+                or get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2)
+                or listable.fanart
+            )
+            listable.clearlogo = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearlogo
+            listable.clearart = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearart
+            listable.poster = get_img_from_struct(series_data, ImageType.POSTER_TALL, 2) or listable.poster
 
-        elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get('objects'):
+        elif isinstance(listable, EpisodeData) and listable.series_id in result_obj.get("objects"):
             # for episodes, only thumb is provided, so we can use it
-            # however, fanart and other arts are empty so we need to get them from the series to get a complete interface
-            series_data = result_obj.get('objects').get(listable.series_id)
-            series_id = series_data.get('id') if series_data else None
+            # however, fanart and other arts are empty so we need to get them from the series
+            # to get a complete interface
+            series_data = result_obj.get("objects").get(listable.series_id)
+            series_id = series_data.get("id") if series_data else None
 
-            setattr(listable, 'landscape',
-                    get_img_from_struct(series_data, "poster_wide", 2) or listable.landscape)
-            setattr(listable, 'fanart',
-                    infer_img_from_id(series_id, "backdrop_wide") or
-                    get_img_from_struct(series_data, "poster_wide", 2) or
-                    listable.fanart)
-            setattr(listable, 'clearlogo',
-                    infer_img_from_id(series_id, "title_logo") or listable.clearlogo)
-            setattr(listable, 'clearart',
-                    infer_img_from_id(series_id, "title_logo") or listable.clearart)
-            setattr(listable, 'poster',
-                    get_img_from_struct(series_data, "poster_tall", 2) or listable.poster)
+            listable.landscape = get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2) or listable.landscape
+            listable.fanart = (
+                infer_img_from_id(series_id, ImageType.BACKDROP_WIDE)
+                or get_img_from_struct(series_data, ImageType.POSTER_WIDE, 2)
+                or listable.fanart
+            )
+            listable.clearlogo = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearlogo
+            listable.clearart = infer_img_from_id(series_id, ImageType.TITLE_LOGO) or listable.clearart
+            listable.poster = get_img_from_struct(series_data, ImageType.POSTER_TALL, 2) or listable.poster
 
-        if listable.id in result_obj.get('objects') and result_obj.get('objects').get(listable.id).get(
-                'rating') and hasattr(listable, 'rating'):
-            if result_obj.get('objects').get(listable.id).get('rating').get('average'):
-                listable.rating = float(result_obj.get('objects').get(listable.id).get('rating').get('average')) * 2.0
-            elif result_obj.get('objects').get(listable.id).get('rating').get('up') and result_obj.get('objects').get(
-                    listable.id).get('rating').get('down'):
+        if (
+            listable.id in result_obj.get("objects")
+            and result_obj.get("objects").get(listable.id).get("rating")
+            and hasattr(listable, "rating")
+        ):
+            if result_obj.get("objects").get(listable.id).get("rating").get("average"):
+                listable.rating = float(result_obj.get("objects").get(listable.id).get("rating").get("average")) * 2.0
+            elif result_obj.get("objects").get(listable.id).get("rating").get("up") and result_obj.get("objects").get(
+                listable.id
+            ).get("rating").get("down"):
                 # these are user ratings, and they are pretty weird (overly positive)
-                ups_obj = result_obj.get('objects').get(listable.id).get('rating').get('up')
-                downs_obj = result_obj.get('objects').get(listable.id).get('rating').get('down')
-                ups = float(ups_obj.get('displayed'))
-                downs = float(downs_obj.get('displayed'))
+                ups_obj = result_obj.get("objects").get(listable.id).get("rating").get("up")
+                downs_obj = result_obj.get("objects").get(listable.id).get("rating").get("down")
+                ups = float(ups_obj.get("displayed"))
+                downs = float(downs_obj.get("displayed"))
 
-                if ups_obj.get('unit') == 'K':
+                if ups_obj.get("unit") == "K":
                     ups *= 1000.0
-                elif ups_obj.get('unit') == 'M':
+                elif ups_obj.get("unit") == "M":
                     ups *= 1000000.0  # not sure if that works or if there are ever that many votes
 
-                if downs_obj.get('unit') == 'K':
+                if downs_obj.get("unit") == "K":
                     downs *= 1000.0
-                elif downs_obj.get('unit') == 'M':
+                elif downs_obj.get("unit") == "M":
                     downs *= 1000000.0  # not sure if that works or if there are ever that many votes
 
                 listable.rating = float((ups / (ups + downs)) * 10.0)
@@ -277,28 +292,36 @@ async def complement_listables(listables: List[ListableItem]) -> Dict[str, Dict[
 
 
 def add_listables(
-        listables: List[ListableItem],
-        is_folder=True,
-        options: int = 0,
-        callbacks: Optional[List[Callable[[xbmcgui.ListItem, ListableItem], None]]] = None
+    ctx: PluginContext,
+    listables: list[ListableItem] = None,
+    is_folder=True,
+    options: int = 0,
+    callbacks: list[Callable[[xbmcgui.ListItem, ListableItem], None]] | None = None,
 ):
-    from .utils import highlight_list_item_title, crunchy_log
+    if listables is None:
+        listables = []
 
-    crunchy_log("add_listables: Starting to retrieve data async")
-    complement_data = asyncio.run(complement_listables(listables))
-    crunchy_log("add_listables: Finished to retrieve data async")
+    from .utils.api_data import highlight_list_item_title
+    from .utils.logging import crunchy_log
+
+    args = ctx.args
+
+    crunchy_log("add_listables: Starting to retrieve data async", addon=args.addon)
+    complement_data = asyncio.run(complement_listables(listables, ctx.api, ctx.args))
+    crunchy_log("add_listables: Finished to retrieve data async", addon=args.addon)
 
     if options and options & OPT_SORT_EPISODES_EXPERIMENTAL:  # needs check for episodes
-        from .utils import sort_episodes
+        from .utils.formatting import sort_episodes
+
         listables = sort_episodes(listables)
 
     # add listable items to kodi
     for listable in listables:
         # get url
-        u = build_url(listable.get_info())
+        u = presentation.build_url(listable.get_info(), args.addonurl)
 
         # get xbmc list item
-        list_item = listable.to_item()
+        list_item = listable.to_item(args.addon)
 
         # call any callbacks
         if callbacks:
@@ -308,108 +331,56 @@ def add_listables(
         # process options
 
         if options & OPT_MARK_ON_WATCHLIST:
-            highlight_list_item_title(list_item) if listable.id in complement_data.get('watchlist') else None
+            highlight_list_item_title(list_item) if listable.id in complement_data.get("watchlist") else None
 
         cm = []
-        if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get('watchlist'):
-            cm.append((
-                G.args.addon.getLocalizedString(30067),
-                'RunPlugin(%s?mode=add_to_queue&content_id=%s)' % (G.args.argv[0], listable.id)
-            ))
+        if options & OPT_CTX_WATCHLIST and listable.id not in complement_data.get("watchlist"):
+            cm.append(
+                (
+                    args.addon.getLocalizedString(30067),
+                    f"RunPlugin({args.argv[0]}?mode=add_to_queue&content_id={listable.id})",
+                )
+            )
 
-        if options & OPT_CTX_SEASONS and hasattr(listable, 'series_id') and getattr(listable, 'series_id') is not None:
-            route = (G.args.addonurl +
-                     router.create_path_from_route('series_view', {'series_id': listable.series_id}))
-            cm.append((G.args.addon.getLocalizedString(30045), "Container.Update(%s)" % route))
+        if options & OPT_CTX_SEASONS and hasattr(listable, "series_id") and listable.series_id is not None:
+            route = args.addonurl + router.create_path_from_route("series_view", {"series_id": listable.series_id})
+            cm.append((args.addon.getLocalizedString(30045), f"Container.Update({route})"))
 
-        if options & OPT_CTX_EPISODES and hasattr(listable, 'season_id') and getattr(listable, 'season_id') is not None:
-            route = (G.args.addonurl +
-                     router.create_path_from_route(
-                         'season_view',
-                         {'series_id': listable.series_id, 'season_id': listable.season_id}
-                     ))
-            cm.append((G.args.addon.getLocalizedString(30046), "Container.Update(%s)" % route))
+        if options & OPT_CTX_EPISODES and hasattr(listable, "season_id") and listable.season_id is not None:
+            route = args.addonurl + router.create_path_from_route(
+                "season_view", {"series_id": listable.series_id, "season_id": listable.season_id}
+            )
+            cm.append((args.addon.getLocalizedString(30046), f"Container.Update({route})"))
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
-            list_item.setInfo('video',
-                              {
-                                  'title': utils.format_short_episode_title(listable.episode,
-                                                                            listable.title_unformatted)
-                              })
+            list_item.setInfo(
+                "video", {"title": format_short_episode_title(listable.episode, listable.title_unformatted)}
+            )
 
         if len(cm) > 0:
             list_item.addContextMenuItems(cm)
 
         # add item to list
         xbmcplugin.addDirectoryItem(
-            handle=int(G.args.argv[1]),
+            handle=int(args.argv[1]),
             url=u,
             listitem=list_item,
-            isFolder=is_folder
+            isFolder=is_folder,
         )
 
 
-def quote_value(value) -> str:
-    """Quote value depending on python
-    """
-    if not isinstance(value, str):
-        value = str(value)
-    return quote_plus(value)
+def build_url(ctx: PluginContext, path_params: dict = None, route_name: str = None) -> str:
+    """Create url. Backward-compat wrapper around presentation.build_url()."""
+    args = ctx.args
+    if path_params is None:
+        path_params = {}
+    return presentation.build_url(path_params, args.addonurl, route_name)
 
 
-# Those parameters will be bypassed to URL as additional query_parameters if found in build_url path_params
-# Don't Use this, because it will break the local playcount system.
-# For the local playcount to work, the url (with all args) needs to be identical in the list and the in the player.
-whitelist_url_args = []
-
-
-def build_url(path_params: dict, route_name: str = None) -> str:
-    """Create url
-    """
-
-    # Get base route
-    if route_name is None:
-        path = router.build_path(path_params)
-    else:
-        path = router.create_path_from_route(route_name, path_params)
-    if path is None:
-        path = "/"
-
-    s = ""
-    # Add whitelisted parameters
-    for key, value in path_params.items():
-        if key in whitelist_url_args and value:
-            s = s + "&" + key + "=" + quote_value(value)
-    if len(s) > 0:
-        s = "?" + s[1:]
-
-    result = G.args.addonurl + path + s
-
-    return result
-
-
-def make_info_label(info) -> dict:
-    """Generate info_labels from existing dict
-    """
-    info_labels = {}
-    # step 1 copy new information from info
-    info_items = list(info.items())
-    for key, value in info_items:
-        if value and key in types:
-            info_labels[key] = value
-
-    # step 2 copy old information from args, but don't overwrite
-    arg_items = list(G.args.args.items())
-    for key, value in arg_items:
-        if value and key in types and key not in info_labels:
-            info_labels[key] = value
-
-    # only allow to overwrite the local playcount if we sync the playtime with the server
-    if G.args.addon.getSetting("sync_playtime") == "true":
-        if "playcount" in info_items:
-            info_labels["playcount"] = info_items["playcount"]
-        if "playcount" in arg_items and "playcount" not in info_labels:
-            info_labels["playcount"] = arg_items["playcount"]
-
-
-    return info_labels
+def make_info_label(ctx: PluginContext, info=None) -> dict:
+    """Generate info_labels from existing dict. Backward-compat wrapper."""
+    args = ctx.args
+    if info is None:
+        info = {}
+    sync = args.addon.getSetting("sync_playtime") == "true"
+    return presentation.make_info_label(info, args.args, sync_playtime=sync)

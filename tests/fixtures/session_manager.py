@@ -12,9 +12,11 @@ def cloudscraper_session():
     """
     try:
         import cloudscraper
+
         scraper = cloudscraper.create_scraper()
     except ImportError:
         import requests
+
         scraper = requests.Session()
 
     yield scraper
@@ -25,6 +27,7 @@ def cloudscraper_session():
 def requests_session():
     """Standard requests session for beta-api endpoints"""
     import requests
+
     session = requests.Session()
     yield session
     session.close()

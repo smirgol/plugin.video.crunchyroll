@@ -12,30 +12,21 @@ class TestAuthFlowIntegration:
         assert token is not None
         assert len(token) > 0
 
-        response = api_client.make_request(
-            method="GET",
-            url=api_client.PROFILE_ENDPOINT
-        )
+        response = api_client.make_request(method="GET", url=api_client.PROFILE_ENDPOINT)
 
         assert response is not None
         assert "username" in response or "profile_name" in response
 
     def test_get_index(self, api_client):
         """Test fetching index endpoint (requires auth)"""
-        response = api_client.make_request(
-            method="GET",
-            url=api_client.INDEX_ENDPOINT
-        )
+        response = api_client.make_request(method="GET", url=api_client.INDEX_ENDPOINT)
 
         assert response is not None
         assert "cms" in response or "cms_web" in response
 
     def test_profile_data(self, api_client):
         """Test fetching profile data"""
-        response = api_client.make_request(
-            method="GET",
-            url=api_client.PROFILE_ENDPOINT
-        )
+        response = api_client.make_request(method="GET", url=api_client.PROFILE_ENDPOINT)
 
         assert response is not None
         assert "username" in response or "profile_name" in response

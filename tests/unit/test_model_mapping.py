@@ -1,7 +1,7 @@
 """
 Tests for API Response → Model Mapping
 
-Tests that API responses are correctly parsed into resources.lib.model.py objects.
+Tests that API responses are correctly parsed into resources.lib.models objects.
 Uses real responses from captured_responses.json.
 """
 
@@ -133,21 +133,21 @@ class TestSearchMapping:
 class TestSeasonsMapping:
     """Test Seasons Response structure"""
 
-    def test_seasons_uses_items(self):
-        """Seasons uses 'items' not 'data'"""
+    def test_seasons_uses_data(self):
+        """Seasons uses 'data' (new content API) or 'items' (legacy/captured)"""
         seasons_api = load_captured_response("seasons_response")
 
-        # Seasons uses "items" (wie Browse/Search)
-        assert "items" in seasons_api
+        assert "data" in seasons_api or "items" in seasons_api
         assert "total" in seasons_api
-        assert isinstance(seasons_api["items"], list)
+        assert isinstance(seasons_api.get("data") or seasons_api.get("items"), list)
 
     def test_season_item_structure(self):
         """Test that Season items have all required fields"""
         seasons_api = load_captured_response("seasons_response")
+        seasons = seasons_api.get("data") or seasons_api.get("items", [])
 
-        if len(seasons_api["items"]) > 0:
-            season = seasons_api["items"][0]
+        if len(seasons) > 0:
+            season = seasons[0]
 
             # Critical fields for Seasons
             assert "id" in season
@@ -162,21 +162,21 @@ class TestSeasonsMapping:
 class TestEpisodesMapping:
     """Test Episodes Response structure"""
 
-    def test_episodes_uses_items(self):
-        """Episodes uses 'items' not 'data'"""
+    def test_episodes_uses_data(self):
+        """Episodes uses 'data' (new content API) or 'items' (legacy/captured)"""
         episodes_api = load_captured_response("episodes_response")
 
-        # Episodes uses "items" (wie Browse/Search/Seasons)
-        assert "items" in episodes_api
+        assert "data" in episodes_api or "items" in episodes_api
         assert "total" in episodes_api
-        assert isinstance(episodes_api["items"], list)
+        assert isinstance(episodes_api.get("data") or episodes_api.get("items"), list)
 
     def test_episode_item_structure(self):
         """Test that Episode items have all required fields"""
         episodes_api = load_captured_response("episodes_response")
+        episodes = episodes_api.get("data") or episodes_api.get("items", [])
 
-        if len(episodes_api["items"]) > 0:
-            episode = episodes_api["items"][0]
+        if len(episodes) > 0:
+            episode = episodes[0]
 
             # Critical fields for Episodes
             assert "id" in episode
@@ -188,9 +188,10 @@ class TestEpisodesMapping:
     def test_episode_playback_fields(self):
         """Test that playback-relevant fields exist"""
         episodes_api = load_captured_response("episodes_response")
+        episodes = episodes_api.get("data") or episodes_api.get("items", [])
 
-        if len(episodes_api["items"]) > 0:
-            episode = episodes_api["items"][0]
+        if len(episodes) > 0:
+            episode = episodes[0]
 
             # Important for playback
             if "duration_ms" in episode:
@@ -271,14 +272,14 @@ class TestResponseConsistency:
         watchlist = load_captured_response("watchlist_response")
         history = load_captured_response("history_response")
 
-        # Browse, Search, Seasons, Episodes, Watchlist nutzen "items"
+        # Browse, Search, Watchlist (legacy beta-api) nutzen "items"
         assert "items" in browse
         assert "items" in search
-        assert "items" in seasons
-        assert "items" in episodes
         assert "items" in watchlist
 
-        # ONLY History uses "data"
+        # Seasons, Episodes (new content/v2 api) and History use "data"
+        assert "data" in seasons
+        assert "data" in episodes
         assert "data" in history
 
     def test_all_have_total_field(self):
@@ -289,9 +290,63 @@ class TestResponseConsistency:
             "seasons_response",
             "episodes_response",
             "watchlist_response",
-            "history_response"
+            "history_response",
         ]
 
         for response_name in responses:
             data = load_captured_response(response_name)
             assert "total" in data, f"{response_name} should have .total. field"
+
+
+class TestAccountDataStorageRoundTrip:
+    """Test that AccountData survives the storage serialize/deserialize round-trip.
+
+    Regression: renamed fields (API key != attribute name) were lost on reload,
+    causing e.g. default_audio_language to become None when the cached session
+    was reused (valid token, no refresh).
+    """
+
+    API_RESPONSE = {
+        "access_token": "tok",
+        "refresh_token": "ref",
+        "expires": "2026-6-14T13:42:24Z",
+        "token_type": "Bearer",
+        "scope": "account content",
+        "country": "DE",
+        "account_id": "acc-123",
+        "service_available": True,
+        "avatar": "avatar.jpg",
+        "cr_beta_opt_in": True,
+        "crleg_email_verified": True,
+        "email": "user@example.com",
+        "maturity_rating": "M3",
+        "preferred_communication_language": "en-US",
+        "preferred_content_subtitle_language": "de-DE",
+        "preferred_content_audio_language": "ja-JP",
+        "username": "user",
+    }
+
+    def _roundtrip(self):
+        from resources.lib.models.account import AccountData
+
+        original = AccountData(self.API_RESPONSE)
+        # str(obj) is exactly what write_to_storage() persists
+        restored = AccountData(json.loads(str(original)))
+        return original, restored
+
+    def test_renamed_fields_survive_roundtrip(self):
+        original, restored = self._roundtrip()
+
+        assert restored.default_audio_language == original.default_audio_language == "ja-JP"
+        assert restored.default_subtitles_language == original.default_subtitles_language == "de-DE"
+        assert restored.account_language == original.account_language == "en-US"
+        assert restored.has_beta == original.has_beta is True
+        assert restored.email_verified == original.email_verified is True
+
+    def test_unchanged_fields_survive_roundtrip(self):
+        original, restored = self._roundtrip()
+
+        assert restored.access_token == original.access_token == "tok"
+        assert restored.country == original.country == "DE"
+        assert restored.username == original.username == "user"
+        assert restored.maturity_rating == original.maturity_rating == "M3"

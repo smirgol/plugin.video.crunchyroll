@@ -2,23 +2,26 @@ import json
 from unittest.mock import Mock, patch
 
 from resources.lib.api import API
-from resources.lib.model import AccountData
+from resources.lib.models.account import AccountData
 from tests.fixtures.api_responses import STREAM_RESPONSE
 
 
+def _mock_scraper(mock_response):
+    scraper = Mock()
+    scraper.request.return_value = mock_response
+    return scraper
+
+
 class TestAPIStreamingUnit:
-    """Unit Tests for Streaming API methods (mocked HTTP)"""
+    """Unit Tests for Streaming API methods (mocked CloudScraper)"""
 
     def setup_method(self):
         """Setup API instance with mocked dependencies"""
-        with patch('resources.lib.api.default_request_headers'), \
-             patch('resources.lib.globals.G'):
+        with patch("resources.lib.api.default_request_headers"):
             self.api = API()
-            self.api.account_data = AccountData({
-                'access_token': 'test_access_token',
-                'refresh_token': 'test_refresh_token',
-                'token_type': 'Bearer'
-            })
+            self.api.account_data = AccountData(
+                {"access_token": "test_access_token", "refresh_token": "test_refresh_token", "token_type": "Bearer"}
+            )
             self.api.account_data.cms = Mock()
             self.api.account_data.cms.policy = "test_policy"
             self.api.account_data.cms.signature = "test_sig"
@@ -34,16 +37,13 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
-
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
 
-            result = self.api.make_request(
-                method="GET",
-                url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id)
-            )
+            result = self.api.make_request(method="GET", url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id))
 
             assert "streams" in result
             assert "adaptive_hls" in result["streams"]
@@ -58,16 +58,13 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
-
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
 
-            result = self.api.make_request(
-                method="GET",
-                url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id)
-            )
+            result = self.api.make_request(method="GET", url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id))
 
             assert "subtitles" in result
             assert "en-US" in result["subtitles"]
@@ -83,16 +80,14 @@ class TestAPIStreamingUnit:
         mock_response.text = json.dumps(STREAM_RESPONSE)
         mock_response.headers = {"Content-Type": "application/json"}
 
-        with patch.object(self.api, 'is_token_valid', return_value=True), \
-             patch.object(self.api.http, 'request', return_value=mock_response):
-
+        with patch.object(self.api.auth_manager, "is_token_valid", return_value=True), patch.object(
+            self.api.auth_manager, "create_auth_scraper", return_value=_mock_scraper(mock_response)
+        ):
             bucket = self.api.account_data.cms.bucket
             episode_id = "GRVN1234X"
 
             result = self.api.make_request(
-                method="GET",
-                url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id),
-                params={"audio_locale": "ja-JP"}
+                method="GET", url=self.api.STREAMS_ENDPOINT.format(bucket, episode_id), params={"audio_locale": "ja-JP"}
             )
 
             assert result["audio_locale"] == "ja-JP"
