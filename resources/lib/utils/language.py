@@ -178,13 +178,73 @@ def wanted_season_version(items: list[dict] | None, season_id: str, prefs: Langu
         if season_id not in guids:
             continue
 
-        wanted = order_versions([v for v in season_versions(item) if is_version_wanted(v, prefs)], prefs)
-        if not wanted:
+        variants = season_versions(item)
+        own_audio_locale = next((v["audio_locale"] for v in variants if v["id"] == season_id), None)
+        picked = pick_version(variants, own_audio_locale, prefs)
+        if picked is None:
             return None
 
-        return wanted[0]["id"], wanted[0]["audio_locale"]
+        return picked["id"], picked["audio_locale"]
 
     return None
+
+
+def pick_version(variants: list[dict], own_audio_locale: str | None, prefs: LanguagePreferences) -> dict | None:
+    """The variant to play: an allowed own version stays, else primary dub, fallback dub, original.
+
+    Exception: an own fallback dub yields to an allowed primary dub. None when the filter is off or nothing is allowed.
+    """
+
+    if not prefs.filter_enabled:
+        return None
+
+    allowed = [v for v in variants if is_version_wanted(v, prefs)]
+    primary_dub = next((v for v in allowed if v.get("audio_locale") == prefs.subtitle), None)
+    own = next((v for v in allowed if v.get("audio_locale") == own_audio_locale), None)
+
+    if own is not None:
+        own_is_fallback_dub = own["audio_locale"] == prefs.subtitle_fallback and not own.get("original")
+        if own_is_fallback_dub and primary_dub is not None:
+            return primary_dub
+        return own
+
+    if primary_dub is not None:
+        return primary_dub
+
+    fallback_dub = next(
+        (v for v in allowed if prefs.subtitle_fallback and v.get("audio_locale") == prefs.subtitle_fallback), None
+    )
+    if fallback_dub is not None:
+        return fallback_dub
+
+    return next((v for v in allowed if v.get("original")), None)
+
+
+def wanted_episode_version(episode, prefs: LanguagePreferences) -> dict | None:
+    """Raw entry of ``episode.versions`` to play instead of the episode itself; None when the episode stays."""
+
+    if not prefs.filter_enabled or not episode.versions:
+        return None
+
+    candidates = [
+        (
+            {
+                "audio_locale": version.get("audio_locale"),
+                "original": bool(version.get("original")),
+                "subtitle_locales": episode.subtitle_locales,
+                "is_subbed": episode.is_subbed,
+            },
+            version,
+        )
+        for version in episode.versions
+        if all(version.get(key) for key in ("guid", "media_guid", "season_guid", "audio_locale"))
+    ]
+
+    picked = pick_version([variant for variant, _ in candidates], episode.audio_locale, prefs)
+    if picked is None or picked["audio_locale"] == episode.audio_locale:
+        return None
+
+    return next(version for variant, version in candidates if variant is picked)
 
 
 def default_episode_audio(prefs: LanguagePreferences) -> str | None:

@@ -185,6 +185,17 @@ class EpisodeData(PlayableItem):
 
         self.recalc_playcount()
 
+    def use_version(self, version: dict) -> None:
+        """Point this episode at another audio version, given as an entry of ``versions``."""
+
+        self.id = version["guid"]
+        self.episode_id = version["guid"]
+        self.stream_id = version["media_guid"]
+        self.audio_locale = version["audio_locale"]
+        self.season_id = version["season_guid"]
+        self.playhead = 0
+        self.playcount = 0
+
     def recalc_playcount(self):
         if self.playhead is not None and self.duration is not None:
             self.playcount = 1 if (int(self.playhead / self.duration * 100)) > 90 else 0

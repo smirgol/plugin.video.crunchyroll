@@ -261,3 +261,67 @@ class TestEpisodeLanguageAttributes:
         assert episode.versions == []
         assert episode.subtitle_locales == []
         assert episode.is_subbed is False
+
+
+class TestEpisodeUseVersion:
+    """EpisodeData.use_version switches a listed episode to another version (Schritt 3d)."""
+
+    @pytest.fixture
+    def episode_and_version(self):
+        item = load_version_fixture("watchlist_episode_item")
+        episode = EpisodeData(item)
+        episode.playhead = int(episode.duration * 0.95)
+        episode.recalc_playcount()
+        version = item["panel"]["episode_metadata"]["versions"][1]
+        assert episode.id == "GE00380136JAJP"
+        assert episode.stream_id == "GE00380136JAJPV"
+        assert episode.playhead > 0
+        assert episode.playcount == 1
+        return episode, version
+
+    def test_switches_ids_audio_and_season(self, episode_and_version):
+        episode, version = episode_and_version
+
+        episode.use_version(version)
+
+        assert episode.id == "GE00380136DEDE"
+        assert episode.stream_id == "GE00380136DEDEV"
+        assert episode.audio_locale == "de-DE"
+        assert episode.season_id == "GS00380130DEDE"
+
+    def test_switches_episode_id_used_by_the_play_url(self, episode_and_version):
+        """Beyond the written contract: get_info()['episode_id'] builds the video_episode_play URL."""
+        episode, version = episode_and_version
+
+        episode.use_version(version)
+
+        assert episode.episode_id == "GE00380136DEDE"
+        info = episode.get_info()
+        assert info["episode_id"] == "GE00380136DEDE"
+        assert info["stream_id"] == "GE00380136DEDEV"
+        assert info["season_id"] == "GS00380130DEDE"
+
+    def test_resets_progress_of_the_old_id(self, episode_and_version):
+        """Playhead and playcount belong to the old id; view.complement_listables refetches them for the new id."""
+        episode, version = episode_and_version
+
+        episode.use_version(version)
+
+        assert episode.playhead == 0
+        assert episode.playcount == 0
+        assert episode.get_info()["playhead"] == 0
+        assert episode.get_info()["playcount"] == 0
+
+    def test_keeps_other_attributes(self, episode_and_version):
+        """Playhead is no longer kept (review 2026-10-05): progress of the old id must not show for the new id."""
+        episode, version = episode_and_version
+        before = {
+            key: getattr(episode, key)
+            for key in ("title", "title_unformatted", "duration", "series_id", "season", "episode")
+        }
+        versions_before = copy.deepcopy(episode.versions)
+
+        episode.use_version(version)
+
+        assert {key: getattr(episode, key) for key in before} == before
+        assert episode.versions == versions_before

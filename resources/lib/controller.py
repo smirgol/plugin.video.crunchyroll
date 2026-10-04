@@ -32,6 +32,7 @@ from .controller_helpers import (
     render_error_directory,
 )
 from .models.account import ProfileData
+from .models.content import EpisodeData
 from .models.exceptions import CrunchyrollError
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
@@ -39,6 +40,7 @@ from .utils.language import (
     LanguagePreferences,
     default_episode_audio,
     select_season_versions,
+    wanted_episode_version,
     wanted_season_version,
 )
 from .utils.logging import crunchy_log, log_error_with_trace
@@ -79,6 +81,19 @@ def show_profiles(ctx):
         return True
 
 
+def _with_wanted_versions(listables: list, ctx) -> list:
+    """Switch each episode to the audio version the language settings want; other listables stay as they are."""
+
+    prefs = LanguagePreferences.from_args(ctx.args)
+    for listable in listables:
+        if isinstance(listable, EpisodeData):
+            version = wanted_episode_version(listable, prefs)
+            if version is not None:
+                listable.use_version(version)
+
+    return listables
+
+
 def show_queue(ctx):
     """shows anime queue/playlist"""
     # api request
@@ -97,7 +112,7 @@ def show_queue(ctx):
 
     view.add_listables(
         ctx,
-        listables=get_listables_from_response(req.get("items"), args=ctx.args),
+        listables=_with_wanted_versions(get_listables_from_response(req.get("items"), args=ctx.args), ctx),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
@@ -224,7 +239,7 @@ def show_resume_episodes(ctx):
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
         ctx,
-        listables=get_listables_from_response(req.get("data"), args=ctx.args),
+        listables=_with_wanted_versions(get_listables_from_response(req.get("data"), args=ctx.args), ctx),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )

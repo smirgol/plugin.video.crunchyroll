@@ -9,6 +9,7 @@ import copy
 import dataclasses
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -602,11 +603,32 @@ class TestWantedSeasonVersion:
 
         assert result == (JA_ID, "ja-JP")
 
-    def test_default_settings_prefer_original_over_dub(self, season_item):
-        """settings.xml defaults: filter, dubs, fallback dubs and subs all on -> original first (4.1 order)"""
+    def test_default_settings_keep_own_allowed_dub_season(self, season_item):
+        """settings.xml defaults: filter, dubs, fallback dubs and subs all on; the own de-DE season is allowed.
+
+        Deliberate requirement change (Schritt 3d / Issue #136): an allowed own version stays. Before, the
+        original came first by 4.1 order and the own de-DE season resolved to the ja-JP original.
+        """
         prefs = _prefs(show_dubs=True, show_dubs_fallback=True, show_subs=True)
 
-        assert language.wanted_season_version([season_item], DE_ID, prefs) == (JA_ID, "ja-JP")
+        assert language.wanted_season_version([season_item], DE_ID, prefs) == (DE_ID, "de-DE")
+
+    def test_subs_and_dubs_keep_own_dub_season(self, season_item):
+        """Schritt 3d / Issue #136: with subs and dubs on, the own de-DE season is the user's choice."""
+        prefs = _prefs(show_dubs=True, show_subs=True)
+
+        assert language.wanted_season_version([season_item], DE_ID, prefs) == (DE_ID, "de-DE")
+
+    def test_subs_and_dubs_keep_own_original_season(self, season_item):
+        prefs = _prefs(show_dubs=True, show_subs=True)
+
+        assert language.wanted_season_version([season_item], JA_ID, prefs) == (JA_ID, "ja-JP")
+
+    def test_subs_and_dubs_own_not_allowed_season_resolves_to_primary_dub(self, season_item):
+        """Own en-US is not allowed (no fallback dubs), so the primary dub wins over the original."""
+        prefs = _prefs(show_dubs=True, show_subs=True)
+
+        assert language.wanted_season_version([season_item], EN_ID, prefs) == (DE_ID, "de-DE")
 
     def test_input_items_are_not_mutated(self):
         items = _mushoku_items()
@@ -642,3 +664,250 @@ class TestDefaultEpisodeAudio:
 
     def test_no_flags_is_none(self):
         assert language.default_episode_audio(_prefs()) is None
+
+
+WANTED_SUBS = ["de-DE", "en-US"]
+DUBS_ONLY = {"show_dubs": True, "show_dubs_fallback": True}
+SUBS_AND_DUBS = {"show_dubs": True, "show_subs": True}
+
+
+def _pick_variants(*audio_locales):
+    """Variants keyed by audio locale; ja-JP is the original, all carry de-DE/en-US subtitles."""
+    return {
+        locale: _variant(locale, locale == "ja-JP", subtitle_locales=list(WANTED_SUBS), is_subbed=True)
+        for locale in audio_locales
+    }
+
+
+class TestPickVersion:
+    """Rule of Schritt 3d (Issue #136): keep an allowed own version, else primary dub, fallback dub, original."""
+
+    def test_dubs_only_own_fallback_dub_switches_to_present_primary_dub(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(**DUBS_ONLY))
+
+        assert result == variants["de-DE"]
+
+    def test_dubs_only_own_fallback_dub_without_primary_dub_is_kept(self):
+        variants = _pick_variants("ja-JP", "en-US")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(**DUBS_ONLY))
+
+        assert result == variants["en-US"]
+
+    def test_dubs_only_own_primary_dub_is_kept(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "de-DE", _prefs(**DUBS_ONLY))
+
+        assert result == variants["de-DE"]
+
+    def test_own_fallback_dub_is_kept_when_primary_dub_is_present_but_not_allowed(self):
+        """Only fallback dubs on: de-DE exists but is not allowed, so the exception does not apply."""
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(show_dubs_fallback=True))
+
+        assert result == variants["en-US"]
+
+    def test_subs_and_dubs_own_original_is_kept(self):
+        """Issue #136: a simulcast watched in the original stays original although the dub exists."""
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "ja-JP", _prefs(**SUBS_AND_DUBS))
+
+        assert result == variants["ja-JP"]
+
+    def test_subs_and_dubs_own_primary_dub_is_kept(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "de-DE", _prefs(**SUBS_AND_DUBS))
+
+        assert result == variants["de-DE"]
+
+    def test_subs_and_dubs_own_not_allowed_switches_to_primary_dub(self):
+        """en-US is not allowed without fallback dubs; the primary dub comes before the original."""
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(**SUBS_AND_DUBS))
+
+        assert result == variants["de-DE"]
+
+    def test_subs_and_dubs_own_not_allowed_without_primary_dub_switches_to_original(self):
+        variants = _pick_variants("ja-JP", "en-US")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(**SUBS_AND_DUBS))
+
+        assert result == variants["ja-JP"]
+
+    def test_subs_only_own_dub_switches_to_original(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "en-US", _prefs(show_subs=True))
+
+        assert result == variants["ja-JP"]
+
+    def test_own_not_allowed_without_primary_dub_switches_to_fallback_dub(self):
+        variants = _pick_variants("ja-JP", "en-US")
+
+        result = language.pick_version(list(variants.values()), "ja-JP", _prefs(**DUBS_ONLY))
+
+        assert result == variants["en-US"]
+
+    def test_own_not_allowed_with_primary_dub_present_but_not_allowed_switches_to_fallback_dub(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), "ja-JP", _prefs(show_dubs_fallback=True))
+
+        assert result == variants["en-US"]
+
+    @pytest.mark.parametrize("own_audio_locale", ["it-IT", None])
+    def test_own_not_in_variants_counts_as_not_allowed(self, own_audio_locale):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+
+        result = language.pick_version(list(variants.values()), own_audio_locale, _prefs(**DUBS_ONLY))
+
+        assert result == variants["de-DE"]
+
+    def test_filter_off_is_none(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+        prefs = _prefs(filter_enabled=False, **DUBS_ONLY)
+
+        assert language.pick_version(list(variants.values()), "en-US", prefs) is None
+
+    def test_nothing_allowed_is_none(self):
+        variants = _pick_variants("ja-JP", "en-US", "de-DE")
+        prefs = _prefs(subtitle="ru-RU", subtitle_fallback=None, show_dubs=True)
+
+        assert language.pick_version(list(variants.values()), "en-US", prefs) is None
+
+    def test_no_variants_is_none(self):
+        assert language.pick_version([], "en-US", _prefs(**DUBS_ONLY)) is None
+
+    def test_variants_are_not_mutated(self):
+        variants = list(_pick_variants("ja-JP", "en-US", "de-DE").values())
+        before = copy.deepcopy(variants)
+
+        language.pick_version(variants, "en-US", _prefs(**SUBS_AND_DUBS))
+
+        assert variants == before
+
+
+def _watchlist_episode_meta():
+    return _load_version_fixture_item("watchlist_episode_item")["panel"]["episode_metadata"]
+
+
+def _load_version_fixture_item(name):
+    fixtures = Path(__file__).parent.parent / "fixtures"
+    with open(fixtures / "version_responses.json") as f:
+        return json.load(f)[name]
+
+
+def _episode(versions, audio_locale, subtitle_locales=None, is_subbed=True):
+    return SimpleNamespace(
+        versions=versions,
+        audio_locale=audio_locale,
+        subtitle_locales=list(WANTED_SUBS) if subtitle_locales is None else subtitle_locales,
+        is_subbed=is_subbed,
+    )
+
+
+def _episode_version(audio_locale, original=False, guid=True, media_guid=True):
+    code = audio_locale.replace("-", "").upper()
+    version = {"audio_locale": audio_locale, "original": original, "season_guid": f"GS_{code}", "variant": ""}
+    if guid:
+        version["guid"] = f"GE_{code}"
+    if media_guid:
+        version["media_guid"] = f"GE_{code}V"
+    return version
+
+
+class TestWantedEpisodeVersion:
+    """Version a resume/queue entry should play (Schritt 3d); None when the own version stays."""
+
+    def test_watchlist_item_with_dub_settings_switches_to_german_version(self):
+        meta = _watchlist_episode_meta()
+        episode = _episode(meta["versions"], meta["audio_locale"], meta["subtitle_locales"], meta["is_subbed"])
+
+        result = language.wanted_episode_version(episode, _prefs(**DUBS_ONLY))
+
+        assert result == meta["versions"][1]
+
+    def test_watchlist_item_with_subs_and_dubs_keeps_own_original(self):
+        meta = _watchlist_episode_meta()
+        episode = _episode(meta["versions"], meta["audio_locale"], meta["subtitle_locales"], meta["is_subbed"])
+
+        assert language.wanted_episode_version(episode, _prefs(**SUBS_AND_DUBS)) is None
+
+    def test_filter_off_is_none(self):
+        meta = _watchlist_episode_meta()
+        episode = _episode(meta["versions"], meta["audio_locale"], meta["subtitle_locales"], meta["is_subbed"])
+
+        assert language.wanted_episode_version(episode, _prefs(filter_enabled=False, **DUBS_ONLY)) is None
+
+    def test_nothing_allowed_is_none(self):
+        meta = _watchlist_episode_meta()
+        episode = _episode(meta["versions"], meta["audio_locale"], meta["subtitle_locales"], meta["is_subbed"])
+        prefs = _prefs(subtitle="ru-RU", subtitle_fallback=None, show_dubs=True)
+
+        assert language.wanted_episode_version(episode, prefs) is None
+
+    def test_own_allowed_version_is_none(self):
+        versions = [_episode_version("ja-JP", original=True), _episode_version("de-DE")]
+
+        assert language.wanted_episode_version(_episode(versions, "de-DE"), _prefs(**DUBS_ONLY)) is None
+
+    def test_subs_only_own_dub_switches_to_original(self):
+        versions = [_episode_version("ja-JP", original=True), _episode_version("de-DE")]
+
+        result = language.wanted_episode_version(_episode(versions, "de-DE"), _prefs(show_subs=True))
+
+        assert result == versions[0]
+
+    def test_original_flag_comes_from_the_version_and_subtitles_from_the_episode(self):
+        """Issue #51 edge case: empty subtitle locales on a subbed episode count as wanted subtitles."""
+        versions = [_episode_version("zh-CN", original=True), _episode_version("en-US")]
+        episode = _episode(versions, "en-US", subtitle_locales=[], is_subbed=True)
+
+        result = language.wanted_episode_version(episode, _prefs(show_subs=True))
+
+        assert result == versions[0]
+
+    @pytest.mark.parametrize("missing", ["guid", "media_guid", "season_guid"])
+    def test_versions_without_ids_are_ignored(self, missing):
+        """de-DE lacks an id, so the fallback dub is chosen instead of the primary dub."""
+        versions = [
+            _episode_version("ja-JP", original=True),
+            _episode_version("de-DE"),
+            _episode_version("en-US"),
+        ]
+        del versions[1][missing]
+
+        result = language.wanted_episode_version(_episode(versions, "ja-JP"), _prefs(**DUBS_ONLY))
+
+        assert result == versions[2]
+
+    def test_version_without_audio_locale_is_ignored(self):
+        """The original lacks audio_locale, so a subs-only de-DE dub has no version to switch to and stays."""
+        versions = [_episode_version("ja-JP", original=True), _episode_version("de-DE")]
+        del versions[0]["audio_locale"]
+
+        assert language.wanted_episode_version(_episode(versions, "de-DE"), _prefs(show_subs=True)) is None
+
+    def test_only_wanted_version_without_media_guid_is_none(self):
+        versions = [_episode_version("ja-JP", original=True), _episode_version("de-DE", media_guid=False)]
+
+        assert language.wanted_episode_version(_episode(versions, "ja-JP"), _prefs(show_dubs=True)) is None
+
+    def test_episode_without_versions_is_none(self):
+        assert language.wanted_episode_version(_episode([], "ja-JP"), _prefs(**DUBS_ONLY)) is None
+
+    def test_versions_are_not_mutated(self):
+        meta = _watchlist_episode_meta()
+        before = copy.deepcopy(meta["versions"])
+        episode = _episode(meta["versions"], meta["audio_locale"], meta["subtitle_locales"], meta["is_subbed"])
+
+        language.wanted_episode_version(episode, _prefs(**DUBS_ONLY))
+
+        assert meta["versions"] == before
