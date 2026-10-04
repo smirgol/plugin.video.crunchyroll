@@ -57,6 +57,10 @@ plugin_routes: dict = {
         "url": "/series/{series_id}/{season_id}",
         "mode": "episodes",
     },
+    "season_view_audio": {
+        "url": "/series/{series_id}/{season_id}/audio/{audio_locale}",
+        "mode": "episodes",
+    },
     "season_view_with_offset": {
         "url": "/series/{series_id}/{season_id}/offset/{offset}",
         "mode": "episodes",

@@ -178,6 +178,10 @@ class EpisodeData(PlayableItem):
         self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
+        self.audio_locale: str | None = meta.get("audio_locale")
+        self.versions: list = meta.get("versions") or []
+        self.subtitle_locales: list = meta.get("subtitle_locales") or []
+        self.is_subbed: bool = bool(meta.get("is_subbed"))
 
         self.recalc_playcount()
 

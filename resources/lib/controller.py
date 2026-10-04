@@ -35,7 +35,7 @@ from .models.account import ProfileData
 from .models.exceptions import CrunchyrollError
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
-from .utils.language import LanguagePreferences, select_season_versions
+from .utils.language import LanguagePreferences, default_episode_audio, select_season_versions
 from .utils.logging import crunchy_log, log_error_with_trace
 from .videoplayer import VideoPlayer
 
@@ -445,14 +445,13 @@ def view_season(ctx):
 
 def view_episodes(ctx):
     """view all episodes of season"""
-    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
+    audio = ctx.args.get_arg("audio_locale") or default_episode_audio(LanguagePreferences.from_args(ctx.args))
 
     params = {
         "locale": ctx.args.subtitle,
     }
-    if filter_dubs:
-        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
-        params["force_locale"] = ""
+    if audio:
+        params["preferred_audio_language"] = audio
 
     # api request
     req = ctx.api.make_request(
@@ -465,14 +464,24 @@ def view_episodes(ctx):
     if is_response_error(req):
         return render_error_directory(ctx)
 
+    episodes = get_listables_from_response(
+        req.get("data") or req.get("items"),
+        item_type_hint="episode",
+        args=ctx.args,
+    )
+
+    if audio:
+        mismatches = sum(1 for episode in episodes if episode.audio_locale != audio)
+        if mismatches:
+            crunchy_log(
+                f"view_episodes: {mismatches} of {len(episodes)} episodes not in requested audio {audio}",
+                xbmc.LOGWARNING,
+            )
+
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
         ctx,
-        listables=get_listables_from_response(
-            req.get("data") or req.get("items"),
-            item_type_hint="episode",
-            args=ctx.args,
-        ),
+        listables=episodes,
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE,
     )

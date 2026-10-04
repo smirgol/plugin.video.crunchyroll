@@ -8,12 +8,14 @@ settings from the addon args.
 import copy
 import dataclasses
 import json
+import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 import resources.lib.utils.language as language
+from resources.lib.models.content import EpisodeData
 from resources.lib.utils.language import LanguagePreferences
 
 SETTING_KEYS = (
@@ -496,3 +498,133 @@ class TestSelectSeasonVersions:
         language.select_season_versions([season_item], _prefs(filter_enabled=False))
 
         assert season_item == before
+
+
+def _watchlist_episode():
+    """EpisodeData of the watchlist item: ja-JP original, versions ja / de-DE / es-419 / pt-BR."""
+    fixtures = Path(__file__).parent.parent / "fixtures"
+    with open(fixtures / "version_responses.json") as f:
+        return EpisodeData(json.load(f)["watchlist_episode_item"])
+
+
+def _episode_ns(season_id, audio_locale, versions, subtitle_locales=None, is_subbed=False):
+    return types.SimpleNamespace(
+        season_id=season_id,
+        audio_locale=audio_locale,
+        versions=versions,
+        subtitle_locales=subtitle_locales if subtitle_locales is not None else [],
+        is_subbed=is_subbed,
+    )
+
+
+JA_DE_VERSIONS = [
+    {"audio_locale": "ja-JP", "season_guid": "SEASON_JA", "original": True},
+    {"audio_locale": "de-DE", "season_guid": "SEASON_DE", "original": False},
+]
+
+
+class TestEpisodeTarget:
+    """Target season version of the 'episodes' context menu of an episode item."""
+
+    def test_watchlist_dub_settings_target_de_season(self):
+        prefs = _prefs(show_dubs=True, show_dubs_fallback=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130DEDE", "de-DE")
+
+    def test_watchlist_default_settings_target_original(self):
+        """settings.xml defaults: filter, dubs, fallback dubs and subs all on -> original first"""
+        prefs = _prefs(show_dubs=True, show_dubs_fallback=True, show_subs=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+
+    def test_watchlist_subs_only_target_original(self):
+        prefs = _prefs(show_subs=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+
+    def test_watchlist_fallback_dub(self):
+        prefs = _prefs(subtitle="fr-FR", subtitle_fallback="es-419", show_dubs=True, show_dubs_fallback=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130ES419", "es-419")
+
+    def test_watchlist_primary_dub_before_fallback_dub(self):
+        prefs = _prefs(subtitle="pt-BR", subtitle_fallback="de-DE", show_dubs=True, show_dubs_fallback=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130PTBR", "pt-BR")
+
+    def test_watchlist_filter_off_targets_own_season(self):
+        prefs = _prefs(filter_enabled=False, show_dubs=True, show_dubs_fallback=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+
+    def test_watchlist_nothing_wanted_targets_own_season(self):
+        prefs = _prefs(subtitle="it-IT", subtitle_fallback=None, show_dubs=True, show_dubs_fallback=True)
+
+        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+
+    def test_without_versions_targets_own_season(self):
+        episode = _episode_ns("OWN_SEASON", "fr-FR", [])
+
+        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("OWN_SEASON", "fr-FR")
+
+    def test_without_versions_and_audio_targets_own_season(self):
+        episode = _episode_ns("OWN_SEASON", None, [])
+
+        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("OWN_SEASON", None)
+
+    def test_duck_type_dub_settings(self):
+        episode = _episode_ns("SEASON_JA", "ja-JP", JA_DE_VERSIONS, ["de-DE"], True)
+
+        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("SEASON_DE", "de-DE")
+
+    def test_duck_type_subs_use_episode_subtitle_locales(self):
+        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, ["de-DE"], True)
+
+        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_JA", "ja-JP")
+
+    def test_duck_type_subs_without_wanted_subtitle_targets_own_season(self):
+        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, ["fr-FR"], True)
+
+        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
+
+    def test_duck_type_subs_edge_case_empty_locales_but_subbed(self):
+        """Issue #51: no subtitle locales but is_subbed counts as wanted subtitles"""
+        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, [], True)
+
+        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_JA", "ja-JP")
+
+    def test_duck_type_subs_empty_locales_not_subbed_targets_own_season(self):
+        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, [], False)
+
+        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
+
+    def test_version_without_original_key_is_not_original(self):
+        versions = [
+            {"audio_locale": "ja-JP", "season_guid": "SEASON_JA"},
+            {"audio_locale": "de-DE", "season_guid": "SEASON_DE", "original": False},
+        ]
+        episode = _episode_ns("SEASON_DE", "de-DE", versions, ["de-DE"], True)
+
+        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
+
+
+class TestDefaultEpisodeAudio:
+    """Audio locale for old season_view URLs without audio_locale; never the account language."""
+
+    def test_filter_off_is_none(self):
+        assert language.default_episode_audio(_prefs(filter_enabled=False, show_dubs=True)) is None
+
+    def test_show_dubs_returns_primary(self):
+        assert language.default_episode_audio(_prefs(show_dubs=True, show_dubs_fallback=True)) == "de-DE"
+
+    def test_fallback_dubs_only_returns_fallback(self):
+        assert language.default_episode_audio(_prefs(show_dubs_fallback=True)) == "en-US"
+
+    def test_fallback_dubs_without_fallback_language_is_none(self):
+        assert language.default_episode_audio(_prefs(subtitle_fallback=None, show_dubs_fallback=True)) is None
+
+    def test_subs_only_is_none(self):
+        assert language.default_episode_audio(_prefs(show_subs=True)) is None
+
+    def test_no_flags_is_none(self):
+        assert language.default_episode_audio(_prefs()) is None

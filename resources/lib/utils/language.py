@@ -162,3 +162,46 @@ def select_season_versions(items: list[dict] | None, prefs: LanguagePreferences)
         selected.extend(variants)
 
     return selected
+
+
+def episode_target(episode, prefs: LanguagePreferences) -> tuple:
+    """Season id and audio locale of the wanted season version of an episode; its own when none is wanted.
+
+    Duck-typed over ``versions``, ``season_id``, ``audio_locale``, ``subtitle_locales`` and ``is_subbed``.
+    The subtitle locales of the episode itself stand in for all its versions.
+    """
+
+    own = (episode.season_id, episode.audio_locale)
+    if not prefs.filter_enabled or not episode.versions:
+        return own
+
+    variants = [
+        {
+            "id": version["season_guid"],
+            "audio_locale": version["audio_locale"],
+            "original": bool(version.get("original")),
+            "subtitle_locales": episode.subtitle_locales,
+            "is_subbed": episode.is_subbed,
+        }
+        for version in episode.versions
+    ]
+    wanted = order_versions([v for v in variants if is_version_wanted(v, prefs)], prefs)
+    if not wanted:
+        return own
+
+    return wanted[0]["id"], wanted[0]["audio_locale"]
+
+
+def default_episode_audio(prefs: LanguagePreferences) -> str | None:
+    """Audio locale to request for episodes when the URL carries none; never the account language."""
+
+    if not prefs.filter_enabled:
+        return None
+
+    if prefs.show_dubs:
+        return prefs.subtitle
+
+    if prefs.show_dubs_fallback and prefs.subtitle_fallback:
+        return prefs.subtitle_fallback
+
+    return None

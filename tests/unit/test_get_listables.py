@@ -6,6 +6,7 @@ longer carry a type identifier (__class__/type) and the caller must pass an
 explicit item_type_hint. Mixed lists (browse) must keep auto-detecting per item.
 """
 
+import copy
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -194,3 +195,69 @@ class TestSeasonsNotFiltered:
     def test_expand_versions_kwarg_is_rejected(self, listable_args):
         with pytest.raises(TypeError):
             get_listables_from_response([], item_type_hint="season", args=listable_args, expand_versions=True)
+
+
+def load_version_fixture(name):
+    fixtures = Path(__file__).parent.parent / "fixtures"
+    with open(fixtures / "version_responses.json") as f:
+        return copy.deepcopy(json.load(f)[name])
+
+
+LANGUAGE_KEYS = ("audio_locale", "versions", "subtitle_locales", "is_subbed")
+
+
+class TestEpisodeLanguageAttributes:
+    """EpisodeData exposes audio locale, versions and subtitle info of content/v2 and watchlist items"""
+
+    def test_content_v2_episode(self):
+        item = load_version_fixture("episodes_GY19CPGQ9_V3")["response"]["data"][0]
+
+        episode = EpisodeData(item)
+
+        assert episode.audio_locale == "de-DE"
+        assert episode.versions == item["versions"]
+        assert isinstance(episode.versions, list)
+        assert episode.subtitle_locales == item["subtitle_locales"]
+        assert episode.is_subbed is True
+
+    def test_watchlist_episode(self):
+        item = load_version_fixture("watchlist_episode_item")
+        meta = item["panel"]["episode_metadata"]
+
+        episode = EpisodeData(item)
+
+        assert episode.audio_locale == "ja-JP"
+        assert episode.versions == meta["versions"]
+        assert [v["season_guid"] for v in episode.versions] == [
+            "GS00380130JAJP",
+            "GS00380130DEDE",
+            "GS00380130ES419",
+            "GS00380130PTBR",
+        ]
+        assert "de-DE" in episode.subtitle_locales
+        assert "en-US" in episode.subtitle_locales
+        assert episode.is_subbed is True
+
+    def test_content_v2_episode_without_language_keys(self):
+        item = load_version_fixture("episodes_GY19CPGQ9_V3")["response"]["data"][0]
+        for key in LANGUAGE_KEYS:
+            item.pop(key)
+
+        episode = EpisodeData(item)
+
+        assert episode.audio_locale is None
+        assert episode.versions == []
+        assert episode.subtitle_locales == []
+        assert episode.is_subbed is False
+
+    def test_watchlist_episode_without_language_keys(self):
+        item = load_version_fixture("watchlist_episode_item")
+        for key in LANGUAGE_KEYS:
+            item["panel"]["episode_metadata"].pop(key)
+
+        episode = EpisodeData(item)
+
+        assert episode.audio_locale is None
+        assert episode.versions == []
+        assert episode.subtitle_locales == []
+        assert episode.is_subbed is False
