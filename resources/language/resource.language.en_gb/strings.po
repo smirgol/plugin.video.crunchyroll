@@ -322,6 +322,10 @@ msgctxt "#30090"
 msgid "No search results"
 msgstr "No search results"
 
+msgctxt "#30091"
+msgid "No matching language version available"
+msgstr "No matching language version available"
+
 # Developer Options
 
 msgctxt "#30101"

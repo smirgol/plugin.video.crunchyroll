@@ -23,6 +23,7 @@ from typing import Any
 
 MAX_TRACED_ITEMS = 20
 STREAM_TOKEN_PATH = re.compile(r"(/token/[^/?#\s]+/)[^/?#\s]+")
+QUERY_STRING = re.compile(r"\?\S*")
 CMS_SIGNING_KEYS = frozenset({"Policy", "Signature", "Key-Pair-Id"})
 METADATA_KEYS = ("episode_metadata", "series_metadata", "movie_listing_metadata", "movie_metadata")
 
@@ -36,8 +37,8 @@ def is_trace_enabled(args: Any) -> bool:
 
 
 def redact_url(url: str) -> str:
-    """Mask the stream token in /token/<content_id>/<token> paths, also inside free text."""
-    return STREAM_TOKEN_PATH.sub(r"\1***", url)
+    """Mask the stream token in /token/<content_id>/<token> paths and every query string, also inside free text."""
+    return QUERY_STRING.sub("?***", STREAM_TOKEN_PATH.sub(r"\1***", url))
 
 
 def redact_params(params: dict | None) -> dict:

@@ -129,6 +129,7 @@ MODE_REGISTRY = {
     "season": controller.list_anime_seasons,
     "genre": controller.list_filter,
     "seasons": controller.view_season,
+    "season_wanted": controller.view_wanted_season,
     "episodes": controller.view_episodes,
     "videoplay": controller.start_playback,
     "add_to_queue": controller.add_to_queue,

@@ -30,74 +30,22 @@ if TYPE_CHECKING:
 
 
 
-def _with_version(item: dict, version: dict) -> dict:
-    """Return a shallow copy of *item* overridden with the audio locale and ids from *version*."""
-
-    copy = item.copy()
-    copy["audio_locale"] = version.get("audio_locale")
-
-    # Determine the locale-specific id for this version.
-    locale_id = version.get("season_guid") or version.get("guid")
-    if locale_id:
-        copy["id"] = locale_id
-        copy["season_id"] = version.get("season_guid")
-        copy["episode_id"] = version.get("guid")
-
-    # Adjust titles so the user can distinguish the language variants.
-    base_title = copy.get("title", "")
-    suffix = version.get("audio_locale", "")
-    if base_title and suffix:
-        copy["title"] = f"{base_title} [{suffix}]"
-
-    panel = copy.get("panel") or copy
-    if panel is not copy:
-        panel = panel.copy()
-        copy["panel"] = panel
-
-    if locale_id:
-        panel["id"] = locale_id
-        panel["episode_id"] = version.get("guid")
-        panel["season_id"] = version.get("season_guid")
-
-    panel_title = panel.get("title", "")
-    if panel_title and suffix:
-        panel["title"] = f"{panel_title} [{suffix}]"
-
-    return copy
-
-
-def _expand_versions(items: list[dict]) -> list[dict]:
-    """Expand API items that contain a *versions* list into one item per version."""
-
-    expanded = []
-    for item in items:
-        versions = item.get("versions")
-        if not versions:
-            expanded.append(item)
-            continue
-        for version in versions:
-            expanded.append(_with_version(item, version))
-    return expanded
-
-
 def get_listables_from_response(
     data: list[dict],
     item_type_hint: str | None = None,
     args=None,
-    expand_versions: bool = False,
 ) -> list[ListableItem]:
     """takes an API response object, determines type of its contents and creates DTOs for further processing
 
     For mixed lists (browse, search, watchlist) the type is detected per item. The newer content/v2 endpoints
     (seasons, episodes) no longer carry a type identifier, so the caller passes the known type via item_type_hint.
+    Series are filtered by the user's language settings; seasons are expected to be selected by the caller.
     """
     from . import filters, logging
 
     listable_items = []
 
-    source_items = _expand_versions(data) if expand_versions else data
-
-    for item in source_items:
+    for item in data:
         item_type = item.get("panel", {}).get("type") or item.get("type") or item.get("__class__") or item_type_hint
         if not item_type:
             logging.crunchy_log(
@@ -112,8 +60,6 @@ def get_listables_from_response(
                 continue
             listable_items.append(SeriesData(item))
         elif item_type == "season":
-            if not filters.filter_seasons(item, args=args):
-                continue
             listable_items.append(SeasonData(item))
         elif item_type == "episode":
             listable_items.append(EpisodeData(item))

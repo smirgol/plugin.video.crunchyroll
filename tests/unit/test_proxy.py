@@ -154,6 +154,43 @@ def test_proxy_handler_forwards_with_injected_credentials():
     assert headers["User-Agent"] == "TestAgent/1.0"
 
 
+def test_proxy_handler_log_line_hides_query_of_original_url():
+    """The "Proxy request for" log line must not carry the upstream query (playback guid).
+
+    Drives the real handler like test_proxy_handler_forwards_with_injected_credentials; the
+    upstream request itself still uses the full original URL.
+    """
+    upstream_url = "https://www.crunchyroll.com/evs/x/manifest.mpd?playbackGuid=secret123"
+
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.status_code = 200
+    mock_response.content = b"<manifest/>"
+    mock_response.headers = {"Content-Type": "application/dash+xml"}
+
+    mock_scraper = MagicMock()
+    mock_scraper.get.return_value = mock_response
+
+    proxy = CloudflareProxy(user_agent="TestAgent/1.0", auth_token="secret-token", ttl_seconds=5)
+
+    with patch("resources.lib.proxy.cloudscraper.create_scraper", return_value=mock_scraper), patch(
+        "resources.lib.proxy.crunchy_log"
+    ) as mock_log:
+        proxied_url = proxy.get_proxied_url(upstream_url)
+        try:
+            with urllib.request.urlopen(proxied_url, timeout=5) as resp:
+                assert resp.status == 200
+        finally:
+            proxy.stop()
+
+    assert mock_scraper.get.call_args.args[0] == upstream_url
+    lines = [str(c.args[0]) for c in mock_log.call_args_list if "Proxy request for" in str(c.args[0])]
+    assert len(lines) == 1, f"expected one proxy request log line in {mock_log.call_args_list}"
+    assert "manifest.mpd" in lines[0]
+    assert "secret123" not in lines[0]
+    assert "playbackGuid" not in lines[0]
+
+
 def test_proxy_handler_returns_404_for_unknown_path():
     """The real handler rejects paths that are not the /proxy?url= route."""
     proxy = CloudflareProxy(user_agent="A", auth_token="B", ttl_seconds=5)
