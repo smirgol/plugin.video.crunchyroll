@@ -445,7 +445,8 @@ def view_season(ctx):
 
 def view_episodes(ctx):
     """view all episodes of season"""
-    audio = ctx.args.get_arg("audio_locale") or default_episode_audio(LanguagePreferences.from_args(ctx.args))
+    url_audio = ctx.args.get_arg("audio_locale")
+    audio = url_audio or default_episode_audio(LanguagePreferences.from_args(ctx.args))
 
     params = {
         "locale": ctx.args.subtitle,
@@ -470,13 +471,18 @@ def view_episodes(ctx):
         args=ctx.args,
     )
 
-    if audio:
-        mismatches = sum(1 for episode in episodes if episode.audio_locale != audio)
-        if mismatches:
+    # only an explicit audio from the URL is filtered; a derived default is just a request preference
+    if url_audio:
+        total = len(episodes)
+        episodes = [episode for episode in episodes if episode.audio_locale == url_audio]
+        hidden = total - len(episodes)
+        if hidden:
             crunchy_log(
-                f"view_episodes: {mismatches} of {len(episodes)} episodes not in requested audio {audio}",
-                xbmc.LOGWARNING,
+                f"view_episodes: hidden {hidden} of {total} episodes not in audio {url_audio}",
+                xbmc.LOGINFO,
             )
+        if not episodes:
+            return render_error_directory(ctx, title_id=30091)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
