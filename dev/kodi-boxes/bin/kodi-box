@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+# Run Kodi of a chosen version in Docker with the addon source mounted live. See ../README.md.
+set -euo pipefail
+
+BOXES_DIR="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+REPO_ROOT="$(dirname "$(dirname "$BOXES_DIR")")"
+COMPOSE_FILE="$BOXES_DIR/docker/compose.yml"
+ADDON_ID="plugin.video.crunchyroll"
+
+die() {
+    echo "kodi-box: $*" >&2
+    exit 1
+}
+
+usage() {
+    cat <<EOF
+Usage: kodi-box <command> [args]
+
+  up <version>                     build image if needed and start Kodi
+  down [<version>]                 stop Kodi
+  log [<version>] [--grep REGEX]   follow kodi.log on the host
+  send [<version>] "<Builtin>"     run a Kodi builtin, e.g. "RunAddon($ADDON_ID)"
+  shell [<version>]                open a shell in the container
+  bootstrap [<version>]            install missing addon dependencies (confirm each in Kodi)
+  reset <version>                  delete the box's data dir (asks for confirmation)
+  list                             show versions and their status
+  build <version>                  (re)build the image
+  config <version>                 print the rendered compose config
+  help                             show this help
+
+Versions: $(printf '%s ' "${!VERSIONS[@]}")
+[<version>] defaults to the single running box.
+EOF
+}
+
+# Debian release and expected Kodi major version per box.
+declare -A VERSIONS=() KODI_MAJORS=()
+
+load_versions() {
+    local file="$BOXES_DIR/versions.env" line
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        [[ "$line" =~ ^([a-z]+)=([a-z]+):([0-9]+)$ ]] || die "invalid line in $file: $line"
+        VERSIONS["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+        KODI_MAJORS["${BASH_REMATCH[1]}"]="${BASH_REMATCH[3]}"
+    done <"$file"
+}
+
+# Plain KEY=VALUE parsing (no sourcing): values are taken literally, so paths with [ ] survive.
+# Variables already set in the environment take precedence.
+load_dotenv() {
+    local file="$BOXES_DIR/.env" key value
+    [[ -f "$file" ]] || return 0
+    while IFS='=' read -r key value; do
+        [[ -z "$key" || "$key" == \#* ]] && continue
+        case "$key" in
+            KODI_BOXES_DATA | ADDON_SRC) ;;
+            *) die "unknown key '$key' in $file" ;;
+        esac
+        [[ -n "${!key:-}" ]] && continue
+        # Trim trailing whitespace (incl. CR), then strip one pair of surrounding quotes, as commonly written in .env files.
+        value="${value%"${value##*[![:space:]]}"}"
+        if [[ "$value" =~ ^\"(.*)\"$ || "$value" =~ ^\'(.*)\'$ ]]; then
+            value="${BASH_REMATCH[1]}"
+        fi
+        printf -v "$key" '%s' "$value"
+    done <"$file"
+}
+
+require_version() {
+    [[ -n "${1:-}" ]] || die "missing version (one of: ${!VERSIONS[*]})"
+    [[ -n "${VERSIONS[$1]:-}" ]] || die "unknown version '$1' (one of: ${!VERSIONS[*]})"
+}
+
+project() {
+    echo "kodi-box-$1"
+}
+
+is_running() {
+    [[ -n "$(docker ps -q --filter "label=com.docker.compose.project=$(project "$1")")" ]]
+}
+
+running_versions() {
+    local version
+    for version in "${!VERSIONS[@]}"; do
+        if is_running "$version"; then echo "$version"; fi
+    done
+}
+
+# Prints the given version, or the single running one if none was given.
+resolve_version() {
+    if [[ -n "${1:-}" ]]; then
+        require_version "$1"
+        echo "$1"
+        return
+    fi
+    local running
+    mapfile -t running < <(running_versions)
+    case "${#running[@]}" in
+        1) echo "${running[0]}" ;;
+        0) die "no box running, specify a version" ;;
+        *) die "several boxes running (${running[*]}), specify a version" ;;
+    esac
+}
+
+box_data() {
+    [[ -n "${KODI_BOXES_DATA:-}" ]] || die "KODI_BOXES_DATA is not set (see $BOXES_DIR/.env.example)"
+    [[ "$KODI_BOXES_DATA" == /* ]] || die "KODI_BOXES_DATA must be an absolute path, got: $KODI_BOXES_DATA"
+    echo "${KODI_BOXES_DATA%/}/$1"
+}
+
+addon_src() {
+    echo "${ADDON_SRC:-$REPO_ROOT}"
+}
+
+# Addon ids from the <import> entries of addon.xml, without Kodi core modules (xbmc.*).
+required_addons() {
+    sed -n '/<import/ s/.*addon="\([^"]*\)".*/\1/p' "$1/addon.xml" | sed '/^xbmc\./d'
+}
+
+# Required addons not installed in the given box data dir.
+missing_addons() {
+    local addon_src="$1" data="$2" id
+    while read -r id; do
+        if [[ ! -d "$data/addons/$id" ]]; then echo "$id"; fi
+    done < <(required_addons "$addon_src")
+}
+
+export_compose_env() {
+    local version="$1"
+    [[ -n "${DISPLAY:-}" ]] || die "DISPLAY is not set"
+    export DISPLAY
+    export KODI_BOX="$version"
+    export DEBIAN_RELEASE="${VERSIONS[$version]}"
+    export KODI_MAJOR="${KODI_MAJORS[$version]}"
+    HOST_UID="$(id -u)"
+    HOST_GID="$(id -g)"
+    VIDEO_GID="$(getent group video | cut -d: -f3)"
+    RENDER_GID="$(getent group render | cut -d: -f3)"
+    [[ -n "$VIDEO_GID" && -n "$RENDER_GID" ]] || die "host groups 'video' and 'render' are required"
+    PULSE_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$HOST_UID}/pulse/native"
+    [[ -S "$PULSE_SOCKET" ]] || die "PulseAudio socket not found: $PULSE_SOCKET"
+    ADDON_SRC="$(addon_src)"
+    [[ -f "$ADDON_SRC/addon.xml" ]] || die "no addon.xml in ADDON_SRC: $ADDON_SRC"
+    BOX_DATA="$(box_data "$version")"
+    export HOST_UID HOST_GID VIDEO_GID RENDER_GID PULSE_SOCKET ADDON_SRC BOX_DATA
+}
+
+compose() {
+    local version="$1"
+    shift
+    export_compose_env "$version"
+    docker compose -f "$COMPOSE_FILE" -p "$(project "$version")" "$@"
+}
+
+cmd_up() {
+    require_version "${1:-}"
+    local data
+    data="$(box_data "$1")"
+    # Pre-create the mount point, otherwise Docker creates it owned by root.
+    mkdir -p "$data/addons/$ADDON_ID"
+    xhost +SI:localuser:"$(id -un)" >/dev/null
+    compose "$1" up -d --build
+    local missing
+    missing="$(missing_addons "$(addon_src)" "$data" | paste -sd ' ')"
+    if [[ -n "$missing" ]]; then
+        echo "Missing addon dependencies: $missing. Run: kodi-box bootstrap $1"
+    fi
+}
+
+cmd_down() {
+    local version
+    version="$(resolve_version "${1:-}")"
+    compose "$version" down
+    if [[ -z "$(running_versions)" ]]; then
+        xhost -SI:localuser:"$(id -un)" >/dev/null
+    fi
+}
+
+cmd_log() {
+    local version="" pattern=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --grep)
+                [[ $# -ge 2 ]] || die "--grep needs a REGEX"
+                pattern="$2"
+                shift 2
+                ;;
+            *)
+                [[ -z "$version" ]] || die "unexpected argument '$1'"
+                version="$1"
+                shift
+                ;;
+        esac
+    done
+    version="$(resolve_version "$version")"
+    local log_file
+    log_file="$(box_data "$version")/temp/kodi.log"
+    if [[ -n "$pattern" ]]; then
+        tail -n 200 -F "$log_file" | grep --line-buffered -E -- "$pattern"
+    else
+        tail -n 200 -F "$log_file"
+    fi
+}
+
+cmd_send() {
+    local version builtin
+    case "$#" in
+        1) version="$(resolve_version "")" builtin="$1" ;;
+        2) version="$(resolve_version "$1")" builtin="$2" ;;
+        *) die "usage: kodi-box send [<version>] \"<Builtin>\"" ;;
+    esac
+    compose "$version" exec kodi kodi-send --action="$builtin"
+}
+
+cmd_shell() {
+    local version
+    version="$(resolve_version "${1:-}")"
+    compose "$version" exec kodi bash
+}
+
+cmd_bootstrap() {
+    local version data id
+    version="$(resolve_version "${1:-}")"
+    is_running "$version" || die "box '$version' is not running, start it with: kodi-box up $version"
+    data="$(box_data "$version")"
+    local missing
+    mapfile -t missing < <(missing_addons "$(addon_src)" "$data")
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        echo "All addon dependencies are installed."
+        return
+    fi
+    # Sequential: every InstallAddon opens a confirm dialog in Kodi, parallel dialogs would collide.
+    for id in "${missing[@]}"; do
+        # May already have been pulled in as a transitive dependency of a previous one.
+        [[ -d "$data/addons/$id" ]] && continue
+        echo "Installing $id - confirm the dialog in Kodi..."
+        cmd_send "$version" "InstallAddon($id)"
+        local deadline=$((SECONDS + 180))
+        until [[ -d "$data/addons/$id" ]]; do
+            ((SECONDS < deadline)) || die "$id not installed after 180s (dialog declined or install failed, see: kodi-box log $version)"
+            sleep 2
+        done
+        echo "Installed $id"
+    done
+}
+
+cmd_reset() {
+    require_version "${1:-}"
+    local version="$1" data answer
+    data="$(box_data "$version")"
+    is_running "$version" && die "box '$version' is running, stop it first"
+    [[ -e "$data" ]] || die "nothing to reset: $data does not exist"
+    echo "This deletes $data (settings, login tokens, Widevine CDM, logs)."
+    read -r -p "Type '$version' to confirm: " answer
+    [[ "$answer" == "$version" ]] || die "aborted"
+    rm -rf -- "$data"
+    echo "deleted $data"
+}
+
+cmd_list() {
+    local version status
+    for version in "${!VERSIONS[@]}"; do
+        status="stopped"
+        if is_running "$version"; then status="running"; fi
+        printf '%-8s Kodi %-3s %-10s %s\n' "$version" "${KODI_MAJORS[$version]}" "${VERSIONS[$version]}" "$status"
+    done | sort
+}
+
+cmd_build() {
+    require_version "${1:-}"
+    compose "$1" build
+}
+
+cmd_config() {
+    require_version "${1:-}"
+    compose "$1" config
+}
+
+main() {
+    load_versions
+    load_dotenv
+    local command="${1:-help}"
+    [[ $# -gt 0 ]] && shift
+    case "$command" in
+        up) cmd_up "$@" ;;
+        down) cmd_down "$@" ;;
+        log) cmd_log "$@" ;;
+        send) cmd_send "$@" ;;
+        shell) cmd_shell "$@" ;;
+        bootstrap) cmd_bootstrap "$@" ;;
+        reset) cmd_reset "$@" ;;
+        list) cmd_list ;;
+        build) cmd_build "$@" ;;
+        config) cmd_config "$@" ;;
+        help | -h | --help) usage ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Allows sourcing the functions without running a command.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

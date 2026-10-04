@@ -1,0 +1,25 @@
+# All values are supplied by bin/kodi-box at runtime; nothing host-specific belongs here.
+services:
+  kodi:
+    image: "kodi-box:${KODI_BOX}"
+    build:
+      context: .
+      args:
+        DEBIAN_RELEASE: "${DEBIAN_RELEASE}"
+        KODI_MAJOR: "${KODI_MAJOR}"
+    user: "${HOST_UID}:${HOST_GID}"
+    group_add:
+      - "${VIDEO_GID}"
+      - "${RENDER_GID}"
+    devices:
+      - /dev/dri
+    # Shared memory for the X11 MIT-SHM extension.
+    ipc: host
+    environment:
+      DISPLAY: "${DISPLAY}"
+      PULSE_SERVER: unix:/run/pulse/native
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - "${PULSE_SOCKET}:/run/pulse/native"
+      - "${BOX_DATA}:/kodi-home/.kodi"
+      - "${ADDON_SRC}:/kodi-home/.kodi/addons/plugin.video.crunchyroll:ro"
