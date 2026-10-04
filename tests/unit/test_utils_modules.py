@@ -123,6 +123,113 @@ class TestFilters:
         )
         assert result is True
 
+    def test_filter_seasons_chinese_only_subbed_without_subtitle_locales(self, mock_utils_args):
+        """Issue #51 edge case: zh-CN audio, empty subtitle_locales, is_subbed True."""
+
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_subs_by_language": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_seasons(
+            {"audio_locale": "zh-CN", "subtitle_locales": [], "is_subbed": True},
+            args=mock_utils_args,
+        )
+        assert result is True
+
+    def test_filter_seasons_chinese_only_not_subbed_without_subtitle_locales(self, mock_utils_args):
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_subs_by_language": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_seasons(
+            {"audio_locale": "zh-CN", "subtitle_locales": [], "is_subbed": False},
+            args=mock_utils_args,
+        )
+        assert result is False
+
+    def test_filter_seasons_subs_only_rejects_dub_season(self, mock_utils_args):
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_subs_by_language": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_seasons(
+            {"audio_locale": "de-DE", "subtitle_locales": ["de-DE"]},
+            args=mock_utils_args,
+        )
+        assert result is False
+
+    @pytest.mark.parametrize("fallback", [None, ""])
+    def test_filter_seasons_fallback_audio_without_fallback_language(self, mock_utils_args, fallback):
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_dubs_by_language_fallback": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        mock_utils_args.subtitle_fallback = fallback
+        assert filters.filter_seasons({"audio_locale": "en-US"}, args=mock_utils_args) is False
+
+    def test_filter_seasons_japanese_without_matching_subtitles(self, mock_utils_args):
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_subs_by_language": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_seasons(
+            {"audio_locale": "ja-JP", "subtitle_locales": ["fr-FR"]},
+            args=mock_utils_args,
+        )
+        assert result is False
+
+    def test_filter_seasons_disabled_returns_true(self, mock_utils_args):
+        mock_utils_args.addon.getSetting.return_value = "false"
+        result = filters.filter_seasons(
+            {"audio_locale": "fr-FR", "subtitle_locales": []},
+            args=mock_utils_args,
+        )
+        assert result is True
+
+    def test_filter_series_is_subbed_in_series_metadata_is_ignored(self, mock_utils_args):
+        """Pins CURRENT behavior (known quirk, not a desired spec).
+
+        For series, the issue #51 edge case reads ``is_subbed`` from the outer panel,
+        while the real API delivers it inside ``series_metadata``. A zh-CN-only series
+        with ``is_subbed`` in ``series_metadata`` is therefore filtered out today.
+        """
+
+        def setting(name):
+            return {
+                "filter_dubs_by_language": "true",
+                "show_subs_by_language": "true",
+            }.get(name, "false")
+
+        mock_utils_args.addon.getSetting.side_effect = setting
+        result = filters.filter_series(
+            {
+                "panel": {
+                    "series_metadata": {
+                        "audio_locales": ["zh-CN"],
+                        "subtitle_locales": [],
+                        "is_subbed": True,
+                    }
+                }
+            },
+            args=mock_utils_args,
+        )
+        assert result is False
+
 
 class TestFormatting:
     def test_two_digits_zero(self):

@@ -16,43 +16,40 @@
 
 from __future__ import annotations
 
+from .language import LanguagePreferences
+
 
 def _filter_by_locales(
     panel: dict,
     audio_locales: list,
-    subtitle_locales: list | None = None,
-    args=None,
+    subtitle_locales: list | None,
+    prefs: LanguagePreferences,
 ) -> bool:
     """Shared locale matching logic for series and seasons."""
 
-
-    if args.addon.getSetting("filter_dubs_by_language") != "true":
+    if not prefs.filter_enabled:
         return True
 
     # main audio language
-    if args.addon.getSetting("show_dubs_by_language") == "true":
-        if args.subtitle in audio_locales:
+    if prefs.show_dubs:
+        if prefs.subtitle in audio_locales:
             return True
 
     # fallback audio language
-    if (
-        args.addon.getSetting("show_dubs_by_language_fallback") == "true"
-        and args.subtitle_fallback
-        and args.subtitle_fallback in audio_locales
-    ):
+    if prefs.show_dubs_fallback and prefs.subtitle_fallback and prefs.subtitle_fallback in audio_locales:
         return True
 
-    if args.addon.getSetting("show_subs_by_language") == "true":
+    if prefs.show_subs:
         # edge case for chinese only anime where there is no japanese dub
         # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/51
         if "ja-JP" in audio_locales or "zh-CN" in audio_locales:
             if subtitle_locales == [] and panel.get("is_subbed", False) is True:
                 return True
 
-            if subtitle_locales and args.subtitle in subtitle_locales:
+            if subtitle_locales and prefs.subtitle in subtitle_locales:
                 return True
 
-            if subtitle_locales and args.subtitle_fallback and args.subtitle_fallback in subtitle_locales:
+            if subtitle_locales and prefs.subtitle_fallback and prefs.subtitle_fallback in subtitle_locales:
                 return True
 
     return False
@@ -68,7 +65,7 @@ def filter_series(seriesItem: dict, args) -> bool:
         panel,
         item.get("audio_locales", []),
         item.get("subtitle_locales", []),
-        args=args,
+        LanguagePreferences.from_args(args),
     )
 
 
@@ -79,5 +76,5 @@ def filter_seasons(item: dict, args) -> bool:
         item,
         [item.get("audio_locale", "")],
         item.get("subtitle_locales", []),
-        args=args,
+        LanguagePreferences.from_args(args),
     )
