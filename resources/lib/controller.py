@@ -35,6 +35,7 @@ from .models.account import ProfileData
 from .models.exceptions import CrunchyrollError
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
+from .utils.language import LanguagePreferences, select_season_versions
 from .utils.logging import crunchy_log, log_error_with_trace
 from .videoplayer import VideoPlayer
 
@@ -410,34 +411,30 @@ def list_filter_without_category(ctx):
 
 def view_season(ctx):
     """view all seasons/arcs of an anime"""
-    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
-
-    params = {
-        "locale": ctx.args.subtitle,
-    }
-    if filter_dubs:
-        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
-        params["force_locale"] = ""
-
     # api request
     req = ctx.api.make_request(
         method="GET",
         url=ctx.api.SEASONS_ENDPOINT.format(ctx.args.get_arg("series_id")),
-        params=params,
+        params={
+            "locale": ctx.args.subtitle,
+        },
     )
 
     # check for error
     if is_response_error(req):
         return render_error_directory(ctx)
 
+    variants = select_season_versions(req.get("data") or req.get("items"), LanguagePreferences.from_args(ctx.args))
+    if not variants:
+        return render_error_directory(ctx, title_id=30091)
+
     # season / season  (crunchy / xbmc)
     view.add_listables(
         ctx,
         listables=get_listables_from_response(
-            req.get("data") or req.get("items"),
+            variants,
             item_type_hint="season",
             args=ctx.args,
-            expand_versions=not filter_dubs,
         ),
         is_folder=True,
     )
@@ -475,7 +472,6 @@ def view_episodes(ctx):
             req.get("data") or req.get("items"),
             item_type_hint="episode",
             args=ctx.args,
-            expand_versions=not filter_dubs,
         ),
         is_folder=False,
         options=view.OPT_NO_SEASON_TITLE,

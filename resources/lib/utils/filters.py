@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from .language import LanguagePreferences
+from .language import LanguagePreferences, has_wanted_subtitles
 
 
 def _filter_by_locales(
@@ -25,7 +25,7 @@ def _filter_by_locales(
     subtitle_locales: list | None,
     prefs: LanguagePreferences,
 ) -> bool:
-    """Shared locale matching logic for series and seasons."""
+    """Locale matching logic for series."""
 
     if not prefs.filter_enabled:
         return True
@@ -43,13 +43,7 @@ def _filter_by_locales(
         # edge case for chinese only anime where there is no japanese dub
         # @see: https://github.com/smirgol/plugin.video.crunchyroll/issues/51
         if "ja-JP" in audio_locales or "zh-CN" in audio_locales:
-            if subtitle_locales == [] and panel.get("is_subbed", False) is True:
-                return True
-
-            if subtitle_locales and prefs.subtitle in subtitle_locales:
-                return True
-
-            if subtitle_locales and prefs.subtitle_fallback and prefs.subtitle_fallback in subtitle_locales:
+            if has_wanted_subtitles(subtitle_locales, panel.get("is_subbed", False), prefs):
                 return True
 
     return False
@@ -64,17 +58,6 @@ def filter_series(seriesItem: dict, args) -> bool:
     return _filter_by_locales(
         panel,
         item.get("audio_locales", []),
-        item.get("subtitle_locales", []),
-        LanguagePreferences.from_args(args),
-    )
-
-
-def filter_seasons(item: dict, args) -> bool:
-    """takes an API info struct and returns if it matches user language settings"""
-
-    return _filter_by_locales(
-        item,
-        [item.get("audio_locale", "")],
         item.get("subtitle_locales", []),
         LanguagePreferences.from_args(args),
     )

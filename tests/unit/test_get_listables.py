@@ -137,3 +137,60 @@ class TestEpisodeMapping:
         episode = EpisodeData(episode_raw)
 
         assert episode.stream_id and episode.stream_id in episode_raw["streams_link"]
+
+
+def load_version_season():
+    fixtures = Path(__file__).parent.parent / "fixtures"
+    with open(fixtures / "version_responses.json") as f:
+        return json.load(f)["seasons_V1"]["response"]["data"][0]
+
+
+class TestSeasonAudioLocale:
+    """SeasonData carries the audio locale of its version"""
+
+    def test_audio_locale_attribute(self):
+        season = SeasonData(load_version_season())
+
+        assert season.audio_locale == "de-DE"
+
+    def test_audio_locale_in_info(self):
+        season = SeasonData(load_version_season())
+
+        assert season.get_info()["audio_locale"] == "de-DE"
+
+    def test_audio_locale_missing_is_none(self):
+        season = SeasonData({"id": "S", "title": "T", "season_number": 1})
+
+        assert season.audio_locale is None
+
+
+class TestSeasonsNotFiltered:
+    """Season selection happens before mapping; get_listables_from_response no longer filters seasons"""
+
+    @pytest.fixture
+    def filtering_args(self):
+        args = MagicMock()
+        args.addon.getSetting.return_value = "true"
+        args.subtitle = "it-IT"
+        args.subtitle_fallback = None
+        return args
+
+    def test_non_matching_season_is_still_mapped(self, filtering_args):
+        season_raw = load_version_season()
+
+        listables = get_listables_from_response([season_raw], item_type_hint="season", args=filtering_args)
+
+        assert [item.id for item in listables] == [season_raw["id"]]
+        assert isinstance(listables[0], SeasonData)
+
+    def test_versions_are_not_expanded(self, filtering_args):
+        season_raw = load_version_season()
+
+        listables = get_listables_from_response([season_raw], item_type_hint="season", args=filtering_args)
+
+        assert len(listables) == 1
+        assert listables[0].title == "Season 1"
+
+    def test_expand_versions_kwarg_is_rejected(self, listable_args):
+        with pytest.raises(TypeError):
+            get_listables_from_response([], item_type_hint="season", args=listable_args, expand_versions=True)

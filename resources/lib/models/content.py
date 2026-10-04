@@ -92,6 +92,7 @@ class SeasonData(ListableItem):
         self.tvshowtitle: str = data.get("title")
         self.series_id: str | None = data.get("series_id")
         self.season_id: str | None = data.get("id")
+        self.audio_locale: str | None = data.get("audio_locale")
         self.plot: str = ""  # does not have description. maybe object endpoint?
         self.plotoutline: str = ""
         self.year: str = ""
@@ -126,6 +127,7 @@ class SeasonData(ListableItem):
             "playcount": self.playcount,
             "series_id": self.series_id,
             "season_id": self.season_id,
+            "audio_locale": self.audio_locale,
             # 'year': self.year,
             # 'aired': self.aired,
             # 'premiered': self.premiered,
