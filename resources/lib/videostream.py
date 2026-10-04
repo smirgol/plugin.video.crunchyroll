@@ -203,7 +203,7 @@ class VideoStream(Object):
 
         try:
             if args.addon.getSetting("soft_subtitles") == "false":
-                url = api_data["hardSubs"]
+                url = api_data.get("hardSubs") or {}
 
                 if args.subtitle in url:
                     url = url[args.subtitle]["url"]
