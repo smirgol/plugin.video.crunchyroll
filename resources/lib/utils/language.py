@@ -164,32 +164,27 @@ def select_season_versions(items: list[dict] | None, prefs: LanguagePreferences)
     return selected
 
 
-def episode_target(episode, prefs: LanguagePreferences) -> tuple:
-    """Season id and audio locale of the wanted season version of an episode; its own when none is wanted.
+def wanted_season_version(items: list[dict] | None, season_id: str, prefs: LanguagePreferences) -> tuple | None:
+    """Id and audio locale of the wanted version of the season holding ``season_id``; None when there is none.
 
-    Duck-typed over ``versions``, ``season_id``, ``audio_locale``, ``subtitle_locales`` and ``is_subbed``.
-    The subtitle locales of the episode itself stand in for all its versions.
+    ``season_id`` may be the id of the season item or the guid of any of its versions.
     """
 
-    own = (episode.season_id, episode.audio_locale)
-    if not prefs.filter_enabled or not episode.versions:
-        return own
+    if not prefs.filter_enabled:
+        return None
 
-    variants = [
-        {
-            "id": version["season_guid"],
-            "audio_locale": version["audio_locale"],
-            "original": bool(version.get("original")),
-            "subtitle_locales": episode.subtitle_locales,
-            "is_subbed": episode.is_subbed,
-        }
-        for version in episode.versions
-    ]
-    wanted = order_versions([v for v in variants if is_version_wanted(v, prefs)], prefs)
-    if not wanted:
-        return own
+    for item in items or []:
+        guids = [item.get("id")] + [version.get("guid") for version in item.get("versions") or []]
+        if season_id not in guids:
+            continue
 
-    return wanted[0]["id"], wanted[0]["audio_locale"]
+        wanted = order_versions([v for v in season_versions(item) if is_version_wanted(v, prefs)], prefs)
+        if not wanted:
+            return None
+
+        return wanted[0]["id"], wanted[0]["audio_locale"]
+
+    return None
 
 
 def default_episode_audio(prefs: LanguagePreferences) -> str | None:

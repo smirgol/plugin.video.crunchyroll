@@ -2,7 +2,8 @@
 Unit tests for resources.lib.router.
 
 The season_view_audio route carries the audio locale of the chosen season version
-from the seasons list (or an episode context menu) to view_episodes.
+from the seasons list to view_episodes. The season_view_wanted route carries an episode's own
+season and audio to the click-time resolver of the wanted season version (decision 7.8).
 """
 
 import copy
@@ -62,6 +63,23 @@ class TestExtractUrlParams:
             "current_route": "season_view_with_offset",
         }
 
+    def test_season_view_wanted_route_resolves(self):
+        params = router.extract_url_params("/series/S/GS00374452ENUS/audio/en-US/wanted")
+
+        assert params == {
+            "series_id": "S",
+            "season_id": "GS00374452ENUS",
+            "audio_locale": "en-US",
+            "mode": "season_wanted",
+            "current_route": "season_view_wanted",
+        }
+
+    def test_season_view_audio_does_not_collide_with_wanted_route(self):
+        params = router.extract_url_params("/series/S/X/audio/de-DE")
+
+        assert params["mode"] == "episodes"
+        assert params["current_route"] == "season_view_audio"
+
 
 class TestBuildPathFromSeasonData:
     def test_season_with_audio_locale_builds_audio_route(self):
@@ -83,3 +101,14 @@ class TestBuildPathFromSeasonData:
         )
 
         assert path == f"/series/S1/{DE_ID}/audio/de-DE"
+
+    def test_create_path_from_wanted_route_round_trips(self):
+        args = {"series_id": "G24H1N3MP", "season_id": "GS00374452ENUS", "audio_locale": "en-US"}
+
+        path = router.create_path_from_route("season_view_wanted", args)
+
+        assert path == "/series/G24H1N3MP/GS00374452ENUS/audio/en-US/wanted"
+        params = router.extract_url_params(path)
+        assert params["current_route"] == "season_view_wanted"
+        assert params["mode"] == "season_wanted"
+        assert {key: params[key] for key in args} == args

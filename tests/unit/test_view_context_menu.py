@@ -1,8 +1,9 @@
 """
 Unit tests for the 'episodes' context menu entry built by view.add_listables.
 
-Episode items jump to the wanted season version (episode_target), season items to their own
-version. With a known audio locale the target is the season_view_audio route, else season_view.
+Episode items with the language filter on and a known audio locale link to the season_view_wanted
+route with their own season and audio; the wanted season version is resolved at click time (decision 7.8).
+Otherwise items link to their own version: season_view_audio with a known audio locale, else season_view.
 ctx.args is the shared module-level mock from conftest, so every attribute change goes through monkeypatch.
 """
 
@@ -24,6 +25,10 @@ DUB_SETTINGS = {
     "filter_dubs_by_language": "true",
     "show_dubs_by_language": "true",
     "show_dubs_by_language_fallback": "true",
+}
+SUBS_ONLY_SETTINGS = {
+    "filter_dubs_by_language": "true",
+    "show_subs_by_language": "true",
 }
 FILTER_OFF_SETTINGS = {"filter_dubs_by_language": "false"}
 
@@ -73,13 +78,38 @@ def _episodes_action(ctx, list_item, listable):
     return actions[0]
 
 
-def test_watchlist_episode_with_dub_settings_targets_de_version(ctx, configure, list_item):
+def test_watchlist_episode_with_dub_settings_targets_wanted_resolver_with_own_version(ctx, configure, list_item):
+    """Decision 7.8: the wanted version is resolved at click time from the season, not from the episode."""
     configure(DUB_SETTINGS)
     episode = EpisodeData(_load_fixture("watchlist_episode_item"))
 
     action = _episodes_action(ctx, list_item, episode)
 
-    assert action == f"Container.Update({ADDONURL}/series/GR9P57W96/GS00380130DEDE/audio/de-DE)"
+    assert action == f"Container.Update({ADDONURL}/series/GR9P57W96/GS00380130JAJP/audio/ja-JP/wanted)"
+
+
+def test_episode_with_subs_only_settings_targets_wanted_resolver(ctx, configure, list_item):
+    """The resolver route depends on the main filter switch, not on the individual show flags."""
+    configure(SUBS_ONLY_SETTINGS)
+    episode = EpisodeData(_load_fixture("watchlist_episode_item"))
+
+    action = _episodes_action(ctx, list_item, episode)
+
+    assert action == f"Container.Update({ADDONURL}/series/GR9P57W96/GS00380130JAJP/audio/ja-JP/wanted)"
+
+
+def test_english_episode_with_dub_settings_targets_wanted_resolver(ctx, configure, list_item):
+    """Like episode 13 of Mushoku Tensei (Kodi log 2026-10-04): an en-US episode keeps its own season in the link."""
+    configure(DUB_SETTINGS)
+    item = _load_fixture("watchlist_episode_item")
+    metadata = item["panel"]["episode_metadata"]
+    metadata["season_id"] = "GS00380130ENUS"
+    metadata["audio_locale"] = "en-US"
+    episode = EpisodeData(item)
+
+    action = _episodes_action(ctx, list_item, episode)
+
+    assert action == f"Container.Update({ADDONURL}/series/GR9P57W96/GS00380130ENUS/audio/en-US/wanted)"
 
 
 def test_watchlist_episode_with_filter_off_targets_own_version(ctx, configure, list_item):

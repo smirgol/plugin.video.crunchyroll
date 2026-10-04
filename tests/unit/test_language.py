@@ -8,14 +8,12 @@ settings from the addon args.
 import copy
 import dataclasses
 import json
-import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 import resources.lib.utils.language as language
-from resources.lib.models.content import EpisodeData
 from resources.lib.utils.language import LanguagePreferences
 
 SETTING_KEYS = (
@@ -500,112 +498,128 @@ class TestSelectSeasonVersions:
         assert season_item == before
 
 
-def _watchlist_episode():
-    """EpisodeData of the watchlist item: ja-JP original, versions ja / de-DE / es-419 / pt-BR."""
-    fixtures = Path(__file__).parent.parent / "fixtures"
-    with open(fixtures / "version_responses.json") as f:
-        return EpisodeData(json.load(f)["watchlist_episode_item"])
+# Season item of series G24H1N3MP (Mushoku Tensei) as listed by the seasons response in the Kodi log 2026-10-04.
+MUSHOKU_SEASON_ITEM = {
+    "id": "GS00374452DEDE",
+    "series_id": "G24H1N3MP",
+    "title": "Mushoku Tensei: Jobless Reincarnation",
+    "audio_locale": "de-DE",
+    "versions": [
+        {"audio_locale": "ja-JP", "guid": "GS00374452JAJP", "original": True, "variant": ""},
+        {"audio_locale": "en-US", "guid": "GS00374452ENUS", "original": False, "variant": ""},
+        {"audio_locale": "es-419", "guid": "GS00374452ES419", "original": False, "variant": ""},
+        {"audio_locale": "pt-BR", "guid": "GS00374452PTBR", "original": False, "variant": ""},
+        {"audio_locale": "es-ES", "guid": "GS00374452ESES", "original": False, "variant": ""},
+        {"audio_locale": "fr-FR", "guid": "GS00374452FRFR", "original": False, "variant": ""},
+        {"audio_locale": "it-IT", "guid": "GS00374452ITIT", "original": False, "variant": ""},
+        {"audio_locale": "de-DE", "guid": "GS00374452DEDE", "original": False, "variant": ""},
+    ],
+}
+
+DECOY_SEASON_ITEM = {
+    "id": "GS_OTHER_DEDE",
+    "series_id": "G24H1N3MP",
+    "title": "Another season",
+    "audio_locale": "de-DE",
+    "versions": [
+        {"audio_locale": "ja-JP", "guid": "GS_OTHER_JAJP", "original": True, "variant": ""},
+        {"audio_locale": "de-DE", "guid": "GS_OTHER_DEDE", "original": False, "variant": ""},
+    ],
+}
 
 
-def _episode_ns(season_id, audio_locale, versions, subtitle_locales=None, is_subbed=False):
-    return types.SimpleNamespace(
-        season_id=season_id,
-        audio_locale=audio_locale,
-        versions=versions,
-        subtitle_locales=subtitle_locales if subtitle_locales is not None else [],
-        is_subbed=is_subbed,
-    )
+def _mushoku_items():
+    return [copy.deepcopy(DECOY_SEASON_ITEM), copy.deepcopy(MUSHOKU_SEASON_ITEM)]
 
 
-JA_DE_VERSIONS = [
-    {"audio_locale": "ja-JP", "season_guid": "SEASON_JA", "original": True},
-    {"audio_locale": "de-DE", "season_guid": "SEASON_DE", "original": False},
-]
+class TestWantedSeasonVersion:
+    """Wanted version of the season an episode belongs to, decided by the season item's versions (decision 7.8)."""
 
-
-class TestEpisodeTarget:
-    """Target season version of the 'episodes' context menu of an episode item."""
-
-    def test_watchlist_dub_settings_target_de_season(self):
+    def test_mushoku_dub_settings_resolve_english_season_to_german_version(self):
+        """Kodi log 2026-10-04: episode 13 only has ja/en, but the season has a de-DE version."""
         prefs = _prefs(show_dubs=True, show_dubs_fallback=True)
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130DEDE", "de-DE")
+        result = language.wanted_season_version(_mushoku_items(), "GS00374452ENUS", prefs)
 
-    def test_watchlist_default_settings_target_original(self):
-        """settings.xml defaults: filter, dubs, fallback dubs and subs all on -> original first"""
-        prefs = _prefs(show_dubs=True, show_dubs_fallback=True, show_subs=True)
+        assert result == ("GS00374452DEDE", "de-DE")
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+    def test_match_via_item_id(self):
+        prefs = _prefs(show_dubs=True, show_dubs_fallback=True)
 
-    def test_watchlist_subs_only_target_original(self):
-        prefs = _prefs(show_subs=True)
+        result = language.wanted_season_version(_mushoku_items(), "GS00374452DEDE", prefs)
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+        assert result == ("GS00374452DEDE", "de-DE")
 
-    def test_watchlist_fallback_dub(self):
-        prefs = _prefs(subtitle="fr-FR", subtitle_fallback="es-419", show_dubs=True, show_dubs_fallback=True)
+    def test_match_via_item_id_without_versions(self):
+        items = [{"id": "OWN_SEASON", "title": "Season 1", "audio_locale": "de-DE"}]
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130ES419", "es-419")
+        result = language.wanted_season_version(items, "OWN_SEASON", _prefs(show_dubs=True))
 
-    def test_watchlist_primary_dub_before_fallback_dub(self):
-        prefs = _prefs(subtitle="pt-BR", subtitle_fallback="de-DE", show_dubs=True, show_dubs_fallback=True)
+        assert result == ("OWN_SEASON", "de-DE")
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130PTBR", "pt-BR")
+    def test_fallback_dub_when_primary_missing(self):
+        prefs = _prefs(subtitle="ru-RU", subtitle_fallback="fr-FR", show_dubs=True, show_dubs_fallback=True)
 
-    def test_watchlist_filter_off_targets_own_season(self):
+        result = language.wanted_season_version(_mushoku_items(), "GS00374452ENUS", prefs)
+
+        assert result == ("GS00374452FRFR", "fr-FR")
+
+    def test_filter_off_is_none(self):
         prefs = _prefs(filter_enabled=False, show_dubs=True, show_dubs_fallback=True)
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+        assert language.wanted_season_version(_mushoku_items(), "GS00374452ENUS", prefs) is None
 
-    def test_watchlist_nothing_wanted_targets_own_season(self):
-        prefs = _prefs(subtitle="it-IT", subtitle_fallback=None, show_dubs=True, show_dubs_fallback=True)
+    def test_unknown_season_id_is_none(self):
+        prefs = _prefs(show_dubs=True, show_dubs_fallback=True)
 
-        assert language.episode_target(_watchlist_episode(), prefs) == ("GS00380130JAJP", "ja-JP")
+        assert language.wanted_season_version(_mushoku_items(), "GS_UNKNOWN", prefs) is None
 
-    def test_without_versions_targets_own_season(self):
-        episode = _episode_ns("OWN_SEASON", "fr-FR", [])
+    def test_nothing_wanted_is_none(self):
+        """ru-RU: none of the Mushoku versions has it (it-IT would be a wanted dub there)."""
+        prefs = _prefs(subtitle="ru-RU", subtitle_fallback=None, show_dubs=True, show_dubs_fallback=True)
 
-        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("OWN_SEASON", "fr-FR")
+        assert language.wanted_season_version(_mushoku_items(), "GS00374452ENUS", prefs) is None
 
-    def test_without_versions_and_audio_targets_own_season(self):
-        episode = _episode_ns("OWN_SEASON", None, [])
+    def test_nothing_wanted_in_real_seasons_response_is_none(self, season_item):
+        """seasons_V1 carries no it-IT version, so an it-IT dub-only setting wants nothing."""
+        prefs = _prefs(subtitle="it-IT", subtitle_fallback=None, show_dubs=True)
 
-        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("OWN_SEASON", None)
+        assert language.wanted_season_version([season_item], DE_ID, prefs) is None
 
-    def test_duck_type_dub_settings(self):
-        episode = _episode_ns("SEASON_JA", "ja-JP", JA_DE_VERSIONS, ["de-DE"], True)
+    @pytest.mark.parametrize("items", [None, []])
+    def test_no_items_is_none(self, items):
+        assert language.wanted_season_version(items, "GS00374452ENUS", _prefs(show_dubs=True)) is None
 
-        assert language.episode_target(episode, _prefs(show_dubs=True)) == ("SEASON_DE", "de-DE")
+    @pytest.mark.parametrize(
+        ("fixture", "season_id"),
+        [("seasons_V1", DE_ID), ("seasons_V1", EN_ID), ("seasons_V2", JA_ID), ("seasons_V2", DE_ID)],
+    )
+    def test_standard_settings_resolve_to_original(self, fixture, season_id):
+        """Real season items carry subtitle_locales with de-DE, so show_subs wants the ja original."""
+        items = _load_version_response(fixture)["data"]
 
-    def test_duck_type_subs_use_episode_subtitle_locales(self):
-        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, ["de-DE"], True)
+        result = language.wanted_season_version(items, season_id, _prefs(show_subs=True))
 
-        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_JA", "ja-JP")
+        assert result == (JA_ID, "ja-JP")
 
-    def test_duck_type_subs_without_wanted_subtitle_targets_own_season(self):
-        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, ["fr-FR"], True)
+    def test_default_settings_prefer_original_over_dub(self, season_item):
+        """settings.xml defaults: filter, dubs, fallback dubs and subs all on -> original first (4.1 order)"""
+        prefs = _prefs(show_dubs=True, show_dubs_fallback=True, show_subs=True)
 
-        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
+        assert language.wanted_season_version([season_item], DE_ID, prefs) == (JA_ID, "ja-JP")
 
-    def test_duck_type_subs_edge_case_empty_locales_but_subbed(self):
-        """Issue #51: no subtitle locales but is_subbed counts as wanted subtitles"""
-        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, [], True)
+    def test_input_items_are_not_mutated(self):
+        items = _mushoku_items()
+        before = copy.deepcopy(items)
 
-        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_JA", "ja-JP")
+        language.wanted_season_version(items, "GS00374452ENUS", _prefs(show_dubs=True))
 
-    def test_duck_type_subs_empty_locales_not_subbed_targets_own_season(self):
-        episode = _episode_ns("SEASON_DE", "de-DE", JA_DE_VERSIONS, [], False)
+        assert items == before
 
-        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
 
-    def test_version_without_original_key_is_not_original(self):
-        versions = [
-            {"audio_locale": "ja-JP", "season_guid": "SEASON_JA"},
-            {"audio_locale": "de-DE", "season_guid": "SEASON_DE", "original": False},
-        ]
-        episode = _episode_ns("SEASON_DE", "de-DE", versions, ["de-DE"], True)
-
-        assert language.episode_target(episode, _prefs(show_subs=True)) == ("SEASON_DE", "de-DE")
+def test_episode_target_is_removed():
+    """Decision 7.8: the season target is decided by the season's versions, not the episode's."""
+    assert not hasattr(language, "episode_target")
 
 
 class TestDefaultEpisodeAudio:

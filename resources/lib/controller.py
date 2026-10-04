@@ -35,7 +35,12 @@ from .models.account import ProfileData
 from .models.exceptions import CrunchyrollError
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
-from .utils.language import LanguagePreferences, default_episode_audio, select_season_versions
+from .utils.language import (
+    LanguagePreferences,
+    default_episode_audio,
+    select_season_versions,
+    wanted_season_version,
+)
 from .utils.logging import crunchy_log, log_error_with_trace
 from .videoplayer import VideoPlayer
 
@@ -445,7 +450,34 @@ def view_season(ctx):
 
 def view_episodes(ctx):
     """view all episodes of season"""
-    url_audio = ctx.args.get_arg("audio_locale")
+    return _render_episodes(ctx, ctx.args.get_arg("season_id"), ctx.args.get_arg("audio_locale"))
+
+
+def view_wanted_season(ctx):
+    """view the episodes of the wanted audio version of a season; falls back to the season of the URL"""
+    season_id = ctx.args.get_arg("season_id")
+    audio = ctx.args.get_arg("audio_locale")
+
+    req = ctx.api.make_request(
+        method="GET",
+        url=ctx.api.SEASONS_ENDPOINT.format(ctx.args.get_arg("series_id")),
+        params={
+            "locale": ctx.args.subtitle,
+        },
+    )
+
+    if not is_response_error(req):
+        wanted = wanted_season_version(
+            req.get("data") or req.get("items"), season_id, LanguagePreferences.from_args(ctx.args)
+        )
+        if wanted:
+            season_id, audio = wanted
+
+    return _render_episodes(ctx, season_id, audio)
+
+
+def _render_episodes(ctx, season_id, url_audio):
+    """render the episodes of a season; an explicit audio filters the list, otherwise a default is only requested"""
     audio = url_audio or default_episode_audio(LanguagePreferences.from_args(ctx.args))
 
     params = {
@@ -457,7 +489,7 @@ def view_episodes(ctx):
     # api request
     req = ctx.api.make_request(
         method="GET",
-        url=ctx.api.EPISODES_ENDPOINT.format(ctx.args.get_arg("season_id")),
+        url=ctx.api.EPISODES_ENDPOINT.format(season_id),
         params=params,
     )
 

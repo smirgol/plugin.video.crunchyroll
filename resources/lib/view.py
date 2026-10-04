@@ -32,7 +32,7 @@ from resources.lib.models.content import EpisodeData, SeasonData, SeriesData
 from . import presentation, router
 from .context import PluginContext
 from .utils.formatting import format_short_episode_title
-from .utils.language import LanguagePreferences, episode_target
+from .utils.language import LanguagePreferences
 
 if TYPE_CHECKING:
     from .api import API
@@ -349,14 +349,17 @@ def add_listables(
             cm.append((args.addon.getLocalizedString(30045), f"Container.Update({route})"))
 
         if options & OPT_CTX_EPISODES and hasattr(listable, "season_id") and listable.season_id is not None:
-            if isinstance(listable, EpisodeData):
-                season_id, audio_locale = episode_target(listable, prefs)
+            audio_locale = getattr(listable, "audio_locale", None)
+            if isinstance(listable, EpisodeData) and prefs.filter_enabled and audio_locale:
+                route_name = "season_view_wanted"
             else:
-                season_id, audio_locale = listable.season_id, getattr(listable, "audio_locale", None)
-            route_params = {"series_id": listable.series_id, "season_id": season_id, "audio_locale": audio_locale}
-            route = args.addonurl + router.create_path_from_route(
-                "season_view_audio" if audio_locale else "season_view", route_params
-            )
+                route_name = "season_view_audio" if audio_locale else "season_view"
+            route_params = {
+                "series_id": listable.series_id,
+                "season_id": listable.season_id,
+                "audio_locale": audio_locale,
+            }
+            route = args.addonurl + router.create_path_from_route(route_name, route_params)
             cm.append((args.addon.getLocalizedString(30046), f"Container.Update({route})"))
 
         if options & OPT_NO_SEASON_TITLE and isinstance(listable, EpisodeData):
