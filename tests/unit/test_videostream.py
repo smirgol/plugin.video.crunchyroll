@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from urllib.parse import quote
 
 import pytest
 
@@ -183,3 +184,20 @@ class TestGetStreamUrlFromApiDataV2:
 
         assert url == f"proxied:{api_data['url']}"
         self._assert_no_error_dialog()
+
+    def test_proxy_log_line_hides_manifest_query_but_url_is_unchanged(self):
+        manifest_url = "https://www.crunchyroll.com/evs/x/manifest.mpd?playbackGuid=secret123"
+        proxy = MagicMock()
+        proxy.get_proxied_url.side_effect = lambda url: "http://127.0.0.1:1/proxy?url=" + quote(url, safe="")
+
+        with patch("resources.lib.videostream.get_cloudflare_proxy", return_value=proxy), patch(
+            "resources.lib.videostream.crunchy_log"
+        ) as mock_log:
+            url = self._select({"url": manifest_url}, _stream_args("true"))
+
+        proxy.get_proxied_url.assert_called_once_with(manifest_url)
+        assert url == "http://127.0.0.1:1/proxy?url=" + quote(manifest_url, safe="")
+        assert "secret123" in url
+        lines = [str(c.args[0]) for c in mock_log.call_args_list if "Proxying manifest URL" in str(c.args[0])]
+        assert len(lines) == 1, f"expected one proxy log line in {mock_log.call_args_list}"
+        assert "secret123" not in lines[0]

@@ -29,6 +29,11 @@ CMS_KEY_PAIR_ID = "secret-key-pair-id"
 CLEAR_STREAM_CONTENT_ID = "G50UMN15P"
 CLEAR_STREAM_TOKEN = "secret-stream-token-abc123"
 
+SIGNED_SUBTITLE_PATH = (
+    "https://vod-fy-mod.crunchyrollcdn.com/static/majin/x/clean/subtitles/dede/20260925_155931_0d017218/subtitle.ass"
+)
+SIGNED_SUBTITLE_URL = SIGNED_SUBTITLE_PATH + "?t=exp=1791169290~acl=/static/majin/x/subtitle.ass~hmac=d510c9e2"
+
 
 @pytest.fixture(scope="module")
 def captured():
@@ -348,19 +353,39 @@ class TestRedactUrl:
             f"https://cr-play-service.prd.crunchyrollsvc.com/v1/token/{CLEAR_STREAM_CONTENT_ID}/***"
         )
 
-    def test_query_string_is_kept(self):
+    def test_query_string_is_masked_after_token(self):
+        """Query strings are masked as a whole (deliberate requirement change, was: kept).
+
+        URL query strings carry CDN signatures (hmac) and playback guids. Request parameters are
+        logged separately via redact_params, so the query adds no debug value.
+        """
         url = API.STREAMS_ENDPOINT_CLEAR_STREAM.format(CLEAR_STREAM_CONTENT_ID, CLEAR_STREAM_TOKEN) + "?locale=de-DE"
 
-        redacted = redact_url(url)
+        assert redact_url(url) == (
+            f"https://cr-play-service.prd.crunchyrollsvc.com/v1/token/{CLEAR_STREAM_CONTENT_ID}/***?***"
+        )
 
-        assert CLEAR_STREAM_TOKEN not in redacted
-        assert redacted.endswith(f"/v1/token/{CLEAR_STREAM_CONTENT_ID}/***?locale=de-DE")
+    def test_listing_query_string_is_masked(self):
+        url = "https://www.crunchyroll.com/content/v2/cms/seasons/GY19CPGQ9/episodes?locale=de-DE&n=20"
+
+        assert redact_url(url) == "https://www.crunchyroll.com/content/v2/cms/seasons/GY19CPGQ9/episodes?***"
+
+    def test_signed_subtitle_url_query_is_masked(self):
+        redacted = redact_url(SIGNED_SUBTITLE_URL)
+
+        assert redacted == f"{SIGNED_SUBTITLE_PATH}?***"
+        for fragment in ("hmac=", "exp=", "acl="):
+            assert fragment not in redacted
+
+    def test_query_string_in_free_text_is_masked_and_text_kept(self):
+        text = "connection error for https://h/p.mpd?playbackGuid=abc123 after 3 tries"
+
+        assert redact_url(text) == "connection error for https://h/p.mpd?*** after 3 tries"
 
     @pytest.mark.parametrize(
         "url",
         [
             "https://www.crunchyroll.com/content/v2/cms/seasons/GY19CPGQ9/episodes",
-            "https://www.crunchyroll.com/content/v2/cms/seasons/GY19CPGQ9/episodes?locale=de-DE&n=20",
             "https://www.crunchyroll.com/playback/v2/G50UMN15P/tv/android_tv/play",
             "https://www.crunchyroll.com/auth/v1/token",
             "https://example.com/skip-events/G50UMN15P.json",
@@ -368,6 +393,40 @@ class TestRedactUrl:
     )
     def test_other_urls_are_unchanged(self, url):
         assert redact_url(url) == url
+
+
+class TestSignedUrlLogLines:
+    """The signed subtitle URL must not reach the trace line or the LOGDEBUG request line."""
+
+    BODY = {"total": 0, "data": []}
+
+    def run_scraper_request(self) -> list:
+        api = make_api("true")
+        scraper = Mock()
+        scraper.request.return_value = make_json_response(self.BODY)
+        with patch.object(api, "is_token_valid", return_value=True), patch.object(
+            api.auth_manager, "create_auth_scraper", return_value=scraper
+        ), patch("resources.lib.api.crunchy_log") as mock_log:
+            api.make_scraper_request("GET", SIGNED_SUBTITLE_URL)
+        return logged_messages(mock_log)
+
+    @staticmethod
+    def single_line(messages: list, prefix: str) -> str:
+        lines = [m for m in messages if m.startswith(prefix)]
+        assert len(lines) == 1, f"expected one line starting with {prefix!r} in {messages}"
+        return lines[0]
+
+    def test_trace_request_line_has_no_signature(self):
+        line = self.single_line(self.run_scraper_request(), "API >> GET ")
+
+        assert "subtitle.ass?***" in line
+        assert "hmac=" not in line
+
+    def test_scraper_debug_line_has_no_signature(self):
+        line = self.single_line(self.run_scraper_request(), "make_scraper_request: GET ")
+
+        assert "subtitle.ass?***" in line
+        assert "hmac=" not in line
 
 
 class TestApiTraceGaps:
