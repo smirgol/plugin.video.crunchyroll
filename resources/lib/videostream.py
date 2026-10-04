@@ -37,6 +37,7 @@ from resources.lib.utils.api_data import (
     get_listables_from_response,
     get_playheads_from_api,
 )
+from resources.lib.utils.api_trace import redact_url
 from resources.lib.utils.logging import crunchy_log, log_error_with_trace
 
 
@@ -203,7 +204,7 @@ class VideoStream(Object):
 
         try:
             if args.addon.getSetting("soft_subtitles") == "false":
-                url = api_data["hardSubs"]
+                url = api_data.get("hardSubs") or {}
 
                 if args.subtitle in url:
                     url = url[args.subtitle]["url"]
@@ -222,7 +223,7 @@ class VideoStream(Object):
                     token_type=api.account_data.token_type,
                 )
                 proxied_url = proxy.get_proxied_url(url)
-                crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
+                crunchy_log(f"Proxying manifest URL: {redact_url(url)} -> {redact_url(proxied_url)}")
                 url = proxied_url
 
         except IndexError:
