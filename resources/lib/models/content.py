@@ -92,6 +92,7 @@ class SeasonData(ListableItem):
         self.tvshowtitle: str = data.get("title")
         self.series_id: str | None = data.get("series_id")
         self.season_id: str | None = data.get("id")
+        self.audio_locale: str | None = data.get("audio_locale")
         self.plot: str = ""  # does not have description. maybe object endpoint?
         self.plotoutline: str = ""
         self.year: str = ""
@@ -126,6 +127,7 @@ class SeasonData(ListableItem):
             "playcount": self.playcount,
             "series_id": self.series_id,
             "season_id": self.season_id,
+            "audio_locale": self.audio_locale,
             # 'year': self.year,
             # 'aired': self.aired,
             # 'premiered': self.premiered,
@@ -176,8 +178,23 @@ class EpisodeData(PlayableItem):
         self.rating: int = 0
         self.playcount: int = 0
         self.stream_id: str | None = utils.get_stream_id_from_item(panel)
+        self.audio_locale: str | None = meta.get("audio_locale")
+        self.versions: list = meta.get("versions") or []
+        self.subtitle_locales: list = meta.get("subtitle_locales") or []
+        self.is_subbed: bool = bool(meta.get("is_subbed"))
 
         self.recalc_playcount()
+
+    def use_version(self, version: dict) -> None:
+        """Point this episode at another audio version, given as an entry of ``versions``."""
+
+        self.id = version["guid"]
+        self.episode_id = version["guid"]
+        self.stream_id = version["media_guid"]
+        self.audio_locale = version["audio_locale"]
+        self.season_id = version["season_guid"]
+        self.playhead = 0
+        self.playcount = 0
 
     def recalc_playcount(self):
         if self.playhead is not None and self.duration is not None:
