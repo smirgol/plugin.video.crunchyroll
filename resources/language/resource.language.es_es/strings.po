@@ -67,6 +67,10 @@ msgctxt "#30013"
 msgid "Ask before skipping"
 msgstr ""
 
+msgctxt "#30014"
+msgid "Queue the whole season (auto play next episode)"
+msgstr "Añadir la temporada a la cola (reproducir el siguiente episodio)"
+
 msgctxt "#30015"
 msgid "Skip"
 msgstr "Saltar"
