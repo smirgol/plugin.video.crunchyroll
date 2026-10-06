@@ -73,7 +73,9 @@ class TestSubtitleCacheReadiness:
 
         result = stream._get_subtitle_from_cache("https://example.com/sub.ass", "de-DE", "ass")
 
-        assert result == "special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/episode-123/de-DE.de.ass"
+        assert (
+            result == "special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/episode-123/de-DE.de.ass"
+        )
         assert cache_file.read_text(encoding="utf-8") == stream._ctx.api.make_request.return_value["data"]
 
     def test_final_file_is_not_visible_until_write_is_complete(self, subtitle_cache):
