@@ -458,4 +458,3 @@ class VideoStream(Object):
             prepared["intro"]["start"] += 2.0
 
         return prepared if len(prepared) > 0 else None
-
