@@ -20,6 +20,7 @@ import asyncio
 import datetime
 import os
 import sys
+import tempfile
 from typing import Any
 
 import requests
@@ -295,10 +296,23 @@ class VideoStream(Object):
 
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
 
-        with open(cache_target + cache_file, "w", encoding="utf-8") as file:
-            result = file.write(subtitles_req.get("data"))
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=cache_target, delete=False) as file:
+                temporary_path = file.name
+                result = file.write(subtitles_req.get("data"))
 
-        return True if result > 0 else False
+            if result <= 0:
+                return False
+
+            os.replace(temporary_path, os.path.join(cache_target, cache_file))
+        except OSError as e:
+            raise CrunchyrollError(f"Failed to cache subtitle for language {subtitle_language}") from e
+        finally:
+            if temporary_path and os.path.exists(temporary_path):
+                os.remove(temporary_path)
+
+        return True
 
     def _get_subtitle_from_cache(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> str | None:
         """try to get a subtitle using its url, language info and format either from cache or api"""
@@ -444,4 +458,3 @@ class VideoStream(Object):
             prepared["intro"]["start"] += 2.0
 
         return prepared if len(prepared) > 0 else None
-

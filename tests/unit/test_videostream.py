@@ -54,6 +54,59 @@ class TestVideoStreamInit:
             VideoStream()
 
 
+class TestSubtitleCacheReadiness:
+    @pytest.fixture
+    def subtitle_cache(self, video_stream_ctx, tmp_path):
+        from resources.lib.videostream import VideoStream
+
+        stream = VideoStream(video_stream_ctx)
+        video_stream_ctx.api.make_request.return_value = {"data": "[Script Info]\nTitle: subtitles\n"}
+        with patch.object(stream, "get_cache_path", return_value=str(tmp_path) + "/"), patch.object(
+            stream, "get_cache_file_name", return_value="de-DE.de.ass"
+        ), patch("resources.lib.videostream.xbmcvfs.translatePath", side_effect=lambda path: path), patch(
+            "resources.lib.videostream.xbmcvfs.mkdirs", side_effect=lambda path: Path(path).mkdir(exist_ok=True)
+        ), patch("resources.lib.videostream.xbmcvfs.exists", side_effect=lambda path: Path(path).exists()):
+            yield stream, tmp_path / "episode-123" / "de-DE.de.ass"
+
+    def test_returns_special_url_after_caching_subtitle(self, subtitle_cache):
+        stream, cache_file = subtitle_cache
+
+        result = stream._get_subtitle_from_cache("https://example.com/sub.ass", "de-DE", "ass")
+
+        assert (
+            result == "special://userdata/addon_data/plugin.video.crunchyroll/cache_subtitles/episode-123/de-DE.de.ass"
+        )
+        assert cache_file.read_text(encoding="utf-8") == stream._ctx.api.make_request.return_value["data"]
+
+    def test_final_file_is_not_visible_until_write_is_complete(self, subtitle_cache):
+        import os
+
+        stream, cache_file = subtitle_cache
+        replace = os.replace
+
+        def publish(source, target):
+            assert not cache_file.exists()
+            assert Path(source).read_text(encoding="utf-8") == stream._ctx.api.make_request.return_value["data"]
+            replace(source, target)
+
+        with patch("resources.lib.videostream.os.replace", side_effect=publish) as mock_replace:
+            stream._get_subtitle_from_cache("https://example.com/sub.ass", "de-DE", "ass")
+
+        mock_replace.assert_called_once()
+        assert list(cache_file.parent.iterdir()) == [cache_file]
+
+    def test_failed_publish_does_not_leave_partial_cache_files(self, subtitle_cache):
+        from resources.lib.models.exceptions import CrunchyrollError
+
+        stream, cache_file = subtitle_cache
+
+        with patch("resources.lib.videostream.os.replace", side_effect=OSError("cache write failed")):
+            with pytest.raises(CrunchyrollError, match="Failed to cache subtitle"):
+                stream._get_subtitle_from_cache("https://example.com/sub.ass", "de-DE", "ass")
+
+        assert list(cache_file.parent.iterdir()) == []
+
+
 class TestVideoStreamReadsArgsFromCtx:
     @patch("resources.lib.videostream.asyncio")
     def test_get_player_stream_data_uses_ctx_args_stream_id(self, mock_asyncio, video_stream_ctx):
