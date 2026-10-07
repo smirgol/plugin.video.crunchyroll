@@ -102,14 +102,14 @@ class TestFilters:
         )
         assert result is False
 
-    def test_filter_seasons_main_audio_matches(self, mock_utils_args):
-        def setting(name):
-            return {"filter_dubs_by_language": "true", "show_dubs_by_language": "true"}.get(name, "false")
+    def test_filter_series_is_subbed_in_series_metadata_is_ignored(self, mock_utils_args):
+        """Pins CURRENT behavior (known quirk, not a desired spec).
 
-        mock_utils_args.addon.getSetting.side_effect = setting
-        assert filters.filter_seasons({"audio_locale": "de-DE"}, args=mock_utils_args) is True
+        For series, the issue #51 edge case reads ``is_subbed`` from the outer panel,
+        while the real API delivers it inside ``series_metadata``. A zh-CN-only series
+        with ``is_subbed`` in ``series_metadata`` is therefore filtered out today.
+        """
 
-    def test_filter_seasons_japanese_with_fallback_subs(self, mock_utils_args):
         def setting(name):
             return {
                 "filter_dubs_by_language": "true",
@@ -117,11 +117,19 @@ class TestFilters:
             }.get(name, "false")
 
         mock_utils_args.addon.getSetting.side_effect = setting
-        result = filters.filter_seasons(
-            {"audio_locale": "ja-JP", "subtitle_locales": ["en-US"]},
+        result = filters.filter_series(
+            {
+                "panel": {
+                    "series_metadata": {
+                        "audio_locales": ["zh-CN"],
+                        "subtitle_locales": [],
+                        "is_subbed": True,
+                    }
+                }
+            },
             args=mock_utils_args,
         )
-        assert result is True
+        assert result is False
 
 
 class TestFormatting:

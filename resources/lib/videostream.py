@@ -20,6 +20,7 @@ import asyncio
 import datetime
 import os
 import sys
+import tempfile
 from typing import Any
 
 import requests
@@ -37,6 +38,7 @@ from resources.lib.utils.api_data import (
     get_listables_from_response,
     get_playheads_from_api,
 )
+from resources.lib.utils.api_trace import redact_url
 from resources.lib.utils.logging import crunchy_log, log_error_with_trace
 
 
@@ -203,7 +205,7 @@ class VideoStream(Object):
 
         try:
             if args.addon.getSetting("soft_subtitles") == "false":
-                url = api_data["hardSubs"]
+                url = api_data.get("hardSubs") or {}
 
                 if args.subtitle in url:
                     url = url[args.subtitle]["url"]
@@ -222,7 +224,7 @@ class VideoStream(Object):
                     token_type=api.account_data.token_type,
                 )
                 proxied_url = proxy.get_proxied_url(url)
-                crunchy_log(f"Proxying manifest URL: {url} -> {proxied_url}")
+                crunchy_log(f"Proxying manifest URL: {redact_url(url)} -> {redact_url(proxied_url)}")
                 url = proxied_url
 
         except IndexError:
@@ -294,10 +296,23 @@ class VideoStream(Object):
 
         cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
 
-        with open(cache_target + cache_file, "w", encoding="utf-8") as file:
-            result = file.write(subtitles_req.get("data"))
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=cache_target, delete=False) as file:
+                temporary_path = file.name
+                result = file.write(subtitles_req.get("data"))
 
-        return True if result > 0 else False
+            if result <= 0:
+                return False
+
+            os.replace(temporary_path, os.path.join(cache_target, cache_file))
+        except OSError as e:
+            raise CrunchyrollError(f"Failed to cache subtitle for language {subtitle_language}") from e
+        finally:
+            if temporary_path and os.path.exists(temporary_path):
+                os.remove(temporary_path)
+
+        return True
 
     def _get_subtitle_from_cache(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> str | None:
         """try to get a subtitle using its url, language info and format either from cache or api"""
@@ -443,4 +458,3 @@ class VideoStream(Object):
             prepared["intro"]["start"] += 2.0
 
         return prepared if len(prepared) > 0 else None
-

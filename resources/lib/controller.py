@@ -37,6 +37,13 @@ from .models.content import EpisodeData
 from .models.exceptions import CrunchyrollError
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
+from .utils.language import (
+    LanguagePreferences,
+    default_episode_audio,
+    select_season_versions,
+    wanted_episode_version,
+    wanted_season_version,
+)
 from .utils.logging import crunchy_log, log_error_with_trace
 from .videoplayer import VideoPlayer
 
@@ -75,6 +82,19 @@ def show_profiles(ctx):
         return True
 
 
+def _with_wanted_versions(listables: list, ctx) -> list:
+    """Switch each episode to the audio version the language settings want; other listables stay as they are."""
+
+    prefs = LanguagePreferences.from_args(ctx.args)
+    for listable in listables:
+        if isinstance(listable, EpisodeData):
+            version = wanted_episode_version(listable, prefs)
+            if version is not None:
+                listable.use_version(version)
+
+    return listables
+
+
 def show_queue(ctx):
     """shows anime queue/playlist"""
     # api request
@@ -93,7 +113,7 @@ def show_queue(ctx):
 
     view.add_listables(
         ctx,
-        listables=get_listables_from_response(req.get("items"), args=ctx.args),
+        listables=_with_wanted_versions(get_listables_from_response(req.get("items"), args=ctx.args), ctx),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,  # | view.OPT_SORT_EPISODES_EXPERIMENTAL
     )
@@ -220,7 +240,7 @@ def show_resume_episodes(ctx):
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
         ctx,
-        listables=get_listables_from_response(req.get("data"), args=ctx.args),
+        listables=_with_wanted_versions(get_listables_from_response(req.get("data"), args=ctx.args), ctx),
         is_folder=False,
         options=view.OPT_CTX_SEASONS | view.OPT_CTX_EPISODES,
     )
@@ -412,34 +432,30 @@ def list_filter_without_category(ctx):
 
 def view_season(ctx):
     """view all seasons/arcs of an anime"""
-    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
-
-    params = {
-        "locale": ctx.args.subtitle,
-    }
-    if filter_dubs:
-        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
-        params["force_locale"] = ""
-
     # api request
     req = ctx.api.make_request(
         method="GET",
         url=ctx.api.SEASONS_ENDPOINT.format(ctx.args.get_arg("series_id")),
-        params=params,
+        params={
+            "locale": ctx.args.subtitle,
+        },
     )
 
     # check for error
     if is_response_error(req):
         return render_error_directory(ctx)
 
+    variants = select_season_versions(req.get("data") or req.get("items"), LanguagePreferences.from_args(ctx.args))
+    if not variants:
+        return render_error_directory(ctx, title_id=30091)
+
     # season / season  (crunchy / xbmc)
     view.add_listables(
         ctx,
         listables=get_listables_from_response(
-            req.get("data") or req.get("items"),
+            variants,
             item_type_hint="season",
             args=ctx.args,
-            expand_versions=not filter_dubs,
         ),
         is_folder=True,
     )
@@ -448,14 +464,43 @@ def view_season(ctx):
     return True
 
 
-def fetch_season_episodes(ctx, season_id: str, expand_versions: bool = False) -> list | None:
-    """fetch the episodes of a season, None on api error"""
+def view_episodes(ctx):
+    """view all episodes of season"""
+    return _render_episodes(ctx, ctx.args.get_arg("season_id"), ctx.args.get_arg("audio_locale"))
+
+
+def view_wanted_season(ctx):
+    """view the episodes of the wanted audio version of a season; falls back to the season of the URL"""
+    season_id = ctx.args.get_arg("season_id")
+    audio = ctx.args.get_arg("audio_locale")
+
+    req = ctx.api.make_request(
+        method="GET",
+        url=ctx.api.SEASONS_ENDPOINT.format(ctx.args.get_arg("series_id")),
+        params={
+            "locale": ctx.args.subtitle,
+        },
+    )
+
+    if not is_response_error(req):
+        wanted = wanted_season_version(
+            req.get("data") or req.get("items"), season_id, LanguagePreferences.from_args(ctx.args)
+        )
+        if wanted:
+            season_id, audio = wanted
+
+    return _render_episodes(ctx, season_id, audio)
+
+
+def fetch_season_episodes(ctx, season_id, url_audio=None) -> list | None:
+    """fetch the episodes of a season, None on api error; an explicit audio filters the list"""
+    audio = url_audio or default_episode_audio(LanguagePreferences.from_args(ctx.args))
+
     params = {
         "locale": ctx.args.subtitle,
     }
-    if ctx.args.addon.getSetting("filter_dubs_by_language") == "true":
-        params["preferred_audio_language"] = ctx.api.account_data.default_audio_language
-        params["force_locale"] = ""
+    if audio:
+        params["preferred_audio_language"] = audio
 
     # api request
     req = ctx.api.make_request(
@@ -468,21 +513,35 @@ def fetch_season_episodes(ctx, season_id: str, expand_versions: bool = False) ->
     if is_response_error(req):
         return None
 
-    return get_listables_from_response(
+    episodes = get_listables_from_response(
         req.get("data") or req.get("items"),
         item_type_hint="episode",
         args=ctx.args,
-        expand_versions=expand_versions,
     )
 
+    # only an explicit audio from the URL is filtered; a derived default is just a request preference
+    if url_audio:
+        total = len(episodes)
+        episodes = [episode for episode in episodes if episode.audio_locale == url_audio]
+        hidden = total - len(episodes)
+        if hidden:
+            crunchy_log(
+                f"view_episodes: hidden {hidden} of {total} episodes not in audio {url_audio}",
+                xbmc.LOGINFO,
+            )
 
-def view_episodes(ctx):
-    """view all episodes of season"""
-    filter_dubs = ctx.args.addon.getSetting("filter_dubs_by_language") == "true"
+    return episodes
 
-    episodes = fetch_season_episodes(ctx, ctx.args.get_arg("season_id"), expand_versions=not filter_dubs)
+
+def _render_episodes(ctx, season_id, url_audio):
+    """render the episodes of a season; an explicit audio filters the list, otherwise a default is only requested"""
+    episodes = fetch_season_episodes(ctx, season_id, url_audio)
+
+    # check for error
     if episodes is None:
         return render_error_directory(ctx)
+    if url_audio and not episodes:
+        return render_error_directory(ctx, title_id=30091)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
@@ -532,8 +591,9 @@ def fill_season_playlist(ctx, video_player: VideoPlayer) -> tuple[int, EpisodeDa
     if not season_id or not episode_id:
         return None
 
-    # no version expansion: stay on the audio language of the season being watched
-    episodes = [ep for ep in fetch_season_episodes(ctx, season_id) or [] if isinstance(ep, EpisodeData)]
+    # same audio as the playing episode, like the episode list does for an explicit audio
+    audio = getattr(playable_item, "audio_locale", None)
+    episodes = [ep for ep in fetch_season_episodes(ctx, season_id, audio) or [] if isinstance(ep, EpisodeData)]
     current = next((i for i, ep in enumerate(episodes) if ep.episode_id == episode_id), None)
     if current is None:
         return None

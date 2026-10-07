@@ -358,7 +358,7 @@ class VideoPlayer(Object):
 
         for token in active_streams_tokens:
             self.clear_active_stream(token)
-            crunchy_log(f"Cleared stream token {token}")
+            crunchy_log("Cleared active stream")
 
 
 def update_playhead(content_id: str, playhead: int, api, args):

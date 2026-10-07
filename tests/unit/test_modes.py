@@ -50,6 +50,13 @@ def test_mode_registry_contains_expected_modes():
     assert expected.issubset(set(MODE_REGISTRY.keys()))
 
 
+def test_season_wanted_dispatches_to_view_wanted_season():
+    """Decision 7.8: the 'goto season' context menu of episodes resolves the wanted season at click time."""
+    from resources.lib import controller
+
+    assert MODE_REGISTRY.get("season_wanted") is controller.view_wanted_season
+
+
 def test_mode_registry_values_are_callable():
     """Each registry value must accept a PluginContext and be callable."""
     for mode, handler in MODE_REGISTRY.items():

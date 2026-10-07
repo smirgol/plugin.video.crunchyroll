@@ -76,3 +76,34 @@ class TestUpdatePlayhead:
 
         update_playhead("EP123", 42, api, args)
         api.make_scraper_request.assert_not_called()
+
+
+class TestClearAllActiveStreams:
+    TOKENS = ["tok-secret-1", "tok-secret-2"]
+
+    def _run(self, player, tokens):
+        with patch.object(player, "get_active_streams", return_value=list(tokens)), patch.object(
+            player, "clear_active_stream"
+        ) as mock_clear, patch("resources.lib.videoplayer.crunchy_log") as mock_log:
+            player.clear_all_active_streams()
+        return mock_clear, mock_log
+
+    def test_clears_each_active_stream_in_order(self, video_player_ctx):
+        mock_clear, _ = self._run(video_player_ctx, self.TOKENS)
+
+        assert [c.args for c in mock_clear.call_args_list] == [(token,) for token in self.TOKENS]
+
+    def test_logs_one_line_per_cleared_stream_without_token(self, video_player_ctx):
+        _, mock_log = self._run(video_player_ctx, self.TOKENS)
+
+        logged = [" ".join(str(a) for a in (*c.args, *c.kwargs.values())) for c in mock_log.call_args_list]
+        for token in self.TOKENS:
+            leaking = [line for line in logged if token in line]
+            assert not leaking, f"stream token leaked into log: {leaking}"
+        assert mock_log.call_count == len(self.TOKENS)
+
+    def test_no_active_streams_neither_clears_nor_logs(self, video_player_ctx):
+        mock_clear, mock_log = self._run(video_player_ctx, [])
+
+        mock_clear.assert_not_called()
+        mock_log.assert_not_called()

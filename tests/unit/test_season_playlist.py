@@ -35,6 +35,7 @@ def season(ctx):
 
     video_player = MagicMock()
     video_player.stream_data.playable_item.season_id = "SEASON"
+    video_player.stream_data.playable_item.audio_locale = "ja-JP"
 
     playlist = MagicMock()
     playlist.size.return_value = 1
@@ -57,7 +58,7 @@ class TestFillSeasonPlaylist:
         assert len(urls) == 3
         assert urls[0].startswith("plugin://plugin.video.crunchyroll/video/SERIES/EP1/")
         assert "/EP3/" not in "".join(urls)
-        season["fetch"].assert_called_once_with(season["ctx"], "SEASON")
+        season["fetch"].assert_called_once_with(season["ctx"], "SEASON", "ja-JP")
 
     def test_moves_current_episode_to_its_season_position(self, season):
         result = controller.fill_season_playlist(season["ctx"], season["player"])
