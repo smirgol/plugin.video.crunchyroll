@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
 
@@ -24,7 +25,7 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from . import view
+from . import presentation, view
 from .controller_helpers import (
     add_next_page_item,
     is_response_error,
@@ -491,8 +492,8 @@ def view_wanted_season(ctx):
     return _render_episodes(ctx, season_id, audio)
 
 
-def _render_episodes(ctx, season_id, url_audio):
-    """render the episodes of a season; an explicit audio filters the list, otherwise a default is only requested"""
+def fetch_season_episodes(ctx, season_id, url_audio=None) -> list | None:
+    """fetch the episodes of a season, None on api error; an explicit audio filters the list"""
     audio = url_audio or default_episode_audio(LanguagePreferences.from_args(ctx.args))
 
     params = {
@@ -510,7 +511,7 @@ def _render_episodes(ctx, season_id, url_audio):
 
     # check for error
     if is_response_error(req):
-        return render_error_directory(ctx)
+        return None
 
     episodes = get_listables_from_response(
         req.get("data") or req.get("items"),
@@ -528,8 +529,19 @@ def _render_episodes(ctx, season_id, url_audio):
                 f"view_episodes: hidden {hidden} of {total} episodes not in audio {url_audio}",
                 xbmc.LOGINFO,
             )
-        if not episodes:
-            return render_error_directory(ctx, title_id=30091)
+
+    return episodes
+
+
+def _render_episodes(ctx, season_id, url_audio):
+    """render the episodes of a season; an explicit audio filters the list, otherwise a default is only requested"""
+    episodes = fetch_season_episodes(ctx, season_id, url_audio)
+
+    # check for error
+    if episodes is None:
+        return render_error_directory(ctx)
+    if url_audio and not episodes:
+        return render_error_directory(ctx, title_id=30091)
 
     # episodes / episodes  (crunchy / xbmc)
     view.add_listables(
@@ -543,10 +555,98 @@ def _render_episodes(ctx, season_id, url_audio):
     return True
 
 
+def _playlist_rpc(method: str, **params) -> bool:
+    """run a JSON-RPC operation on the video playlist, unlike the python api it keeps the player position in sync"""
+    response = xbmc.executeJSONRPC(
+        json.dumps(
+            {"jsonrpc": "2.0", "id": 1, "method": method, "params": {"playlistid": xbmc.PLAYLIST_VIDEO, **params}}
+        )
+    )
+    if '"error"' in response:
+        crunchy_log(f"{method} {params} failed: {response}", xbmc.LOGWARNING)
+        return False
+    return True
+
+
+def fill_season_playlist(ctx, video_player: VideoPlayer) -> tuple[int, EpisodeData, int] | None:
+    """Queue the rest of the season around the now-playing episode, enabling Kodi's
+    native next/previous and auto-advance.
+
+    Episodes are appended after the current item, then the current item is moved to its
+    season position via JSON-RPC Playlist.Swap, which keeps the player's position
+    tracking in sync (python PlayList.add(item, index=...) doesn't).
+
+    Returns (position, episode, playlist size) for refresh_launched_entry().
+    """
+    playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+    if playlist.size() != 1:
+        # already in a season playlist (next/auto-advance), or not playing from the playlist
+        return None
+
+    # season_id comes from the cms object fetched during stream resolution
+    stream_data = video_player.stream_data
+    playable_item = stream_data.playable_item if stream_data else None
+    season_id = getattr(playable_item, "season_id", None) or ctx.args.get_arg("season_id")
+    episode_id = ctx.args.get_arg("episode_id")
+    if not season_id or not episode_id:
+        return None
+
+    # same audio as the playing episode, like the episode list does for an explicit audio
+    audio = getattr(playable_item, "audio_locale", None)
+    episodes = [ep for ep in fetch_season_episodes(ctx, season_id, audio) or [] if isinstance(ep, EpisodeData)]
+    current = next((i for i, ep in enumerate(episodes) if ep.episode_id == episode_id), None)
+    if current is None:
+        return None
+
+    # the season endpoint lacks playheads, without them every queued item shows as unwatched
+    asyncio.run(view.complement_listables(episodes, ctx.api, ctx.args))
+
+    for episode in episodes[:current] + episodes[current + 1 :]:
+        # must match the listing urls, else kodi's local playcount breaks
+        url = presentation.build_url(episode.get_info(), ctx.args.addonurl)
+        playlist.add(url, episode.to_item(ctx.args.addon))
+
+    # bubble the current episode down to its season position
+    for position in range(current):
+        if not _playlist_rpc("Playlist.Swap", position1=position, position2=position + 1):
+            return None
+
+    crunchy_log(f"fill_season_playlist: {playlist.size()} episodes queued, current at position {current}")
+    return current, episodes[current], len(episodes)
+
+
+def refresh_launched_entry(ctx, position: int, episode: EpisodeData, size: int) -> None:
+    """Kodi keeps the resolved stream url of the entry launched from a listing and replays it without calling the
+    plugin (e.g. on "previous"), but that stream is released once playback ends. Swap in a fresh entry."""
+    playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+    if playlist.size() != size:
+        # playlist replaced or edited meanwhile
+        return
+
+    # appending doesn't shift the player position, the JSON-RPC ops below keep it in sync
+    playlist.add(presentation.build_url(episode.get_info(), ctx.args.addonurl), episode.to_item(ctx.args.addon))
+    if not _playlist_rpc("Playlist.Remove", position=position):
+        # stale entry is still the current one, drop the copy again
+        _playlist_rpc("Playlist.Remove", position=size)
+        return
+
+    for i in range(size - 1, position, -1):
+        if not _playlist_rpc("Playlist.Swap", position1=i - 1, position2=i):
+            return
+
+
 def start_playback(ctx):
     """plays an episode"""
     video_player = VideoPlayer(ctx=ctx)
     video_player.start_playback()
+
+    # best effort: queue the rest of the season for next/previous and auto-advance
+    launched_entry = None
+    if video_player.stream_data and ctx.args.addon.getSetting("season_playlist") != "false":
+        try:
+            launched_entry = fill_season_playlist(ctx, video_player)
+        except Exception as e:
+            crunchy_log(f"fill_season_playlist failed: {e}", xbmc.LOGWARNING)
 
     crunchy_log("Starting loop", xbmc.LOGINFO)
     # stay in this method while playing to not lose video_player, as backgrounds threads reference it
@@ -558,6 +658,12 @@ def start_playback(ctx):
             video_player.update_playhead()
         monitor.waitForAbort(1)
     video_player.finished()
+
+    if launched_entry:
+        try:
+            refresh_launched_entry(ctx, *launched_entry)
+        except Exception as e:
+            crunchy_log(f"refresh_launched_entry failed: {e}", xbmc.LOGWARNING)
     del video_player
 
 
