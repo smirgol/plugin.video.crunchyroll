@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 
 
-
 def get_listables_from_response(
     data: list[dict],
     item_type_hint: str | None = None,
@@ -40,6 +39,7 @@ def get_listables_from_response(
 
     For mixed lists (browse, search, watchlist) the type is detected per item. The newer content/v2 endpoints
     (seasons, episodes) no longer carry a type identifier, so the caller passes the known type via item_type_hint.
+    Series are filtered by the user's language settings; seasons are expected to be selected by the caller.
     """
     from . import filters, logging
 
@@ -60,8 +60,6 @@ def get_listables_from_response(
                 continue
             listable_items.append(SeriesData(item))
         elif item_type == "season":
-            if not filters.filter_seasons(item, args=args):
-                continue
             listable_items.append(SeasonData(item))
         elif item_type == "episode":
             listable_items.append(EpisodeData(item))

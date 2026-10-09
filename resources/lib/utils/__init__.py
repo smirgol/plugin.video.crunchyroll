@@ -24,7 +24,7 @@ from .api_data import (
     get_watchlist_status_from_api,
     highlight_list_item_title,
 )
-from .filters import filter_seasons, filter_series
+from .filters import filter_series
 from .formatting import (
     convert_text_to_date,
     format_long_episode_title,
@@ -39,7 +39,6 @@ __all__ = [
     "convert_text_to_date",
     "crunchy_log",
     "dump",
-    "filter_seasons",
     "filter_series",
     "format_long_episode_title",
     "format_short_episode_title",

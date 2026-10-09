@@ -31,6 +31,7 @@ import urllib.parse
 import xbmc
 
 from ..modules import cloudscraper
+from .utils.api_trace import redact_url
 from .utils.logging import crunchy_log
 
 
@@ -95,7 +96,7 @@ class CloudflareProxy:
                         url_param = self.path.split("url=", 1)[1]
                         original_url = urllib.parse.unquote(url_param)
 
-                        crunchy_log(f"Proxy request for: {original_url}")
+                        crunchy_log(f"Proxy request for: {redact_url(original_url)}")
 
                         try:
                             # Use CloudScraper to fetch manifest

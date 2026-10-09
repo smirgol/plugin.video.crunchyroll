@@ -28,6 +28,7 @@ circular imports.
 
 import xbmc
 import xbmcgui
+import xbmcplugin
 
 from . import controller
 from .utils.logging import crunchy_log
@@ -105,6 +106,16 @@ def _show_main_category_drama(ctx):
     return crunchyroll.show_main_category(ctx, "drama")
 
 
+def _redirect_to_root_after_reauth(ctx):
+    """Registry wrapper: re-authentication happens in main(), afterwards leave the one-shot reauth URL.
+
+    Rendering under ``mode=reauth`` would let Kodi re-invoke it (back navigation, refresh) and wipe the
+    fresh session again, so the listing is closed as failed and replaced by the addon root.
+    """
+    xbmcplugin.endOfDirectory(handle=int(ctx.args.argv[1]), succeeded=False)
+    xbmc.executebuiltin(f"Container.Update({ctx.args.addonurl}/,replace)")
+
+
 MODE_REGISTRY = {
     "queue": controller.show_queue,
     "search": controller.search_anime,
@@ -118,12 +129,14 @@ MODE_REGISTRY = {
     "season": controller.list_anime_seasons,
     "genre": controller.list_filter,
     "seasons": controller.view_season,
+    "season_wanted": controller.view_wanted_season,
     "episodes": controller.view_episodes,
     "videoplay": controller.start_playback,
     "add_to_queue": controller.add_to_queue,
     "crunchylists_lists": controller.crunchylists_lists,
     "crunchylists_item": controller.crunchylists_item,
     "profiles_list": controller.show_profiles,
+    "reauth": _redirect_to_root_after_reauth,
 }
 
 

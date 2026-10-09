@@ -39,7 +39,7 @@ from .utils.datetime import date_to_str, get_date, str_to_date
 from .utils.logging import crunchy_log
 
 # Authentication credentials - single device-only identity (AndroidTV for device auth)
-AUTHORIZATION = "Basic cmpzMGx0eDBkYndrbGl3eGR6ZGY6NFY3cmYyMS1VRlhlWi01WEFkMFhfUVB3cjFndV9pMXM="
+AUTHORIZATION = "Basic dWQycnBrM21uemtiYTZ3bGV3dzE6M1pwU2dlaVh1SFVpd090NUJQZkNwZ0NBVThTd3dDcG4="
 
 TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
 DEVICE_CODE_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/code"
@@ -54,6 +54,15 @@ DEVICE_CODE_TIMEOUT = 300  # seconds - device code expiration time (5 minutes)
 INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
 PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
 PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
+
+
+def _oauth_error(response) -> str | None:
+    """Return the OAuth ``error`` field of a response body, or None if the body is not an OAuth error JSON."""
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    return body.get("error") if isinstance(body, dict) else None
 
 
 class AuthManager:
@@ -84,7 +93,9 @@ class AuthManager:
             # locally valid while the API rejects the device UA.
             if "user_agent_type" in account_data:
                 crunchy_log("Legacy session format detected; forcing re-authentication")
-                session_restart = True
+                self.api.account_data.delete_storage(self.api.args.addon)
+                self.create_session(action="login")
+                return
             else:
                 self.api.account_data = AccountData(account_data)
                 account_auth = {
@@ -123,12 +134,14 @@ class AuthManager:
             try:
                 return self._handle_refresh_flow()
             except LoginError as e:
-                if e.error_code == "REFRESH_TOKEN_EXPIRED":
+                if e.error_code in ("REFRESH_TOKEN_EXPIRED", "NO_REFRESH_TOKEN"):
                     xbmcgui.Dialog().ok(
                         self.api.args.addon_name,
                         self.api.args.addon.getLocalizedString(30401),
                     )
                     self.api.account_data.delete_storage(self.api.args.addon)
+                    # drop the rejected tokens so the login flow does not retry the refresh
+                    self.api.account_data = AccountData({})
                     return self._handle_login_flow()
                 else:
                     raise
@@ -183,7 +196,7 @@ class AuthManager:
     def _handle_refresh_flow(self) -> None:
         """Handle token refresh using existing refresh token"""
         if not self.api.account_data.refresh_token:
-            raise LoginError("No refresh token available")
+            raise LoginError("No refresh token available", error_code="NO_REFRESH_TOKEN")
 
         crunchy_log("Refreshing authentication token", xbmc.LOGDEBUG)
 
@@ -227,7 +240,10 @@ class AuthManager:
             self._finalize_session_from_tokens(r.json(), action="refresh")
             return
 
-        if r.status_code == 400:
+        crunchy_log(f"Token refresh failed with HTTP {r.status_code}: {str(r.text)[:200]}", xbmc.LOGERROR)
+
+        # a 403 without an OAuth error body may be a Cloudflare block and must not force a new login
+        if r.status_code in (400, 401) or _oauth_error(r) in ("invalid_grant", "invalid_client"):
             raise LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
         elif r.status_code >= 500:
             raise LoginError("Server error", error_code="SERVER_ERROR")

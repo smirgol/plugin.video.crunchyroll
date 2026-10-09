@@ -26,6 +26,7 @@ from .auth import INDEX_ENDPOINT, PROFILE_ENDPOINT, PROFILES_LIST_ENDPOINT, Auth
 from .http_utils import CRUNCHYROLL_UA, default_request_headers, get_json_from_response
 from .models.account import AccountData, ProfileData
 from .models.exceptions import CrunchyrollError, LoginError
+from .utils.api_trace import is_trace_enabled, redact_params, redact_url, summarize_response
 from .utils.datetime import date_to_str, get_date
 from .utils.logging import crunchy_log
 
@@ -167,6 +168,7 @@ class API:
         plain requests to avoid unnecessary challenge-solving overhead.
         """
         use_scraper = any(host in url for host in ("crunchyroll.com", "crunchyrollsvc.com"))
+        self._trace_request(method, url, params)
 
         if use_scraper:
             scraper = self.auth_manager.create_auth_scraper()
@@ -187,7 +189,27 @@ class API:
             prepped = req.prepare()
             r = self.http.send(prepped)
 
-        return get_json_from_response(r)
+        return self._parse_traced_response(r)
+
+    def _trace_request(self, method: str, url: str, params: dict | None) -> None:
+        if is_trace_enabled(self.args):
+            crunchy_log(f"API >> {method} {redact_url(url)} {redact_params(params)}", xbmc.LOGINFO)
+
+    @staticmethod
+    def _trace_response(r: requests.Response, summary: str) -> None:
+        crunchy_log(f"API << HTTP {r.status_code} {summary}", xbmc.LOGINFO)
+
+    def _parse_traced_response(self, r: requests.Response) -> dict | None:
+        if not is_trace_enabled(self.args):
+            return get_json_from_response(r)
+
+        try:
+            parsed = get_json_from_response(r)
+        except Exception as e:
+            self._trace_response(r, f"{type(e).__name__}: {str(e)[:200]}")
+            raise
+        self._trace_response(r, summarize_response(parsed))
+        return parsed
 
     def make_scraper_request(
         self,
@@ -277,7 +299,8 @@ class API:
             raise LoginError("CloudScraper initialization failed")
 
         try:
-            crunchy_log(f"make_scraper_request: {method} {url}", xbmc.LOGDEBUG)
+            crunchy_log(f"make_scraper_request: {method} {redact_url(url)}", xbmc.LOGDEBUG)
+            self._trace_request(method, url, params)
 
             r = scraper.request(
                 method=method,
@@ -292,6 +315,8 @@ class API:
             crunchy_log(f"make_scraper_request response: HTTP {r.status_code}", xbmc.LOGDEBUG)
 
             if r.status_code == 401 and auto_refresh and not is_retry:
+                if is_trace_enabled(self.args):
+                    self._trace_response(r, f"retrying after token refresh: {r.text[:200]}")
                 crunchy_log("Request failed due to auth error, forcing token refresh and retry", xbmc.LOGERROR)
                 self.account_data.expires = date_to_str(get_date() - timedelta(seconds=1))
                 return self.make_scraper_request(
@@ -306,19 +331,21 @@ class API:
                     is_retry=True,
                 )
 
-            return get_json_from_response(r)
+            return self._parse_traced_response(r)
 
         except (LoginError, CrunchyrollError):
             raise
         except requests.exceptions.Timeout as e:
-            crunchy_log(f"CloudScraper request timeout: {url}", xbmc.LOGERROR)
+            crunchy_log(f"CloudScraper request timeout: {redact_url(url)}", xbmc.LOGERROR)
             raise LoginError("Request timeout - check your network connection") from e
         except requests.exceptions.ConnectionError as e:
-            crunchy_log(f"CloudScraper connection error: {e}", xbmc.LOGERROR)
+            crunchy_log(f"CloudScraper connection error: {redact_url(str(e))}", xbmc.LOGERROR)
             raise LoginError("Network connection failed") from e
         except requests.exceptions.RequestException as e:
-            crunchy_log(f"CloudScraper request error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Request failed: {str(e)}") from e
+            error = redact_url(str(e))
+            crunchy_log(f"CloudScraper request error: {error}", xbmc.LOGERROR)
+            raise LoginError(f"Request failed: {error}") from e
         except Exception as e:
-            crunchy_log(f"Unexpected CloudScraper error: {e}", xbmc.LOGERROR)
-            raise LoginError(f"Unexpected error: {str(e)}") from e
+            error = redact_url(str(e))
+            crunchy_log(f"Unexpected CloudScraper error: {error}", xbmc.LOGERROR)
+            raise LoginError(f"Unexpected error: {error}") from e

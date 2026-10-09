@@ -320,6 +320,10 @@ msgctxt "#30073"
 msgid "Choose your profile"
 msgstr ""
 
+msgctxt "#30074"
+msgid "Polish"
+msgstr "Polaco"
+
 msgctxt "#30080"
 msgid "There are too many active streams. Please try again later."
 msgstr ""
@@ -327,6 +331,10 @@ msgstr ""
 msgctxt "#30090"
 msgid "No search results"
 msgstr ""
+
+msgctxt "#30091"
+msgid "No matching language version available"
+msgstr "No hay ninguna versión de idioma disponible"
 
 msgctxt "#30519"
 msgid "UpNext fixed or unavailable end detection duration"

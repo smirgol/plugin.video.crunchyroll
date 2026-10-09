@@ -215,3 +215,216 @@ def test_create_session_refresh_falls_back_to_login_on_expired_token():
 
     mock_delete.assert_called_once()
     mock_login.assert_called_once()
+
+
+def _scraper_returning(status_code: int, ok: bool = False, body=None, json_error=None):
+    response = MagicMock()
+    response.ok = ok
+    response.status_code = status_code
+    response.text = "<html>blocked</html>" if json_error else str(body or {})
+    if json_error:
+        response.json.side_effect = json_error
+    else:
+        response.json.return_value = body or {}
+    scraper = MagicMock()
+    scraper.post.return_value = response
+    return scraper
+
+
+def _manager_with_refresh_token():
+    manager, api = make_manager()
+    api.account_data = AccountData({"refresh_token": "refresh", "token_type": "Bearer"})
+    return manager, api
+
+
+def test_handle_refresh_flow_without_refresh_token_sets_error_code():
+    """A missing refresh token is flagged with NO_REFRESH_TOKEN so create_session can fall back."""
+    manager, _api = make_manager()
+    with pytest.raises(LoginError) as exc_info:
+        manager._handle_refresh_flow()
+    assert exc_info.value.error_code == "NO_REFRESH_TOKEN"
+
+
+def test_handle_refresh_flow_401_is_treated_as_expired_refresh_token():
+    """HTTP 401 on refresh means the refresh token is no longer accepted."""
+    manager, _api = _manager_with_refresh_token()
+    with patch.object(manager, "create_auth_scraper", return_value=_scraper_returning(401)):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert str(exc_info.value) == "Refresh token expired"
+    assert exc_info.value.error_code == "REFRESH_TOKEN_EXPIRED"
+
+
+def test_handle_refresh_flow_403_stays_generic_failure():
+    """HTTP 403 may be a Cloudflare block and must not be reported as an expired token."""
+    manager, _api = _manager_with_refresh_token()
+    with patch.object(manager, "create_auth_scraper", return_value=_scraper_returning(403)):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert str(exc_info.value) == "Token refresh failed"
+    assert exc_info.value.error_code is None
+
+
+@pytest.mark.parametrize("oauth_error", ["invalid_client", "invalid_grant"])
+def test_handle_refresh_flow_403_with_oauth_error_is_treated_as_expired_refresh_token(oauth_error):
+    """A 4xx carrying an OAuth rejection body (e.g. after client credential rotation) means re-login."""
+    manager, _api = _manager_with_refresh_token()
+    scraper = _scraper_returning(403, body={"error": oauth_error})
+    with patch.object(manager, "create_auth_scraper", return_value=scraper):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert exc_info.value.error_code == "REFRESH_TOKEN_EXPIRED"
+
+
+def test_handle_refresh_flow_403_with_non_json_body_stays_generic_failure():
+    """A non-JSON 403 body (e.g. Cloudflare HTML) is parsed safely and stays a generic failure."""
+    manager, _api = _manager_with_refresh_token()
+    scraper = _scraper_returning(403, json_error=ValueError("not json"))
+    with patch.object(manager, "create_auth_scraper", return_value=scraper):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert str(exc_info.value) == "Token refresh failed"
+    assert exc_info.value.error_code is None
+
+
+def test_handle_refresh_flow_logs_failed_status_without_refresh_token():
+    """A non-ok refresh response is logged at LOGERROR with its status code, never with the refresh token."""
+    import resources.lib.auth as auth_module
+
+    manager, api = make_manager()
+    api.account_data = AccountData({"refresh_token": "secret-refresh-token-xyz", "token_type": "Bearer"})
+    scraper = _scraper_returning(403, body={"error": "access_denied"})
+
+    with patch.object(manager, "create_auth_scraper", return_value=scraper), patch(
+        "resources.lib.auth.crunchy_log"
+    ) as mock_log:
+        with pytest.raises(LoginError):
+            manager._handle_refresh_flow()
+
+    error_logs = [
+        str(c)
+        for c in mock_log.call_args_list
+        if auth_module.xbmc.LOGERROR in c[0] or c[1].get("loglevel") == auth_module.xbmc.LOGERROR
+    ]
+    assert any("403" in log for log in error_logs)
+    assert all("secret-refresh-token-xyz" not in str(c) for c in mock_log.call_args_list)
+
+
+def test_handle_refresh_flow_5xx_is_server_error():
+    """HTTP 5xx on refresh keeps the SERVER_ERROR code."""
+    manager, _api = _manager_with_refresh_token()
+    with patch.object(manager, "create_auth_scraper", return_value=_scraper_returning(503)):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert exc_info.value.error_code == "SERVER_ERROR"
+
+
+def test_handle_refresh_flow_network_error_has_no_error_code():
+    """Network failures during refresh carry no error code."""
+    import requests
+
+    manager, _api = _manager_with_refresh_token()
+    scraper = MagicMock()
+    scraper.post.side_effect = requests.exceptions.ConnectionError("down")
+    with patch.object(manager, "create_auth_scraper", return_value=scraper):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert exc_info.value.error_code is None
+
+
+def test_create_session_refresh_falls_back_to_login_without_refresh_token():
+    """create_session(action='refresh') falls back to login when no refresh token is stored."""
+    manager, api = make_manager()
+    error = LoginError("No refresh token available", error_code="NO_REFRESH_TOKEN")
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=error), patch.object(
+        manager, "_handle_login_flow"
+    ) as mock_login, patch.object(api.account_data, "delete_storage") as mock_delete, patch(
+        "resources.lib.auth.xbmcgui.Dialog"
+    ):
+        manager.create_session(action="refresh")
+
+    mock_delete.assert_called_once()
+    mock_login.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        LoginError("Token refresh failed"),
+        LoginError("Server error", error_code="SERVER_ERROR"),
+        LoginError("Network error"),
+    ],
+    ids=["403-generic", "5xx-server", "network"],
+)
+def test_create_session_refresh_reraises_non_auth_errors(error):
+    """Transient or ambiguous refresh failures propagate instead of forcing a new login."""
+    manager, api = make_manager()
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=error), patch.object(
+        manager, "_handle_login_flow"
+    ) as mock_login, patch.object(api.account_data, "delete_storage") as mock_delete, patch(
+        "resources.lib.auth.xbmcgui.Dialog"
+    ):
+        with pytest.raises(LoginError) as exc_info:
+            manager.create_session(action="refresh")
+
+    assert exc_info.value is error
+    mock_delete.assert_not_called()
+    mock_login.assert_not_called()
+
+
+def test_start_with_legacy_account_data_deletes_storage_and_logs_in():
+    """Legacy stored sessions are discarded and a fresh login runs without attempting a refresh."""
+    manager, api = make_manager()
+    api.args.get_arg.return_value = False
+    legacy = {"user_agent_type": "mobile", "refresh_token": "old", "access_token": "old"}
+
+    with patch.object(AccountData, "load_from_storage", return_value=legacy), patch.object(
+        ProfileData, "load_from_storage", return_value={}
+    ), patch.object(AccountData, "delete_storage") as mock_delete, patch.object(
+        manager, "_handle_refresh_flow"
+    ) as mock_refresh, patch.object(manager, "_handle_login_flow") as mock_login:
+        manager.start()
+
+    mock_refresh.assert_not_called()
+    mock_delete.assert_called_once_with(api.args.addon)
+    mock_login.assert_called_once()
+
+
+def test_handle_refresh_flow_400_is_treated_as_expired_refresh_token():
+    """HTTP 400 on refresh means the refresh token is no longer accepted."""
+    manager, _api = _manager_with_refresh_token()
+    with patch.object(manager, "create_auth_scraper", return_value=_scraper_returning(400)):
+        with pytest.raises(LoginError) as exc_info:
+            manager._handle_refresh_flow()
+    assert exc_info.value.error_code == "REFRESH_TOKEN_EXPIRED"
+
+
+def test_create_session_refresh_fallback_shows_session_expired_dialog():
+    """The refresh fallback tells the user via dialog 30401 that a new login is required."""
+    manager, api = make_manager()
+    api.args.addon.getLocalizedString.side_effect = lambda string_id: f"String_{string_id}"
+    error = LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=error), patch.object(
+        manager, "_handle_login_flow"
+    ), patch.object(AccountData, "delete_storage"), patch("resources.lib.auth.xbmcgui.Dialog") as mock_dialog:
+        manager.create_session(action="refresh")
+
+    mock_dialog.return_value.ok.assert_called_once_with(api.args.addon_name, "String_30401")
+
+
+def test_create_session_refresh_fallback_does_not_retry_rejected_refresh_token():
+    """After a rejected refresh, the login flow starts from clean in-memory state and goes straight to device code."""
+    manager, api = _manager_with_refresh_token()
+    error = LoginError("Refresh token expired", error_code="REFRESH_TOKEN_EXPIRED")
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=error) as mock_refresh, patch.object(
+        manager, "_handle_device_code_flow"
+    ) as mock_device_flow, patch.object(AccountData, "delete_storage"), patch("resources.lib.auth.xbmcgui.Dialog"):
+        manager.create_session(action="refresh")
+
+    assert mock_refresh.call_count == 1
+    mock_device_flow.assert_called_once()
+    assert not api.account_data.refresh_token

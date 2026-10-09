@@ -319,6 +319,10 @@ msgctxt "#30073"
 msgid "Choose your profile"
 msgstr "Profil auswählen"
 
+msgctxt "#30074"
+msgid "Polish"
+msgstr "Polnisch"
+
 msgctxt "#30080"
 msgid "There are too many active streams. Please try again later."
 msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."
@@ -326,6 +330,10 @@ msgstr "Es sind zu viele Streams aktiv. Bitte probiere es später noch einmal."
 msgctxt "#30090"
 msgid "No search results"
 msgstr "Keine Suchergebnisse"
+
+msgctxt "#30091"
+msgid "No matching language version available"
+msgstr "Keine passende Sprachversion verfügbar"
 
 msgctxt "#30519"
 msgid "UpNext fixed or unavailable end detection duration"
@@ -350,6 +358,7 @@ msgstr "Statisch"
 msgctxt "#30504"
 msgid "never (disabled)"
 msgstr "Deaktiviert"
+
 # Developer Options
 
 msgctxt "#30101"
