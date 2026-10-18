@@ -394,6 +394,10 @@ msgctxt "#30308"
 msgid "Failed to refresh code"
 msgstr ""
 
+msgctxt "#30314"
+msgid "Enter PIN"
+msgstr ""
+
 # User-friendly Error Messages
 
 msgctxt "#30400"
