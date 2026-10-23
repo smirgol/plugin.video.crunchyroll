@@ -27,7 +27,6 @@ def cloudscraper_session():
 def requests_session():
     """Standard requests session for beta-api endpoints"""
     import requests
-
     session = requests.Session()
     yield session
     session.close()
