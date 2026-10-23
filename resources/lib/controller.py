@@ -77,7 +77,10 @@ def show_profiles(ctx):
     if selected == -1:
         return True
     else:
-        ctx.api.create_session(action="refresh_profile", profile_id=profiles[selected].get("profile_id"))
+        profile_pin = None
+        if profiles[selected].get("is_pin_protected"):
+            profile_pin = xbmcgui.Dialog().numeric(0, ctx.args.addon.getLocalizedString(30314), bHiddenInput=True)
+        ctx.api.create_session(action="refresh_profile", profile_id=profiles[selected].get("profile_id"), profile_pin=profile_pin)
         return True
 
 

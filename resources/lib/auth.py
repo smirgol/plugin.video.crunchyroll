@@ -42,6 +42,7 @@ from .utils.logging import crunchy_log
 AUTHORIZATION = "Basic ZXI5bmdnMmtvNW9oaXJsYTUxaTI6VmwxVDBQbjhRWko2d3o0NnhYRGxIekRGUDV0Wlgxb3E="
 
 TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
+PASSTOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/%s/passtoken"
 DEVICE_CODE_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/code"
 DEVICE_TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/token"
 
@@ -115,7 +116,7 @@ class AuthManager:
         # session management
         self.create_session(action="refresh" if session_restart else "login")
 
-    def create_session(self, action: str = "login", profile_id: str | None = None) -> None:
+    def create_session(self, action: str = "login", profile_id: str | None = None, profile_pin: str | None = None) -> None:
         """
         Create or refresh authentication session
 
@@ -148,7 +149,7 @@ class AuthManager:
 
         elif action == "refresh_profile":
             # Switch profile using existing refresh token
-            return self._handle_profile_refresh_flow(profile_id)
+            return self._handle_profile_refresh_flow(profile_id, profile_pin)
 
         else:
             raise LoginError(f"Unknown action: {action}")
@@ -250,7 +251,7 @@ class AuthManager:
 
         raise LoginError("Token refresh failed")
 
-    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
+    def _handle_profile_refresh_flow(self, profile_id: str | None, profile_pin: str | None = None) -> None:
         """Handle profile refresh using existing refresh token"""
         if not profile_id:
             raise LoginError("Profile ID required for profile refresh")
@@ -260,11 +261,41 @@ class AuthManager:
 
         crunchy_log(f"Refreshing profile: {profile_id}", xbmc.LOGDEBUG)
 
+        scraper = self.create_auth_scraper()
+        if not scraper:
+            raise LoginError("CloudScraper initialization failed")
+
+        pin_token = None
+        if profile_pin:
+            pin_headers = {
+                "Authorization": f"Bearer {self.api.account_data.access_token}",
+                "User-Agent": self.api.CRUNCHYROLL_UA,
+                "Content-Type": "application/json",
+            }
+            pin_data = {
+                "credential_type": "profile_pin",
+                "profile_id": profile_id,
+                "value": profile_pin,
+            }
+            r = scraper.post(
+                url=PASSTOKEN_ENDPOINT % profile_id,
+                headers=pin_headers,
+                json=pin_data,
+                timeout=30,
+            )
+
+            if not r.ok:
+                raise LoginError("Wrong PIN")
+
+            pin_token = r.json().get("code")
+
         headers = {
             "Authorization": AUTHORIZATION,
             "User-Agent": self.api.CRUNCHYROLL_UA,
             "Content-Type": "application/x-www-form-urlencoded",
         }
+        if pin_token:
+            headers["CrPassToken"] = pin_token
 
         data = {
             "device_id": self.api.args.device_id,
@@ -274,10 +305,6 @@ class AuthManager:
             "profile_id": profile_id,
             "refresh_token": self.api.account_data.refresh_token,
         }
-
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            raise LoginError("CloudScraper initialization failed")
 
         try:
             r = scraper.post(
