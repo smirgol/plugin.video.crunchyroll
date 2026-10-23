@@ -145,6 +145,11 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="season_playlist" type="boolean" label="30014" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
             </group>
         </category>
         <category id="developer_options" label="30240" help="">
