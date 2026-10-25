@@ -16,7 +16,7 @@
 """Integration with the Up Next add-on (service.upnext).
 
 Up Next is notified through a JSON-RPC ``NotifyAll`` signal carrying the current and the next episode.
-See docs/upnext integration.md for the contract.
+See https://github.com/im85288/service.upnext/wiki/Integration for the contract.
 """
 
 from __future__ import annotations
