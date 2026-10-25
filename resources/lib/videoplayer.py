@@ -25,6 +25,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
+from resources.lib import upnext
 from resources.lib.context import PluginContext
 from resources.lib.gui import SkipModalDialog, show_modal_dialog
 from resources.lib.models.base import Object
@@ -50,6 +51,7 @@ class VideoPlayer(Object):
         self.createTime = time.time()
         self.playhead_retry_count = 0
         self.playhead_max_retries = 3
+        self.upnext_handled = False
 
     def start_playback(self):
         """Set up player and start playback"""
@@ -233,6 +235,30 @@ class VideoPlayer(Object):
                     crunchy_log("Max playhead update retries exceeded. Stopping playhead updates.")
                     raise
 
+    def notify_upnext(self):
+        """Once per playback, tell the Up Next add-on about the next episode (if enabled in settings)."""
+
+        if self.upnext_handled or not self.isPlaying():
+            return
+        self.upnext_handled = True
+
+        args = self._ctx.args
+        if not upnext.is_enabled(args):
+            return
+
+        if not upnext.is_upnext_installed():
+            crunchy_log("Up Next integration is enabled, but the Up Next add-on is not installed", xbmc.LOGWARNING)
+            xbmcgui.Dialog().notification(
+                args.addon_name, args.addon.getLocalizedString(30415), xbmcgui.NOTIFICATION_WARNING
+            )
+            return
+
+        try:
+            upnext.notify_next_episode(self._ctx, self._stream_data.playable_item, self._stream_data.skip_events_data)
+        except Exception:
+            # never let the optional integration interrupt playback
+            log_error_with_trace("Failed to notify Up Next", False)
+
     def check_skipping(self):
         """background thread to check and handle skipping intro/credits/..."""
 
@@ -242,6 +268,10 @@ class VideoPlayer(Object):
             return
 
         if not self.isPlaying():
+            return
+
+        # Up Next shows the skip / next-episode prompts instead
+        if upnext.replaces_native_skip(args):
             return
 
         for skip_type in list(self._stream_data.skip_events_data):

@@ -442,3 +442,27 @@ msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr ""
 
+
+msgctxt "#30410"
+msgid "Enable Up Next integration"
+msgstr ""
+
+msgctxt "#30411"
+msgid "Show the Up Next prompt for the next episode. Requires the Up Next add-on (service.upnext)."
+msgstr ""
+
+msgctxt "#30412"
+msgid "Use Up Next instead of the built-in skip"
+msgstr ""
+
+msgctxt "#30413"
+msgid "Up Next skips the intro and prompts for the next episode at the credits. The built-in skip options are not used."
+msgstr ""
+
+msgctxt "#30414"
+msgid "Warning: the Up Next add-on is not installed. Select to install it."
+msgstr ""
+
+msgctxt "#30415"
+msgid "Up Next integration is enabled, but the Up Next add-on is not installed."
+msgstr ""

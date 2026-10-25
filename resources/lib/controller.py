@@ -553,6 +553,7 @@ def start_playback(ctx):
     monitor = ctx.monitor
     args = ctx.args
     while (not monitor.abortRequested()) and video_player.isStartingOrPlaying():
+        video_player.notify_upnext()
         video_player.check_skipping()
         if args.addon.getSetting("sync_playtime") == "true":
             video_player.update_playhead()

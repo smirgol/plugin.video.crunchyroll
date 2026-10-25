@@ -145,6 +145,34 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="enable_upnext" type="boolean" label="30410" help="30411">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="upnext_replace_skip" parent="enable_upnext" type="boolean" label="30412" help="30413">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                    <dependencies>
+                        <dependency type="enable" setting="enable_upnext">true</dependency>
+                    </dependencies>
+                </setting>
+                <setting id="upnext_missing_warning" type="action" label="30414" help="">
+                    <level>0</level>
+                    <data>InstallAddon(service.upnext)</data>
+                    <control type="button" format="action">
+                        <close>true</close>
+                    </control>
+                    <dependencies>
+                        <dependency type="visible">
+                            <and>
+                                <condition on="setting" setting="enable_upnext" operator="is">true</condition>
+                                <condition on="property" name="InfoBool">!System.AddonIsEnabled(service.upnext)</condition>
+                            </and>
+                        </dependency>
+                    </dependencies>
+                </setting>
             </group>
         </category>
         <category id="developer_options" label="30240" help="">

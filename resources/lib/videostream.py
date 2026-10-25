@@ -29,6 +29,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
+from resources.lib import upnext
 from resources.lib.context import PluginContext
 from resources.lib.models.base import Object, PlayableItem
 from resources.lib.models.exceptions import CrunchyrollError
@@ -391,9 +392,13 @@ class VideoStream(Object):
         api = self._ctx.api
         args = self._ctx.args
 
+        # when Up Next replaces the built-in skip, it needs the skip data regardless of the skip settings
+        use_for_upnext = upnext.replaces_native_skip(args)
+
         # if none of the skip options are enabled in setting, don't fetch that data
         if (
-            args.addon.getSetting("enable_skip_intro") != "true"
+            not use_for_upnext
+            and args.addon.getSetting("enable_skip_intro") != "true"
             and args.addon.getSetting("enable_skip_credits") != "true"
         ):
             return None
@@ -447,10 +452,10 @@ class VideoStream(Object):
             else:
                 crunchy_log(f"_get_skip_events: check for {skip_type} FAILED", xbmc.LOGINFO)
 
-        if args.addon.getSetting("enable_skip_intro") != "true" and prepared.get("intro"):
+        if not use_for_upnext and args.addon.getSetting("enable_skip_intro") != "true" and prepared.get("intro"):
             prepared.pop("intro", None)
 
-        if args.addon.getSetting("enable_skip_credits") != "true" and prepared.get("credits"):
+        if not use_for_upnext and args.addon.getSetting("enable_skip_credits") != "true" and prepared.get("credits"):
             prepared.pop("credits", None)
 
         # delay the skip a bit if it starts right at the beginning, as it would show before the video otherwise
