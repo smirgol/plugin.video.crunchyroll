@@ -30,7 +30,7 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [x] Display various information
 - [x] Watch videos with premium subscription
 - [x] Synchronizes playback stats with Crunchyroll
-- [ ] Optionally soft-subs only (currently broken)
+- [x] Optionally soft-subs only
 - [x] Configure up to two languages for subtitles / dubs
 - [x] Crunchylists support
 - [x] Crunchyroll profiles
@@ -42,9 +42,6 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [ ] Browse all featured anime
 - [ ] Browse all new anime
 - [ ] Mark as watched from context menu and sync that to crunchyroll
-
-### Known issues
-- Softitles are currently broken, language selection does not work correctly
 
 
 ***
