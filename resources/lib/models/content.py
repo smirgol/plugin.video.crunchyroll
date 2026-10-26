@@ -182,6 +182,8 @@ class EpisodeData(PlayableItem):
         self.versions: list = meta.get("versions") or []
         self.subtitle_locales: list = meta.get("subtitle_locales") or []
         self.is_subbed: bool = bool(meta.get("is_subbed"))
+        self.next_episode_id: str | None = panel.get("next_episode_id")
+        self.availability_status: str | None = panel.get("availability_status")
 
         self.recalc_playcount()
 
