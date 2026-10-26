@@ -34,6 +34,10 @@ from .controller_helpers import (
 from .models.account import ProfileData
 from .models.content import EpisodeData
 from .models.exceptions import CrunchyrollError
+from .next_episode.countdown import NextEpisodeChoice
+from .next_episode.playback_end import PlaybackEndListener, PlaybackEndTracker, await_end_result
+from .next_episode.prompt import ENABLE_SETTING, offer_next_episode, should_offer_next_episode, start_episode
+from .next_episode.resolver import PrefetchTrigger, fetch_next_episode
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
 from .utils.language import (
@@ -545,6 +549,13 @@ def _render_episodes(ctx, season_id, url_audio):
 
 def start_playback(ctx):
     """plays an episode"""
+    enabled = ctx.args.addon.getSetting(ENABLE_SETTING) == "true"
+    tracker = PlaybackEndTracker() if enabled else None
+    # create the listener in the main thread before setResolvedUrl and keep the reference until after
+    # await_end_result, as Kodi only delivers callbacks while the thread is inside a Kodi call
+    listener = PlaybackEndListener(tracker) if enabled else None
+    prefetch = PrefetchTrigger() if enabled else None
+    next_episode = None
     video_player = VideoPlayer(ctx=ctx)
     try:
         video_player.start_playback()
@@ -557,10 +568,31 @@ def start_playback(ctx):
             video_player.check_skipping()
             if args.addon.getSetting("sync_playtime") == "true":
                 video_player.update_playhead()
+            if prefetch is not None:
+                times = video_player.playback_times()
+                if times is not None and prefetch.should_fetch(times[0], times[1], video_player.skip_events):
+                    next_episode = fetch_next_episode(ctx, video_player.playable_item)
+                    # no further position queries needed once the next episode is fetched
+                    prefetch = None
             monitor.waitForAbort(1)
     finally:
         video_player.finished()
     del video_player
+    if tracker is not None and next_episode is not None:
+        _continue_with_next_episode(ctx, tracker, next_episode)
+    del listener
+
+
+def _continue_with_next_episode(ctx, tracker: PlaybackEndTracker, next_episode: EpisodeData) -> None:
+    """Offers the prefetched next episode after regular playback end; never raises, playback is already over"""
+    try:
+        await_end_result(tracker, ctx.monitor)
+        if not should_offer_next_episode(tracker.ended_regularly, ctx.monitor.abortRequested(), next_episode):
+            return
+        if offer_next_episode(ctx, next_episode) in (NextEpisodeChoice.CONTINUE, NextEpisodeChoice.TIMEOUT):
+            start_episode(ctx, next_episode)
+    except Exception:
+        log_error_with_trace("Next episode dialog failed", show_notification=False)
 
 
 def add_to_queue(ctx) -> bool:

@@ -21,6 +21,8 @@ import xbmc
 # Closes an open skip dialog (it closes on NOOP) instead of leaving it up until its timeout
 NOOP_BUILTIN = "Action(noop)"
 
+END_EVENT_TIMEOUT_SECONDS = 2.0
+
 _ENDED = "ended"
 _STOPPED = "stopped"
 _ERROR = "error"
@@ -54,7 +56,9 @@ class PlaybackEndTracker:
             self._result = result
 
 
-def await_end_result(tracker: PlaybackEndTracker, monitor, timeout: float = 2.0, interval: float = 0.5) -> None:
+def await_end_result(
+    tracker: PlaybackEndTracker, monitor, timeout: float = END_EVENT_TIMEOUT_SECONDS, interval: float = 0.5
+) -> None:
     """Give Kodi's end-of-playback callback a chance to arrive after the playback loop was left.
 
     Kodi only delivers the callbacks while the script is inside a Kodi call such as waitForAbort.

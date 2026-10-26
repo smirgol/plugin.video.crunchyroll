@@ -3,10 +3,11 @@
 import copy
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
+from resources.lib import presentation
 from resources.lib.models.content import EpisodeData
 from resources.lib.next_episode import prompt
 from resources.lib.next_episode.countdown import NextEpisodeChoice
@@ -151,3 +152,34 @@ class TestOfferNextEpisode:
         prompt.offer_next_episode(ctx, episode)
 
         assert harness.instances[0].kwargs["thumb"] == ""
+
+
+ADDON_URL = "plugin://plugin.video.crunchyroll"
+NEXT_EPISODE_URL = f"{ADDON_URL}/video/GQWH0M1J3/GG1UX5ZQX/GG1UX5ZQXV"
+
+
+class TestStartEpisode:
+    def test_next_episode_url_matches_list_url(self):
+        episode = _next_episode()
+
+        url = prompt.next_episode_url(episode, ADDON_URL)
+
+        assert url == NEXT_EPISODE_URL
+        assert url == presentation.build_url(episode.get_info(), ADDON_URL)
+
+    # PlayMedia(<url>) without quotes is only safe because the URL consists solely of alphanumeric ids and "/"
+    # (no comma, which Kodi would read as an argument separator).
+    def test_start_episode_uses_playmedia_without_wait(self, ctx, monkeypatch):
+        fake_xbmc = MagicMock()
+        monkeypatch.setattr("resources.lib.next_episode.prompt.xbmc", fake_xbmc)
+        monkeypatch.setattr(ctx.args, "addonurl", ADDON_URL)
+
+        prompt.start_episode(ctx, _next_episode())
+
+        assert fake_xbmc.executebuiltin.call_args_list == [call(f"PlayMedia({NEXT_EPISODE_URL})")]
+        fake_xbmc.Player.assert_not_called()
+
+    # Characterization/guard: already green before the implementation.
+    def test_prompt_does_not_reference_playback_entry_points(self):
+        assert not hasattr(prompt, "start_playback")
+        assert not hasattr(prompt, "VideoPlayer")

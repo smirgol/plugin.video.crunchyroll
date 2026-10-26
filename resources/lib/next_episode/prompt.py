@@ -24,9 +24,11 @@ import xbmc
 from ..context import PluginContext
 from ..gui import NextEpisodeDialog
 from ..models.content import EpisodeData
+from ..presentation import build_url
 from ..utils.logging import crunchy_log
 from .countdown import Countdown, NextEpisodeChoice, read_countdown_seconds
 
+ENABLE_SETTING = "enable_next_episode_dialog"
 NEXT_EPISODE_XML = "plugin-video-crunchyroll-next-episode.xml"
 # a dangling skip alarm would otherwise send a NOOP action later and hit the next episode dialog
 CANCEL_SKIP_ALARM_BUILTIN = "CancelAlarm(closedialog,true)"
@@ -78,3 +80,13 @@ def offer_next_episode(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeC
 
     crunchy_log(f"next episode dialog result: {choice.value}", xbmc.LOGINFO)
     return choice
+
+
+def next_episode_url(episode: EpisodeData, addonurl: str) -> str:
+    return build_url(episode.get_info(), addonurl)
+
+
+def start_episode(ctx: PluginContext, episode: EpisodeData) -> None:
+    url = next_episode_url(episode, ctx.args.addonurl)
+    crunchy_log(f"Starting next episode {episode.id}")
+    xbmc.executebuiltin(f"PlayMedia({url})")
