@@ -10,6 +10,7 @@ See LICENSES/MIT.md for more information.
 
 import threading
 import time
+from typing import Callable
 
 import xbmc
 import xbmcgui
@@ -35,6 +36,31 @@ NEXT_EPISODE_BUTTON_CANCEL = 1006
 
 CMD_CLOSE_DIALOG_BY_NOOP = "AlarmClock(closedialog,Action(noop),{},silent)"
 
+PLAYBACK_END_POLL_INTERVAL = 0.5
+WATCH_THREAD_JOIN_TIMEOUT = 2.0
+
+
+def _still_playing(is_playing: Callable[[], bool]) -> bool:
+    try:
+        return is_playing()
+    except RuntimeError:
+        return False
+
+
+def run_close_when_playback_ends(
+    stop_event: threading.Event,
+    is_playing: Callable[[], bool],
+    abort_requested: Callable[[], bool],
+    close: Callable[[], None],
+    interval: float = PLAYBACK_END_POLL_INTERVAL,
+) -> None:
+    """Closes a dialog once playback ends or Kodi shuts down, unless the dialog was closed meanwhile"""
+    while not stop_event.wait(interval):
+        if abort_requested() or not _still_playing(is_playing):
+            if not stop_event.is_set():
+                close()
+            return
+
 
 class SkipModalDialog(xbmcgui.WindowXMLDialog):
     """Dialog for skipping video parts (intro, [credits, recap], ...)"""
@@ -43,11 +69,21 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
         self.seek_time = kwargs["seek_time"]
         self.content_id = kwargs["content_id"]
         self.label = kwargs["label"]
+        self.stop_event = kwargs["stop_event"]
+        self.is_playing = kwargs["is_playing"]
+        self.abort_requested = kwargs["abort_requested"]
+        self.watch_thread = None
         self.action_exit_keys_id = [ACTION_PREVIOUS_MENU, ACTION_PLAYER_STOP, ACTION_NAV_BACK, ACTION_NOOP]
         super().__init__(*args)
 
     def onInit(self):
         self.getControl(1000).setLabel(self.label)  # noqa
+        self.watch_thread = threading.Thread(
+            target=run_close_when_playback_ends,
+            args=(self.stop_event, self.is_playing, self.abort_requested, self.close),
+            daemon=True,
+        )
+        self.watch_thread.start()
 
     def onClick(self, control_id):
         from resources.lib.videoplayer import update_playhead
@@ -57,10 +93,12 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
             try:
                 update_playhead(self.content_id, int(self.seek_time))
             finally:
+                self.stop_event.set()
                 self.close()
 
     def onAction(self, action):
         if action.getId() in self.action_exit_keys_id:
+            self.stop_event.set()
             self.close()
 
 
@@ -633,6 +671,11 @@ def show_device_activation_dialog(device_code_data, api_instance, addon, addon_p
 
 
 def show_modal_dialog(dialog_class, xml_filename, **kwargs):
+    """Shows a dialog modally and returns its return_value, if any.
+
+    Contract: kwargs must contain a stop_event (threading.Event) and the dialog class must provide
+    watch_thread (a started thread or None). After return, the watch thread is stopped.
+    """
     dialog = dialog_class(xml_filename, kwargs.get("addon_path"), "default", "1080i", **kwargs)
     minutes = kwargs.get("minutes", 0)
     seconds = kwargs.get("seconds", 0)
@@ -645,7 +688,13 @@ def show_modal_dialog(dialog_class, xml_filename, **kwargs):
             alarm_time = f"{minutes:02d}:{seconds:02d}"
         xbmc.executebuiltin(CMD_CLOSE_DIALOG_BY_NOOP.format(alarm_time))
 
-    dialog.doModal()
+    stop_event = kwargs["stop_event"]  # read before doModal, so a missing kwarg cannot mask an exception from doModal
+    try:
+        dialog.doModal()
+    finally:
+        stop_event.set()
+        if dialog.watch_thread is not None:
+            dialog.watch_thread.join(timeout=WATCH_THREAD_JOIN_TIMEOUT)
 
     if hasattr(dialog, "return_value"):
         return dialog.return_value

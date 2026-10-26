@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from urllib.parse import urlencode
 
@@ -299,6 +300,9 @@ class VideoPlayer(Object):
                 "label": args.addon.getLocalizedString(30015),
                 "addon_path": args.addon.getAddonInfo("path"),
                 "content_id": args.get_arg("episode_id"),
+                "stop_event": threading.Event(),
+                "is_playing": self.isPlaying,
+                "abort_requested": self._ctx.monitor.abortRequested,
             },
         )
 

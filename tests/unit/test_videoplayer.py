@@ -3,10 +3,12 @@
 TDD: written before implementation.
 """
 
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from resources.lib.gui import SkipModalDialog
 from resources.lib.videoplayer import VideoPlayer, update_playhead
 
 
@@ -193,3 +195,41 @@ class TestReadApi:
         video_player_ctx._player.getTime.side_effect = RuntimeError
 
         assert video_player_ctx.playback_times() is None
+
+
+class TestAskToSkip:
+    @pytest.fixture
+    def shown(self, video_player_ctx, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            "resources.lib.videoplayer.show_modal_dialog",
+            lambda dialog_class, xml, **kwargs: calls.append((dialog_class, xml, kwargs)),
+        )
+        video_player_ctx._stream_data = MagicMock()
+        video_player_ctx._stream_data.skip_events_data = {"credits": {"start": 1400, "end": 1500}}
+        return calls
+
+    def test_ask_to_skip_passes_playback_end_watch(self, video_player_ctx, shown):
+        video_player_ctx._ask_to_skip("credits")
+
+        kwargs = shown[0][2]
+        assert kwargs["is_playing"] == video_player_ctx.isPlaying
+        assert kwargs["abort_requested"] is video_player_ctx._ctx.monitor.abortRequested
+        assert isinstance(kwargs["stop_event"], threading.Event)
+        assert not kwargs["stop_event"].is_set()
+
+    def test_ask_to_skip_uses_fresh_stop_event_per_dialog(self, video_player_ctx, shown):
+        video_player_ctx._ask_to_skip("credits")
+        video_player_ctx._ask_to_skip("credits")
+
+        assert shown[0][2]["stop_event"] is not shown[1][2]["stop_event"]
+
+    def test_ask_to_skip_keeps_existing_dialog_arguments(self, video_player_ctx, shown):
+        """Characterization: existing arguments, may be green before the change."""
+        video_player_ctx._ask_to_skip("credits")
+
+        dialog_class, xml, kwargs = shown[0]
+        assert dialog_class is SkipModalDialog
+        assert xml == "plugin-video-crunchyroll-skip.xml"
+        assert kwargs["seconds"] == 10
+        assert kwargs["seek_time"] == 1500
