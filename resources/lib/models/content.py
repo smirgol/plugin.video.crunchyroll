@@ -151,15 +151,15 @@ class EpisodeData(PlayableItem):
         meta = panel.get("episode_metadata") or panel
 
         self.id = panel.get("id")
-        self.title: str = utils.format_long_episode_title(
-            meta.get("series_title"), meta.get("season_number", 1), meta.get("episode_number"), panel.get("title")
-        )
         self.title_unformatted: str = panel.get("title")
         self.tvshowtitle: str = meta.get("series_title", "")
         self.duration: int = int(meta.get("duration_ms", 0) / 1000)
         self.playhead: int = data.get("playhead", 0)
-        self.season: int = meta.get("season_number", 1)
-        self.episode: int = meta.get("episode_number", 1)
+        self.season: int | None = meta.get("season_number", 1)
+        self.episode: int | None = meta.get("episode_number", 1)
+        self.title: str = utils.format_long_episode_title(
+            self.tvshowtitle, self.season, self.episode, self.title_unformatted or ""
+        )
         self.episode_id: str | None = panel.get("id")
         self.season_id: str | None = meta.get("season_id")
         self.series_id: str | None = meta.get("series_id")

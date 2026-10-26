@@ -132,11 +132,19 @@ class TestOfferNextEpisode:
         dialog = harness.instances[0]
         assert dialog.args == ("plugin-video-crunchyroll-next-episode.xml", "/addon", "default", "1080i")
         assert dialog.kwargs["series_title"] == "TO BE HERO X"
-        assert dialog.kwargs["episode_title"] == "TO BE HERO X - S01E02 - Xiao Yueqing"
+        assert dialog.kwargs["episode_title"] == "S01E02 - Xiao Yueqing"
         assert dialog.kwargs["thumb"].endswith("61defca00938333d1aef846fa961bf2f.png")
         assert dialog.kwargs["labels"] == prompt.NextEpisodeLabels(
             "String_30502", "String_30503", "String_30504", "String_30505"
         )
+
+    def test_offer_formats_episode_title_from_fields(self, ctx, harness):
+        episode = _next_episode()
+        episode.episode = None
+
+        prompt.offer_next_episode(ctx, episode)
+
+        assert harness.instances[0].kwargs["episode_title"] == "S01 - Xiao Yueqing"
 
     def test_offer_uses_countdown_setting(self, ctx, harness, monkeypatch):
         monkeypatch.setattr(ctx.args.addon, "getSettingInt", lambda name: 30)

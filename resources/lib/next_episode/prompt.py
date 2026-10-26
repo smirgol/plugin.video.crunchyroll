@@ -25,6 +25,7 @@ from ..context import PluginContext
 from ..gui import NextEpisodeDialog
 from ..models.content import EpisodeData
 from ..presentation import build_url
+from ..utils.formatting import format_season_episode_title
 from ..utils.logging import crunchy_log
 from .countdown import Countdown, NextEpisodeChoice, read_countdown_seconds
 
@@ -59,7 +60,7 @@ def offer_next_episode(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeC
         "default",
         "1080i",
         series_title=episode.tvshowtitle or "",
-        episode_title=episode.title or "",
+        episode_title=format_season_episode_title(episode.season, episode.episode, episode.title_unformatted or ""),
         thumb=episode.thumb or "",
         labels=labels,
         countdown=countdown,
