@@ -18,9 +18,6 @@ from __future__ import annotations
 
 import xbmc
 
-# Closes an open skip dialog (it closes on NOOP) instead of leaving it up until its timeout
-NOOP_BUILTIN = "Action(noop)"
-
 END_EVENT_TIMEOUT_SECONDS = 2.0
 
 _ENDED = "ended"
@@ -78,7 +75,6 @@ class PlaybackEndHandler:
 
     def ended(self) -> None:
         self._tracker.on_ended()
-        xbmc.executebuiltin(NOOP_BUILTIN)
 
     def stopped(self) -> None:
         self._tracker.on_stopped()

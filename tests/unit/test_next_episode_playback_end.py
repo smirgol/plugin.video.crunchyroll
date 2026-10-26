@@ -124,14 +124,14 @@ class TestPlaybackEndHandler:
         monkeypatch.setattr("resources.lib.next_episode.playback_end.xbmc.executebuiltin", calls.append)
         return calls
 
-    def test_ended_marks_regular_end_and_sends_noop(self, builtins):
+    def test_ended_marks_regular_end_without_builtin(self, builtins):
         tracker = PlaybackEndTracker()
         handler = playback_end.PlaybackEndHandler(tracker)
 
         handler.ended()
 
         assert tracker.ended_regularly is True
-        assert builtins == ["Action(noop)"]
+        assert builtins == []
 
     def test_stopped_marks_stop_without_builtin(self, builtins):
         tracker = PlaybackEndTracker()
