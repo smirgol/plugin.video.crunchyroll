@@ -107,3 +107,89 @@ class TestClearAllActiveStreams:
 
         mock_clear.assert_not_called()
         mock_log.assert_not_called()
+
+
+class TestClearActiveStreamWithoutStreamData:
+    @pytest.fixture(autouse=True)
+    def _episode_and_endpoint(self, video_player_ctx, monkeypatch):
+        ctx = video_player_ctx._ctx
+        monkeypatch.setattr(ctx.api, "STREAMS_ENDPOINT_CLEAR_STREAM", "https://play/{}/{}")
+        monkeypatch.setattr(ctx.args, "get_arg", lambda name, *a, **k: "EP1" if name == "episode_id" else None)
+
+    def test_finished_without_stream_data_does_not_raise(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        video_player_ctx.finished()
+
+        video_player_ctx._ctx.api.make_request.assert_not_called()
+        assert video_player_ctx.clearedStream is True
+
+    def test_clear_all_active_streams_uses_passed_token_without_stream_data(self, video_player_ctx, monkeypatch):
+        video_player_ctx._stream_data = None
+        monkeypatch.setattr(video_player_ctx, "get_active_streams", lambda: ["tok1"])
+
+        video_player_ctx.clear_all_active_streams()
+
+        video_player_ctx._ctx.api.make_request.assert_called_once_with(method="DELETE", url="https://play/EP1/tok1")
+
+    def test_clear_active_stream_uses_stream_token_by_default(self, video_player_ctx):
+        video_player_ctx._stream_data = MagicMock(token="tok9")
+
+        video_player_ctx.clear_active_stream()
+
+        video_player_ctx._ctx.api.make_request.assert_called_once_with(method="DELETE", url="https://play/EP1/tok9")
+
+    def test_clear_active_stream_without_episode_id_makes_no_request(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx._ctx.args, "get_arg", lambda name, *a, **k: None)
+        video_player_ctx._stream_data = None
+
+        video_player_ctx.clear_active_stream("tok1")
+
+        video_player_ctx._ctx.api.make_request.assert_not_called()
+
+
+class TestReadApi:
+    def test_playable_item_none_without_stream_data(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        assert video_player_ctx.playable_item is None
+
+    def test_playable_item_from_stream_data(self, video_player_ctx):
+        sentinel = object()
+        video_player_ctx._stream_data = MagicMock(playable_item=sentinel)
+
+        assert video_player_ctx.playable_item is sentinel
+
+    def test_skip_events_empty_without_stream_data(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        assert video_player_ctx.skip_events == {}
+
+    def test_skip_events_is_copy(self, video_player_ctx):
+        video_player_ctx._stream_data = MagicMock()
+        video_player_ctx._stream_data.skip_events_data = {"intro": {"start": 10, "end": 90}}
+
+        result = video_player_ctx.skip_events
+        assert result == {"intro": {"start": 10, "end": 90}}
+
+        result.pop("intro")
+        assert video_player_ctx._stream_data.skip_events_data == {"intro": {"start": 10, "end": 90}}
+
+    def test_playback_times_when_playing(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: True)
+        video_player_ctx._player.getTime.return_value = 200.0
+        video_player_ctx._player.getTotalTime.return_value = 1440.0
+
+        assert video_player_ctx.playback_times() == (200.0, 1440.0)
+
+    def test_playback_times_none_when_not_playing(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: False)
+
+        assert video_player_ctx.playback_times() is None
+        video_player_ctx._player.getTime.assert_not_called()
+
+    def test_playback_times_none_when_player_raises(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: True)
+        video_player_ctx._player.getTime.side_effect = RuntimeError
+
+        assert video_player_ctx.playback_times() is None

@@ -546,18 +546,20 @@ def _render_episodes(ctx, season_id, url_audio):
 def start_playback(ctx):
     """plays an episode"""
     video_player = VideoPlayer(ctx=ctx)
-    video_player.start_playback()
+    try:
+        video_player.start_playback()
 
-    crunchy_log("Starting loop", xbmc.LOGINFO)
-    # stay in this method while playing to not lose video_player, as backgrounds threads reference it
-    monitor = ctx.monitor
-    args = ctx.args
-    while (not monitor.abortRequested()) and video_player.isStartingOrPlaying():
-        video_player.check_skipping()
-        if args.addon.getSetting("sync_playtime") == "true":
-            video_player.update_playhead()
-        monitor.waitForAbort(1)
-    video_player.finished()
+        crunchy_log("Starting loop", xbmc.LOGINFO)
+        # stay in this method while playing to not lose video_player, as backgrounds threads reference it
+        monitor = ctx.monitor
+        args = ctx.args
+        while (not monitor.abortRequested()) and video_player.isStartingOrPlaying():
+            video_player.check_skipping()
+            if args.addon.getSetting("sync_playtime") == "true":
+                video_player.update_playhead()
+            monitor.waitForAbort(1)
+    finally:
+        video_player.finished()
     del video_player
 
 

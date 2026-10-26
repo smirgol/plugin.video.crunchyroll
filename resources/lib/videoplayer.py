@@ -27,7 +27,7 @@ import xbmcplugin
 
 from resources.lib.context import PluginContext
 from resources.lib.gui import SkipModalDialog, show_modal_dialog
-from resources.lib.models.base import Object
+from resources.lib.models.base import Object, PlayableItem
 from resources.lib.models.exceptions import CrunchyrollError, LoginError
 from resources.lib.utils.logging import crunchy_log, log, log_error_with_trace
 from resources.lib.videostream import VideoPlayerStreamData, VideoStream
@@ -90,6 +90,24 @@ class VideoPlayer(Object):
                 self.waitForStart = False
                 crunchy_log("Timout start playing file")
         return self.waitForStart
+
+    @property
+    def playable_item(self) -> PlayableItem | None:
+        return self._stream_data.playable_item if self._stream_data else None
+
+    @property
+    def skip_events(self) -> dict[str, dict[str, int]]:
+        return dict(self._stream_data.skip_events_data) if self._stream_data else {}
+
+    def playback_times(self) -> tuple[float, float] | None:
+        """Returns (current, total) seconds, or None if not playing or playback ended meanwhile"""
+
+        if not self.isPlaying():
+            return None
+        try:
+            return self._player.getTime(), self._player.getTotalTime()
+        except RuntimeError:
+            return None
 
     def finished(self, forced=False):
         if not self.clearedStream or forced:
@@ -292,7 +310,7 @@ class VideoPlayer(Object):
         self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get("end", 0))
         self.update_playhead()
 
-    def clear_active_stream(self, token: str | None = None):
+    def clear_active_stream(self, token: str | None = None) -> None:
         """Tell Crunchyroll that we no longer use the stream.
         Crunchyroll keeps track of started streams. If they are not released, CR will block starting a new one.
         """
@@ -300,12 +318,11 @@ class VideoPlayer(Object):
         api = self._ctx.api
         args = self._ctx.args
 
-        if not args.get_arg("episode_id") or not self._stream_data.token:
+        token = token or (self._stream_data.token if self._stream_data else None)
+        if not args.get_arg("episode_id") or not token:
             return
 
         try:
-            token = token or self._stream_data.token
-
             api.make_request(
                 method="DELETE",
                 url=api.STREAMS_ENDPOINT_CLEAR_STREAM.format(args.get_arg("episode_id"), token),
