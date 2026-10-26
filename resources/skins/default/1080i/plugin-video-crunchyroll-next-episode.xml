@@ -95,7 +95,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <texturefocus border="10" colordiffuse="B3f47418">smallbutton.png</texturefocus>
-                <texturenofocus border="10" colordiffuse="B3f47418">smallbutton.png</texturenofocus>
+                <texturenofocus border="10" colordiffuse="FF333333">smallbutton.png</texturenofocus>
                 <onleft>1006</onleft>
                 <onright>1006</onright>
                 <onup>1005</onup>
@@ -118,7 +118,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <texturefocus border="10" colordiffuse="B3f47418">smallbutton.png</texturefocus>
-                <texturenofocus border="10" colordiffuse="B3f47418">smallbutton.png</texturenofocus>
+                <texturenofocus border="10" colordiffuse="FF333333">smallbutton.png</texturenofocus>
                 <onleft>1005</onleft>
                 <onright>1005</onright>
                 <onup>1006</onup>
