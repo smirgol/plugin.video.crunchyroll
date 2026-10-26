@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from typing import Mapping
+
 import xbmc
 
 from ..context import PluginContext
@@ -25,6 +27,10 @@ from ..models.content import EpisodeData
 from ..utils.api_data import get_listables_from_response
 from ..utils.language import LanguagePreferences, wanted_episode_version
 from ..utils.logging import crunchy_log
+
+PREFETCH_MIN_POSITION_SECONDS = 120.0
+PREFETCH_MIN_FRACTION = 0.5
+SKIP_LEAD_SECONDS = 5.0
 
 
 def pick_next_episode(
@@ -108,3 +114,36 @@ def fetch_next_episode(ctx: PluginContext, current: PlayableItem | None) -> Epis
 
     crunchy_log(f"next episode: {next_episode.id} {next_episode.audio_locale}", xbmc.LOGINFO)
     return next_episode
+
+
+class PrefetchTrigger:
+    """Decides exactly once during playback that the next episode should be prefetched.
+
+    The prefetch blocks the playback loop for the duration of one request, so it must not fall into a skip
+    window that is still pending: the lead buffer keeps ``check_skipping`` from missing an upcoming window.
+    """
+
+    def __init__(self) -> None:
+        self._fired = False
+
+    def should_fetch(self, position: float, total: float, skip_events: Mapping[str, Mapping[str, int]]) -> bool:
+        if self._fired:
+            return False
+
+        threshold = (
+            min(PREFETCH_MIN_POSITION_SECONDS, total * PREFETCH_MIN_FRACTION)
+            if total > 0
+            else PREFETCH_MIN_POSITION_SECONDS
+        )
+        if position < threshold:
+            return False
+
+        for event in skip_events.values():
+            start, end = event.get("start"), event.get("end")
+            if start is None or end is None:
+                continue
+            if start - SKIP_LEAD_SECONDS <= position < end:
+                return False
+
+        self._fired = True
+        return True
