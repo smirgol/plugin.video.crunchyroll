@@ -1,5 +1,8 @@
 """Tests for PlaybackEndTracker and await_end_result."""
 
+import pytest
+
+from resources.lib.next_episode import playback_end
 from resources.lib.next_episode.playback_end import PlaybackEndTracker, await_end_result
 
 
@@ -112,3 +115,50 @@ class TestAwaitEndResult:
         await_end_result(tracker, monitor, timeout=3.0, interval=1.0)
 
         assert monitor.calls == [1.0, 1.0, 1.0]
+
+
+class TestPlaybackEndHandler:
+    @pytest.fixture
+    def builtins(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr("resources.lib.next_episode.playback_end.xbmc.executebuiltin", calls.append)
+        return calls
+
+    def test_ended_marks_regular_end_and_sends_noop(self, builtins):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.ended()
+
+        assert tracker.ended_regularly is True
+        assert builtins == ["Action(noop)"]
+
+    def test_stopped_marks_stop_without_builtin(self, builtins):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.stopped()
+
+        assert tracker.has_result is True
+        assert tracker.ended_regularly is False
+        assert builtins == []
+
+    def test_error_marks_error_without_builtin(self, builtins):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.error()
+
+        assert tracker.has_result is True
+        assert tracker.ended_regularly is False
+        assert builtins == []
+
+    def test_stopped_then_ended_keeps_stop(self, builtins):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.stopped()
+        handler.ended()
+
+        assert tracker.has_result is True
+        assert tracker.ended_regularly is False

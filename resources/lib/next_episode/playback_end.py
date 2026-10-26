@@ -16,6 +16,11 @@
 
 from __future__ import annotations
 
+import xbmc
+
+# Closes an open skip dialog (it closes on NOOP) instead of leaving it up until its timeout
+NOOP_BUILTIN = "Action(noop)"
+
 _ENDED = "ended"
 _STOPPED = "stopped"
 _ERROR = "error"
@@ -59,3 +64,42 @@ def await_end_result(tracker: PlaybackEndTracker, monitor, timeout: float = 2.0,
         if monitor.waitForAbort(interval):
             return
         waited += interval
+
+
+class PlaybackEndHandler:
+    """Forwards Kodi end-of-playback events to the tracker."""
+
+    def __init__(self, tracker: PlaybackEndTracker) -> None:
+        self._tracker = tracker
+
+    def ended(self) -> None:
+        self._tracker.on_ended()
+        xbmc.executebuiltin(NOOP_BUILTIN)
+
+    def stopped(self) -> None:
+        self._tracker.on_stopped()
+
+    def error(self) -> None:
+        self._tracker.on_error()
+
+
+class PlaybackEndListener(xbmc.Player):
+    """Kodi player callbacks, delegated to PlaybackEndHandler.
+
+    Create the instance in the main thread before setResolvedUrl and keep the reference until after
+    await_end_result: Kodi only delivers the callbacks while the thread is inside a Kodi call.
+    Composition instead of a mixin: xbmc.Player is a MagicMock in tests, a mixin would raise a metaclass conflict.
+    """
+
+    def __init__(self, tracker: PlaybackEndTracker) -> None:
+        super().__init__()
+        self._handler = PlaybackEndHandler(tracker)
+
+    def onPlayBackEnded(self) -> None:
+        self._handler.ended()
+
+    def onPlayBackStopped(self) -> None:
+        self._handler.stopped()
+
+    def onPlayBackError(self) -> None:
+        self._handler.error()
