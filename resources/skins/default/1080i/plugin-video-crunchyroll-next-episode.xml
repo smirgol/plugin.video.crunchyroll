@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+    <defaultcontrol always="true">1005</defaultcontrol>
+    <zorder>1</zorder>
+    <animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
+    <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
+
+    <controls>
+        <!-- Opaque base -->
+        <control type="image">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>black.png</texture>
+            <colordiffuse>FF000000</colordiffuse>
+        </control>
+
+        <!-- Thumbnail, dimmed to about 35% -->
+        <control type="image" id="1003">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1920</width>
+            <height>1080</height>
+            <aspectratio>scale</aspectratio>
+            <colordiffuse>59FFFFFF</colordiffuse>
+        </control>
+
+        <!-- Info block bottom left -->
+        <control type="group">
+            <posx>120</posx>
+            <posy>600</posy>
+
+            <control type="label" id="1000">
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1100</width>
+                <height>40</height>
+                <font>font13</font>
+                <textcolor>FFFF6B00</textcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+            </control>
+
+            <control type="label" id="1001">
+                <posx>0</posx>
+                <posy>50</posy>
+                <width>1100</width>
+                <height>70</height>
+                <font>font16_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+            </control>
+
+            <control type="label" id="1002">
+                <posx>0</posx>
+                <posy>130</posy>
+                <width>1100</width>
+                <height>80</height>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <wrapmultiline>true</wrapmultiline>
+                <align>left</align>
+                <aligny>top</aligny>
+            </control>
+
+            <control type="label" id="1004">
+                <posx>0</posx>
+                <posy>220</posy>
+                <width>1100</width>
+                <height>40</height>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+            </control>
+
+            <control type="button" id="1005">
+                <description>Continue</description>
+                <posx>0</posx>
+                <posy>280</posy>
+                <width>300</width>
+                <height>60</height>
+                <font>font20_title</font>
+                <label/>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <selectedcolor>FFFFFFFF</selectedcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <texturefocus border="10" colordiffuse="B3f47418">smallbutton.png</texturefocus>
+                <texturenofocus border="10" colordiffuse="FF333333">smallbutton.png</texturenofocus>
+                <onleft>1006</onleft>
+                <onright>1006</onright>
+                <onup>1005</onup>
+                <ondown>1005</ondown>
+                <visible allowhiddenfocus="true">true</visible>
+            </control>
+
+            <control type="button" id="1006">
+                <description>Cancel</description>
+                <posx>330</posx>
+                <posy>280</posy>
+                <width>300</width>
+                <height>60</height>
+                <font>font20_title</font>
+                <label/>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <selectedcolor>FFFFFFFF</selectedcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <texturefocus border="10" colordiffuse="B3f47418">smallbutton.png</texturefocus>
+                <texturenofocus border="10" colordiffuse="FF333333">smallbutton.png</texturenofocus>
+                <onleft>1005</onleft>
+                <onright>1005</onright>
+                <onup>1006</onup>
+                <ondown>1006</ondown>
+                <visible allowhiddenfocus="true">true</visible>
+            </control>
+        </control>
+    </controls>
+</window>
