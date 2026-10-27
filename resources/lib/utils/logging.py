@@ -99,11 +99,7 @@ def show_user_friendly_error(
         crunchy_log(f"Error ({error_type}): {technical_message}", xbmc.LOGERROR, addon=addon)
 
     message_id = error_messages.get(error_type, 30405)
-    user_message = (
-        addon.getLocalizedString(message_id)
-        if addon is not None
-        else f"Error {error_type}"
-    )
+    user_message = addon.getLocalizedString(message_id) if addon is not None else f"Error {error_type}"
 
     xbmcgui.Dialog().notification(
         f"{addon_name} Error",

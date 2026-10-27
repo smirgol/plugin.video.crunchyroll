@@ -27,12 +27,14 @@ class TestProfileDataToItem:
 
     def test_to_item_accepts_optional_addon(self):
         """Calling to_item(addon) must not raise TypeError."""
-        profile = ProfileData({
-            "profile_id": "p1",
-            "profile_name": "Marco",
-            "username": "marco",
-            "avatar": "avatar.jpg",
-        })
+        profile = ProfileData(
+            {
+                "profile_id": "p1",
+                "profile_name": "Marco",
+                "username": "marco",
+                "avatar": "avatar.jpg",
+            }
+        )
         addon = MagicMock()
         addon.getSetting.return_value = "false"
 
@@ -43,12 +45,14 @@ class TestProfileDataToItem:
 
     def test_to_item_works_without_addon(self):
         """Calling to_item() without arguments must still work."""
-        profile = ProfileData({
-            "profile_id": "p1",
-            "profile_name": "Marco",
-            "username": "marco",
-            "avatar": "avatar.jpg",
-        })
+        profile = ProfileData(
+            {
+                "profile_id": "p1",
+                "profile_name": "Marco",
+                "username": "marco",
+                "avatar": "avatar.jpg",
+            }
+        )
 
         item = profile.to_item()
         assert item is not None
@@ -56,12 +60,14 @@ class TestProfileDataToItem:
     def test_to_item_uses_profile_name_and_username(self):
         """The returned ListItem carries the profile name and username."""
         xbmcgui.ListItem.reset_mock()
-        profile = ProfileData({
-            "profile_id": "p1",
-            "profile_name": "Marco",
-            "username": "marco",
-            "avatar": "avatar.jpg",
-        })
+        profile = ProfileData(
+            {
+                "profile_id": "p1",
+                "profile_name": "Marco",
+                "username": "marco",
+                "avatar": "avatar.jpg",
+            }
+        )
 
         profile.to_item()
         # xbmcgui.ListItem is mocked globally; inspect the constructor call.
@@ -71,18 +77,17 @@ class TestProfileDataToItem:
     def test_to_item_builds_avatar_urls(self):
         """ProfileData builds avatar URLs using the static image helper."""
         xbmcgui.ListItem.reset_mock()
-        profile = ProfileData({
-            "profile_id": "p1",
-            "profile_name": "Marco",
-            "username": "marco",
-            "avatar": "avatar.jpg",
-        })
+        profile = ProfileData(
+            {
+                "profile_id": "p1",
+                "profile_name": "Marco",
+                "username": "marco",
+                "avatar": "avatar.jpg",
+            }
+        )
 
         profile.to_item()
-        set_art_calls = [
-            call for call in xbmcgui.ListItem.return_value.method_calls
-            if call[0] == "setArt"
-        ]
+        set_art_calls = [call for call in xbmcgui.ListItem.return_value.method_calls if call[0] == "setArt"]
         assert len(set_art_calls) == 1
         artworks = set_art_calls[0][1][0]
         assert artworks["thumb"] == STATIC_IMG_PROFILE + "avatar.jpg"
@@ -138,8 +143,9 @@ class TestShowProfiles:
         """If the API response is an error, render_error_directory is used."""
         ctx.api.make_request.return_value = {"error": True}
 
-        with patch("resources.lib.controller.is_response_error", return_value=True), \
-             patch("resources.lib.controller.render_error_directory") as mock_render:
+        with patch("resources.lib.controller.is_response_error", return_value=True), patch(
+            "resources.lib.controller.render_error_directory"
+        ) as mock_render:
             result = show_profiles(ctx)
 
         mock_render.assert_called_once_with(ctx)

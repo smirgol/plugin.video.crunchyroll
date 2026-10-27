@@ -49,7 +49,6 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 types = presentation.KODI_INFO_TYPES
 
 
-
 def end_of_directory(ctx: PluginContext, content_type=None, update_listing=False, cache_to_disc=True):
     args = ctx.args
     # let xbmc know the items type in current directory
