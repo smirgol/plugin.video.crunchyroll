@@ -271,17 +271,17 @@ class VideoPlayer(Object):
         # show only for the first X seconds
         dialog_duration = min(event["end"] - event["start"], self._skip_modal_duration_max)
 
-        show_modal_dialog(
+        confirmed = show_modal_dialog(
             SkipModalDialog,
             "plugin-video-crunchyroll-skip.xml",
             **{
                 "seconds": dialog_duration,
-                "seek_time": event["end"],
                 "label": args.addon.getLocalizedString(30015),
                 "addon_path": args.addon.getAddonInfo("path"),
-                "content_id": args.get_arg("episode_id"),
             },
         )
+        if confirmed is True:
+            self._skip_to(event["end"])
 
     def _skip_to(self, seek_time: int | None) -> None:
         """Seek to the given position and sync the playhead"""

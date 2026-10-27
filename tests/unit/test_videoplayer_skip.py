@@ -91,3 +91,39 @@ class TestAskToSkipGuards:
         player._ask_to_skip("intro")
 
         assert dialog.calls[0]["seconds"] == 5
+
+
+class TestAskToSkipDialogResult:
+    def test_confirmed_dialog_seeks_to_section_end_and_syncs(self, player, dialog):
+        dialog.result = True
+
+        player._ask_to_skip("intro")
+
+        player._player.seekTime.assert_called_once_with(100)
+        player.update_playhead.assert_called_once()
+
+    def test_dismissed_dialog_does_not_skip(self, player, dialog):
+        """Characterization: dismissing the dialog (None) skips nothing."""
+        dialog.result = None
+
+        player._ask_to_skip("intro")
+
+        player._player.seekTime.assert_not_called()
+        player.update_playhead.assert_not_called()
+
+    def test_non_true_dialog_result_does_not_skip(self, player, dialog):
+        """Characterization: only an exact True confirms the skip."""
+        dialog.result = 1
+
+        player._ask_to_skip("intro")
+
+        player._player.seekTime.assert_not_called()
+        player.update_playhead.assert_not_called()
+
+    def test_dialog_no_longer_receives_seek_time_and_content_id(self, player, dialog):
+        player._ask_to_skip("intro")
+
+        kwargs = dialog.calls[0]
+        assert "seek_time" not in kwargs
+        assert "content_id" not in kwargs
+        assert {"label", "addon_path", "seconds"} <= set(kwargs)
