@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from typing import TYPE_CHECKING
@@ -28,6 +29,20 @@ from ..models import CrunchyrollError, EpisodeData, ListableItem, MovieData, Sea
 if TYPE_CHECKING:
     from xbmcgui import ListItem
 
+
+
+def run_in_thread(coro) -> asyncio.Future:
+    """run a coroutine doing blocking requests in a worker thread, so gathered requests run in parallel"""
+
+    # same as asyncio.to_thread(asyncio.run, coro), which requires python 3.9
+    return asyncio.get_running_loop().run_in_executor(None, asyncio.run, coro)
+
+
+def refresh_expiring_token(api) -> None:
+    """refresh an expiring token before starting parallel requests, which would refresh it concurrently"""
+
+    if api.account_data.refresh_token and not api.is_token_valid():
+        api.auth_manager.refresh_session()
 
 
 def get_listables_from_response(
