@@ -37,6 +37,8 @@ from resources.lib.utils.api_data import (
     get_cms_object_data_by_ids,
     get_listables_from_response,
     get_playheads_from_api,
+    refresh_expiring_token,
+    run_in_thread,
 )
 from resources.lib.utils.api_trace import redact_url
 from resources.lib.utils.logging import crunchy_log, log_error_with_trace
@@ -115,18 +117,17 @@ class VideoStream(Object):
         """gather data asynchronously and return them as a dictionary"""
 
         # create threads
-        # actually not sure if this works, as the requests lib is not async
-        # also not sure if this is thread safe in any way, what if session is timed-out when starting this?
-        t_stream_data = asyncio.create_task(self._get_stream_data_from_api())
-        t_skip_events_data = asyncio.create_task(self._get_skip_events(self._ctx.args.get_arg("episode_id")))
-        t_playheads = asyncio.create_task(
+        refresh_expiring_token(self._ctx.api)
+        t_stream_data = run_in_thread(self._get_stream_data_from_api())
+        t_skip_events_data = run_in_thread(self._get_skip_events(self._ctx.args.get_arg("episode_id")))
+        t_playheads = run_in_thread(
             get_playheads_from_api(
                 self._ctx.args.get_arg("episode_id"),
                 api=self._ctx.api,
                 args=self._ctx.args,
             )
         )
-        t_item_data = asyncio.create_task(
+        t_item_data = run_in_thread(
             get_cms_object_data_by_ids(
                 [self._ctx.args.get_arg("episode_id")],
                 api=self._ctx.api,
