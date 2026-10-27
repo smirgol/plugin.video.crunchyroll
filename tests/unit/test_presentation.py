@@ -122,10 +122,13 @@ class TestPresentListable:
         assert args[0] == {}
 
 
-@pytest.mark.parametrize("value,expected", [
-    (42, "42"),
-    ("hello world", "hello+world"),
-])
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (42, "42"),
+        ("hello world", "hello+world"),
+    ],
+)
 def test_quote_value(value, expected):
     if isinstance(value, str):
         # space must be quoted
