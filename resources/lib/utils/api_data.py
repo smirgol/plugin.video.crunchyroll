@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from typing import TYPE_CHECKING
@@ -28,6 +29,19 @@ from ..models import CrunchyrollError, EpisodeData, ListableItem, MovieData, Sea
 if TYPE_CHECKING:
     from xbmcgui import ListItem
 
+
+def run_in_thread(coro) -> asyncio.Future:
+    """run a coroutine doing blocking requests in a worker thread, so gathered requests run in parallel"""
+
+    # same as asyncio.to_thread(asyncio.run, coro), which requires python 3.9
+    return asyncio.get_running_loop().run_in_executor(None, asyncio.run, coro)
+
+
+def refresh_expiring_token(api) -> None:
+    """refresh an expiring token before starting parallel requests, which would refresh it concurrently"""
+
+    if api.account_data.refresh_token and not api.is_token_valid():
+        api.auth_manager.refresh_session()
 
 
 def get_listables_from_response(
@@ -78,7 +92,6 @@ def get_listables_from_response(
 async def get_cms_object_data_by_ids(ids: list, api, args) -> dict:
     """fetch info from api object endpoint for given ids. Useful to complement missing data"""
 
-
     ids_filtered = [item for item in ids if item != 0 and item is not None]
     if len(ids_filtered) == 0:
         return {}
@@ -94,6 +107,7 @@ async def get_cms_object_data_by_ids(ids: list, api, args) -> dict:
         )
     except (CrunchyrollError, requests.exceptions.RequestException):
         from . import logging
+
         logging.crunchy_log(f"get_cms_object_data_by_ids: failed to load for: {','.join(ids_filtered)}")
         return {}
 
@@ -119,7 +133,6 @@ def get_stream_id_from_item(item: dict) -> str | None:
 
 async def get_playheads_from_api(episode_ids: str | list, api, args) -> dict:
     """Retrieve playhead data from API for given episode / movie ids"""
-
 
     if isinstance(episode_ids, str):
         episode_ids = [episode_ids]
@@ -152,7 +165,6 @@ async def get_playheads_from_api(episode_ids: str | list, api, args) -> dict:
 async def get_watchlist_status_from_api(ids: list, api, args) -> list:
     """retrieve watchlist status for given media ids"""
     from . import logging
-
 
     req = api.make_scraper_request(
         method="GET",

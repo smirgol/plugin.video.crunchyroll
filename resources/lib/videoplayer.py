@@ -224,9 +224,7 @@ class VideoPlayer(Object):
                     error_msg = "Unexpected playhead update error"
 
                 self.playhead_retry_count += 1
-                crunchy_log(
-                    f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}"
-                )
+                crunchy_log(f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}")
 
                 # Only raise if we've exceeded max retries
                 if self.playhead_retry_count >= self.playhead_max_retries:
@@ -265,32 +263,45 @@ class VideoPlayer(Object):
 
         crunchy_log("_ask_to_skip", xbmc.LOGINFO)
 
-        dialog_duration = self._stream_data.skip_events_data.get(section, []).get(
-            "end", 0
-        ) - self._stream_data.skip_events_data.get(section, []).get("start", 0)
+        event = self._stream_data.skip_events_data.get(section, {})
+        if event.get("start") is None or event.get("end") is None:
+            crunchy_log(f"_ask_to_skip: incomplete skip event for {section}", xbmc.LOGWARNING)
+            return
 
         # show only for the first X seconds
-        dialog_duration = min(dialog_duration, self._skip_modal_duration_max)
+        dialog_duration = min(event["end"] - event["start"], self._skip_modal_duration_max)
 
-        show_modal_dialog(
+        confirmed = show_modal_dialog(
             SkipModalDialog,
             "plugin-video-crunchyroll-skip.xml",
             **{
                 "seconds": dialog_duration,
-                "seek_time": self._stream_data.skip_events_data.get(section).get("end"),
                 "label": args.addon.getLocalizedString(30015),
                 "addon_path": args.addon.getAddonInfo("path"),
-                "content_id": args.get_arg("episode_id"),
             },
         )
+        if confirmed is True:
+            self._skip_to(event["end"])
+
+    def _skip_to(self, seek_time: int | None) -> None:
+        """Seek to the given position and sync the playhead"""
+
+        if seek_time is None:
+            crunchy_log("_skip_to: no seek time given", xbmc.LOGWARNING)
+            return
+
+        if not self.isPlaying():
+            return
+
+        self._player.seekTime(seek_time)
+        self.update_playhead()
 
     def _instaskip(self, section):
         """Skip immediatly without asking"""
 
         crunchy_log("_instaskip", xbmc.LOGINFO)
 
-        self._player.seekTime(self._stream_data.skip_events_data.get(section, []).get("end", 0))
-        self.update_playhead()
+        self._skip_to(self._stream_data.skip_events_data.get(section, {}).get("end"))
 
     def clear_active_stream(self, token: str | None = None):
         """Tell Crunchyroll that we no longer use the stream.
