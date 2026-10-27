@@ -243,9 +243,7 @@ class VideoPlayer(Object):
                     error_msg = "Unexpected playhead update error"
 
                 self.playhead_retry_count += 1
-                crunchy_log(
-                    f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}"
-                )
+                crunchy_log(f"{error_msg} (attempt {self.playhead_retry_count}/{self.playhead_max_retries}): {str(e)}")
 
                 # Only raise if we've exceeded max retries
                 if self.playhead_retry_count >= self.playhead_max_retries:
