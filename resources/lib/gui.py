@@ -66,8 +66,6 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
     """Dialog for skipping video parts (intro, [credits, recap], ...)"""
 
     def __init__(self, *args, **kwargs):
-        self.seek_time = kwargs["seek_time"]
-        self.content_id = kwargs["content_id"]
         self.label = kwargs["label"]
         self.stop_event = kwargs["stop_event"]
         self.is_playing = kwargs["is_playing"]
@@ -86,15 +84,10 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
         self.watch_thread.start()
 
     def onClick(self, control_id):
-        from resources.lib.videoplayer import update_playhead
-
         if control_id == 1000:
-            xbmc.Player().seekTime(self.seek_time)
-            try:
-                update_playhead(self.content_id, int(self.seek_time))
-            finally:
-                self.stop_event.set()
-                self.close()
+            self.return_value = True
+            self.stop_event.set()
+            self.close()
 
     def onAction(self, action):
         if action.getId() in self.action_exit_keys_id:

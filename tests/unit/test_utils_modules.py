@@ -78,17 +78,20 @@ class TestFilters:
             }.get(name, "false")
 
         mock_utils_args.addon.getSetting.side_effect = setting
-        assert filters.filter_series(
-            {
-                "panel": {
-                    "series_metadata": {
-                        "audio_locales": ["ja-JP"],
-                        "subtitle_locales": ["de-DE"],
+        assert (
+            filters.filter_series(
+                {
+                    "panel": {
+                        "series_metadata": {
+                            "audio_locales": ["ja-JP"],
+                            "subtitle_locales": ["de-DE"],
+                        }
                     }
-                }
-            },
-            args=mock_utils_args,
-        ) is True
+                },
+                args=mock_utils_args,
+            )
+            is True
+        )
 
     def test_filter_series_no_match(self, mock_utils_args):
         def setting(name):

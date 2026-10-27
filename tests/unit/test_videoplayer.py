@@ -232,4 +232,4 @@ class TestAskToSkip:
         assert dialog_class is SkipModalDialog
         assert xml == "plugin-video-crunchyroll-skip.xml"
         assert kwargs["seconds"] == 10
-        assert kwargs["seek_time"] == 1500
+        assert "seek_time" not in kwargs  # removed on purpose: VideoPlayer seeks itself
