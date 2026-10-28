@@ -33,6 +33,7 @@ NEXT_EPISODE_IMAGE_THUMB = 1003
 NEXT_EPISODE_LABEL_COUNTDOWN = 1004
 NEXT_EPISODE_BUTTON_CONTINUE = 1005
 NEXT_EPISODE_BUTTON_CANCEL = 1006
+NEXT_EPISODE_PROGRESS_COUNTDOWN = 1007
 
 CMD_CLOSE_DIALOG_BY_NOOP = "AlarmClock(closedialog,Action(noop),{},silent)"
 
@@ -133,6 +134,7 @@ class NextEpisodeDialog(xbmcgui.WindowXMLDialog):
             args = (self.countdown, self.stop_event, self.abort_requested, self._show_remaining, self.close)
         else:
             self.getControl(NEXT_EPISODE_LABEL_COUNTDOWN).setVisible(False)  # noqa
+            self.getControl(NEXT_EPISODE_PROGRESS_COUNTDOWN).setVisible(False)  # noqa
             target = run_abort_watch
             args = (self.decision, self.stop_event, self.abort_requested, self.close)
         self.tick_thread = threading.Thread(target=target, args=args, daemon=True)
@@ -163,8 +165,13 @@ class NextEpisodeDialog(xbmcgui.WindowXMLDialog):
         self.close()
 
     def _show_remaining(self, remaining):
+        from resources.lib.next_episode.countdown import remaining_percent
+
         if not self.stop_event.is_set():
             self.getControl(NEXT_EPISODE_LABEL_COUNTDOWN).setLabel(self.labels.countdown_format % remaining)  # noqa
+            self.getControl(NEXT_EPISODE_PROGRESS_COUNTDOWN).setPercent(  # noqa
+                remaining_percent(remaining, self.countdown.total)
+            )
 
 
 class DeviceActivationDialog(xbmcgui.WindowXMLDialog):

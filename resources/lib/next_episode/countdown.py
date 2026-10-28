@@ -182,6 +182,11 @@ def run_abort_watch(
             return
 
 
+def remaining_percent(remaining: int, total: int) -> float:
+    """Share of the countdown still left, 100.0 at start and 0.0 at timeout; total must be at least 1."""
+    return min(100.0, max(0.0, remaining / total * 100))
+
+
 def read_countdown_seconds(addon) -> int:
     return read_clamped_int(
         addon, COUNTDOWN_SETTING, DEFAULT_COUNTDOWN_SECONDS, MIN_COUNTDOWN_SECONDS, MAX_COUNTDOWN_SECONDS
