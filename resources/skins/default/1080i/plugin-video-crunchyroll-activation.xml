@@ -31,8 +31,6 @@
                 <height>900</height>
                 <texture>white.png</texture>
                 <colordiffuse>FF2A2A2A</colordiffuse>
-                <bordertexture border="40">panel-background.png</bordertexture>
-                <bordersize>20</bordersize>
                 <animation effect="zoom" start="80" end="100" time="300" center="600,450">WindowOpen</animation>
                 <animation effect="zoom" start="100" end="80" time="300" center="600,450">WindowClose</animation>
             </control>
@@ -152,13 +150,13 @@
                     <font>font14</font>
                     <label>Refresh Code</label>
                     <textcolor>FFFFFFFF</textcolor>
-                    <focusedcolor>FFFF6B00</focusedcolor>
-                    <selectedcolor>FFFF6B00</selectedcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
+                    <selectedcolor>FFFFFFFF</selectedcolor>
                     <shadowcolor>88000000</shadowcolor>
                     <align>center</align>
                     <aligny>center</aligny>
-                    <texturefocus border="20" colordiffuse="FFFF6B00">button-focus.png</texturefocus>
-                    <texturenofocus border="20" colordiffuse="FF555555">button-nofocus.png</texturenofocus>
+                    <texturefocus border="10" colordiffuse="FFFF6B00">smallbutton.png</texturefocus>
+                    <texturenofocus border="10" colordiffuse="FF555555">smallbutton.png</texturenofocus>
                     <onleft>1005</onleft>
                     <onright>1005</onright>
                     <onup>1004</onup>
@@ -173,13 +171,13 @@
                     <font>font14</font>
                     <label>Cancel</label>
                     <textcolor>FFFFFFFF</textcolor>
-                    <focusedcolor>FFFF6B00</focusedcolor>
-                    <selectedcolor>FFFF6B00</selectedcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
+                    <selectedcolor>FFFFFFFF</selectedcolor>
                     <shadowcolor>88000000</shadowcolor>
                     <align>center</align>
                     <aligny>center</aligny>
-                    <texturefocus border="20" colordiffuse="FFCC0000">button-focus.png</texturefocus>
-                    <texturenofocus border="20" colordiffuse="FF555555">button-nofocus.png</texturenofocus>
+                    <texturefocus border="10" colordiffuse="FFCC0000">smallbutton.png</texturefocus>
+                    <texturenofocus border="10" colordiffuse="FF555555">smallbutton.png</texturenofocus>
                     <onleft>1004</onleft>
                     <onright>1004</onright>
                     <onup>1005</onup>

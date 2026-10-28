@@ -2,6 +2,7 @@
 
 import importlib.util
 import sys
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -32,7 +33,12 @@ def gui_module(monkeypatch):
 
 def make_dialog(gui_module, **overrides):
     """Single place to construct the dialog."""
-    kwargs = {"label": "Skip Intro"}
+    kwargs = {
+        "label": "Skip Intro",
+        "stop_event": threading.Event(),
+        "is_playing": lambda: True,
+        "abort_requested": lambda: False,
+    }
     kwargs.update(overrides)
     return gui_module.SkipModalDialog("plugin-video-crunchyroll-skip.xml", "/addon/path", "default", "1080i", **kwargs)
 

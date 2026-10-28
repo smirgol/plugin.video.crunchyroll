@@ -145,6 +145,41 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="enable_next_episode_dialog" type="boolean" label="30500" help="">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="next_episode_countdown" type="integer" label="30501" help="">
+                    <level>0</level>
+                    <default>15</default>
+                    <constraints>
+                        <minimum>5</minimum>
+                        <step>5</step>
+                        <maximum>60</maximum>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="enable" setting="enable_next_episode_dialog">true</dependency>
+                    </dependencies>
+                    <control type="slider" format="integer">
+                        <popup>false</popup>
+                    </control>
+                </setting>
+                <setting id="next_episode_still_watching_after" type="integer" label="30507" help="">
+                    <level>0</level>
+                    <default>3</default>
+                    <constraints>
+                        <minimum>0</minimum>
+                        <step>1</step>
+                        <maximum>10</maximum>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="enable" setting="enable_next_episode_dialog">true</dependency>
+                    </dependencies>
+                    <control type="slider" format="integer">
+                        <popup>false</popup>
+                    </control>
+                </setting>
             </group>
         </category>
         <category id="developer_options" label="30240" help="">
