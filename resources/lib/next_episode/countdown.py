@@ -44,19 +44,12 @@ COUNTDOWN_SETTING = "next_episode_countdown"
 _CANCEL_ACTIONS = (ACTION_PREVIOUS_MENU, ACTION_NAV_BACK, ACTION_PLAYER_STOP)
 
 
-class Countdown:
-    """Counts down to a timeout; the first final state (confirm, cancel, timeout) wins."""
+class ChoiceLatch:
+    """Holds the first final decision (confirm, cancel, timeout); later ones are ignored."""
 
-    def __init__(self, seconds: int) -> None:
-        if seconds < 1:
-            raise ValueError("seconds must be at least 1")
-        self._remaining = seconds
+    def __init__(self) -> None:
         self._result: NextEpisodeChoice | None = None
         self._lock = threading.Lock()
-
-    @property
-    def remaining(self) -> int:
-        return self._remaining
 
     @property
     def result(self) -> NextEpisodeChoice | None:
@@ -66,20 +59,14 @@ class Countdown:
     def is_finished(self) -> bool:
         return self._result is not None
 
-    def tick(self) -> int:
-        with self._lock:
-            if self._result is None:
-                self._remaining -= 1
-                if self._remaining <= 0:
-                    self._remaining = 0
-                    self._result = NextEpisodeChoice.TIMEOUT
-            return self._remaining
-
     def confirm(self) -> bool:
         return self._finish(NextEpisodeChoice.CONTINUE)
 
     def cancel(self) -> bool:
         return self._finish(NextEpisodeChoice.CANCEL)
+
+    def time_out(self) -> bool:
+        return self._finish(NextEpisodeChoice.TIMEOUT)
 
     def _finish(self, choice: NextEpisodeChoice) -> bool:
         with self._lock:
@@ -87,6 +74,56 @@ class Countdown:
                 return False
             self._result = choice
             return True
+
+
+class Countdown:
+    """Counts down to a timeout; the first final state (confirm, cancel, timeout) wins."""
+
+    def __init__(self, seconds: int) -> None:
+        if seconds < 1:
+            raise ValueError("seconds must be at least 1")
+        self._total = seconds
+        self._remaining = seconds
+        self._decision = ChoiceLatch()
+        self._lock = threading.Lock()
+
+    @property
+    def total(self) -> int:
+        return self._total
+
+    @property
+    def decision(self) -> ChoiceLatch:
+        return self._decision
+
+    @property
+    def remaining(self) -> int:
+        return self._remaining
+
+    @property
+    def result(self) -> NextEpisodeChoice | None:
+        return self._decision.result
+
+    @property
+    def is_finished(self) -> bool:
+        return self._decision.is_finished
+
+    def tick(self) -> int:
+        with self._lock:
+            if self._decision.is_finished:
+                return self._remaining
+            if self._remaining <= 1:
+                # remaining only drops to zero if this tick decided the timeout
+                if self._decision.time_out():
+                    self._remaining = 0
+                return self._remaining
+            self._remaining -= 1
+            return self._remaining
+
+    def confirm(self) -> bool:
+        return self._decision.confirm()
+
+    def cancel(self) -> bool:
+        return self._decision.cancel()
 
 
 def choice_for_action(action_id: int) -> NextEpisodeChoice | None:
