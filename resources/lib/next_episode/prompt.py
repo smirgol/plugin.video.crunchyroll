@@ -27,13 +27,15 @@ from ..models.content import EpisodeData
 from ..presentation import build_url
 from ..utils.formatting import format_season_episode_title
 from ..utils.logging import crunchy_log
-from .countdown import Countdown, NextEpisodeChoice, read_countdown_seconds
+from .countdown import ChoiceLatch, Countdown, NextEpisodeChoice, read_countdown_seconds
 
 ENABLE_SETTING = "enable_next_episode_dialog"
 NEXT_EPISODE_XML = "plugin-video-crunchyroll-next-episode.xml"
 # a dangling skip alarm would otherwise send a NOOP action later and hit the next episode dialog
 CANCEL_SKIP_ALARM_BUILTIN = "CancelAlarm(closedialog,true)"
 TICK_THREAD_JOIN_TIMEOUT = 2.0
+OFFER_HEADER_ID = 30502
+STILL_WATCHING_HEADER_ID = 30506
 
 
 class NextEpisodeLabels(NamedTuple):
@@ -48,12 +50,21 @@ def should_offer_next_episode(ended_regularly: bool, abort_requested: bool, next
 
 
 def offer_next_episode(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeChoice:
+    return _offer(ctx, episode, Countdown(read_countdown_seconds(ctx.args.addon)), OFFER_HEADER_ID)
+
+
+def ask_still_watching(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeChoice:
+    """Same dialog without countdown; waits until the user decides or Kodi shuts down, never times out."""
+    return _offer(ctx, episode, None, STILL_WATCHING_HEADER_ID)
+
+
+def _offer(ctx: PluginContext, episode: EpisodeData, countdown: Countdown | None, header_id: int) -> NextEpisodeChoice:
     xbmc.executebuiltin(CANCEL_SKIP_ALARM_BUILTIN)
 
     addon = ctx.args.addon
-    countdown = Countdown(read_countdown_seconds(addon))
+    decision = countdown.decision if countdown is not None else ChoiceLatch()
     stop_event = threading.Event()
-    labels = NextEpisodeLabels(*(addon.getLocalizedString(string_id) for string_id in (30502, 30503, 30504, 30505)))
+    labels = NextEpisodeLabels(*(addon.getLocalizedString(string_id) for string_id in (header_id, 30503, 30504, 30505)))
     dialog = NextEpisodeDialog(
         NEXT_EPISODE_XML,
         addon.getAddonInfo("path"),
@@ -63,6 +74,7 @@ def offer_next_episode(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeC
         episode_title=format_season_episode_title(episode.season, episode.episode, episode.title_unformatted or ""),
         thumb=episode.thumb or "",
         labels=labels,
+        decision=decision,
         countdown=countdown,
         stop_event=stop_event,
         abort_requested=ctx.monitor.abortRequested,
@@ -75,7 +87,7 @@ def offer_next_episode(ctx: PluginContext, episode: EpisodeData) -> NextEpisodeC
         if dialog.tick_thread is not None:
             dialog.tick_thread.join(timeout=TICK_THREAD_JOIN_TIMEOUT)
 
-    choice = NextEpisodeChoice.CANCEL if ctx.monitor.abortRequested() else countdown.result
+    choice = NextEpisodeChoice.CANCEL if ctx.monitor.abortRequested() else decision.result
     if choice is None:
         choice = NextEpisodeChoice.CANCEL
 

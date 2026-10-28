@@ -80,6 +80,15 @@
                 <aligny>center</aligny>
             </control>
 
+            <control type="progress" id="1007">
+                <posx>2</posx>
+                <posy>262</posy>
+                <width>626</width>
+                <height>8</height>
+                <texturebg colordiffuse="FF333333">white.png</texturebg>
+                <midtexture colordiffuse="B3f47418">white.png</midtexture>
+            </control>
+
             <control type="button" id="1005">
                 <description>Continue</description>
                 <posx>0</posx>
