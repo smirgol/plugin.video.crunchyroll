@@ -5,6 +5,7 @@ set -euo pipefail
 BOXES_DIR="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
 REPO_ROOT="$(dirname "$(dirname "$BOXES_DIR")")"
 COMPOSE_FILE="$BOXES_DIR/docker/compose.yml"
+PODMAN_COMPOSE_FILE="$BOXES_DIR/docker/compose.podman.yml"
 ADDON_ID="plugin.video.crunchyroll"
 
 die() {
@@ -146,11 +147,18 @@ export_compose_env() {
     export HOST_UID HOST_GID VIDEO_GID RENDER_GID PULSE_SOCKET ADDON_SRC BOX_DATA
 }
 
+# `docker` may be an alias/emulation of Podman (e.g. podman-docker).
+is_podman() {
+    docker --version 2>/dev/null | grep -qi podman
+}
+
 compose() {
     local version="$1"
     shift
     export_compose_env "$version"
-    docker compose -f "$COMPOSE_FILE" -p "$(project "$version")" "$@"
+    local files=(-f "$COMPOSE_FILE")
+    is_podman && files+=(-f "$PODMAN_COMPOSE_FILE")
+    docker compose "${files[@]}" -p "$(project "$version")" "$@"
 }
 
 cmd_up() {

@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from resources.lib.auth import AUTHORIZATION, AuthManager
+from resources.lib.auth import AUTHORIZATION, PASSTOKEN_ENDPOINT, TOKEN_ENDPOINT, AuthManager
 from resources.lib.models.account import AccountData, ProfileData
-from resources.lib.models.exceptions import LoginError
+from resources.lib.models.exceptions import PROFILE_PIN_INVALID, LoginError
 
 
 class FakeAPI:
@@ -217,7 +217,7 @@ def test_create_session_refresh_falls_back_to_login_on_expired_token():
     mock_login.assert_called_once()
 
 
-def _scraper_returning(status_code: int, ok: bool = False, body=None, json_error=None):
+def _response(status_code: int, ok: bool = False, body=None, json_error=None):
     response = MagicMock()
     response.ok = ok
     response.status_code = status_code
@@ -226,8 +226,12 @@ def _scraper_returning(status_code: int, ok: bool = False, body=None, json_error
         response.json.side_effect = json_error
     else:
         response.json.return_value = body or {}
+    return response
+
+
+def _scraper_returning(status_code: int, ok: bool = False, body=None, json_error=None):
     scraper = MagicMock()
-    scraper.post.return_value = response
+    scraper.post.return_value = _response(status_code, ok=ok, body=body, json_error=json_error)
     return scraper
 
 
@@ -428,3 +432,196 @@ def test_create_session_refresh_fallback_does_not_retry_rejected_refresh_token()
     assert mock_refresh.call_count == 1
     mock_device_flow.assert_called_once()
     assert not api.account_data.refresh_token
+
+
+# --- Profile switch with PIN (passtoken) ---
+
+PROFILE_TOKENS = {"access_token": "profile_access", "refresh_token": "profile_refresh", "expires_in": 3600}
+WRONG_PIN_BODY = {
+    "code": "auth.obtain_pass_token.failed_pass_token_credentials",
+    "context": [{"code": "auth.obtain_pass_token.passtoken_creation_invalid_credential", "field": "profile_pin"}],
+}
+INVALID_PIN_LENGTH_BODY = {
+    "code": "auth.obtain_pass_token.data_validation_error",
+    "context": [
+        {
+            "code": "auth.obtain_pass_token.invalid_length",
+            "field": "value",
+            "violated_constraints": {"profile_pin_length": "must be 4 digits"},
+        }
+    ],
+}
+
+
+def _expires_in(hours: int) -> str:
+    from datetime import datetime, timedelta
+
+    return (datetime.utcnow() + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _manager_for_profile_switch(access_token_valid: bool = True):
+    manager, api = make_manager()
+    api.account_data = AccountData(
+        {
+            "access_token": "access",
+            "refresh_token": "refresh",
+            "token_type": "Bearer",
+            "expires": _expires_in(1 if access_token_valid else -1),
+        }
+    )
+    return manager, api
+
+
+def _switch_profile_with_pin(manager, scraper, pin="1234"):
+    with patch.object(manager, "create_auth_scraper", return_value=scraper), patch.object(
+        manager, "_finalize_session_from_tokens"
+    ) as mock_finalize:
+        manager.create_session(action="refresh_profile", profile_id="p1", profile_pin=pin)
+    return mock_finalize
+
+
+def test_profile_switch_with_pin_sends_pass_token_to_token_request():
+    """A PIN is exchanged for a passtoken, which is sent as CrPassToken header on the profile token request."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = MagicMock()
+    scraper.post.side_effect = [
+        _response(200, ok=True, body={"code": "pass-123"}),
+        _response(200, ok=True, body=PROFILE_TOKENS),
+    ]
+
+    mock_finalize = _switch_profile_with_pin(manager, scraper)
+
+    passtoken_call, token_call = scraper.post.call_args_list
+    assert passtoken_call[1]["url"] == PASSTOKEN_ENDPOINT % "p1"
+    assert passtoken_call[1]["headers"]["Authorization"] == "Bearer access"
+    assert passtoken_call[1]["json"] == {"credential_type": "profile_pin", "profile_id": "p1", "value": "1234"}
+    assert token_call[1]["url"] == TOKEN_ENDPOINT
+    assert token_call[1]["headers"]["CrPassToken"] == "pass-123"
+    assert token_call[1]["data"]["grant_type"] == "refresh_token_profile_id"
+    assert token_call[1]["data"]["profile_id"] == "p1"
+    mock_finalize.assert_called_once_with(PROFILE_TOKENS, action="refresh_profile", profile_id="p1")
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [(401, WRONG_PIN_BODY), (400, INVALID_PIN_LENGTH_BODY)],
+    ids=["401-wrong-pin", "400-invalid-length"],
+)
+def test_profile_switch_with_wrong_pin_raises_profile_pin_invalid(status, body):
+    """Wrong-PIN and PIN-validation payloads are reported as PROFILE_PIN_INVALID and no profile token is requested."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = _scraper_returning(status, body=body)
+
+    with pytest.raises(LoginError) as exc_info:
+        _switch_profile_with_pin(manager, scraper)
+
+    assert exc_info.value.error_code == PROFILE_PIN_INVALID
+    assert scraper.post.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        _response(401, body={"code": "auth.some_other_failure"}),
+        _response(403, json_error=ValueError("not json")),
+    ],
+    ids=["401-other-code", "403-non-json"],
+)
+def test_profile_switch_passtoken_failure_without_pin_code_is_generic(response):
+    """A passtoken rejection without the wrong-PIN payload is a generic failure, not PROFILE_PIN_INVALID."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = MagicMock()
+    scraper.post.return_value = response
+
+    with pytest.raises(LoginError) as exc_info:
+        _switch_profile_with_pin(manager, scraper)
+
+    assert str(exc_info.value) == "Profile PIN verification failed"
+    assert exc_info.value.error_code is None
+    assert scraper.post.call_count == 1
+
+
+def test_profile_switch_passtoken_5xx_is_server_error():
+    """HTTP 5xx on the passtoken request keeps the SERVER_ERROR code."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = _scraper_returning(503)
+
+    with pytest.raises(LoginError) as exc_info:
+        _switch_profile_with_pin(manager, scraper)
+
+    assert exc_info.value.error_code == "SERVER_ERROR"
+    assert scraper.post.call_count == 1
+
+
+def test_profile_switch_passtoken_network_error_raises_login_error():
+    """Network failures on the passtoken request surface as LoginError."""
+    import requests
+
+    manager, _api = _manager_for_profile_switch()
+    scraper = MagicMock()
+    scraper.post.side_effect = requests.exceptions.ConnectionError("down")
+
+    with pytest.raises(LoginError) as exc_info:
+        _switch_profile_with_pin(manager, scraper)
+
+    assert str(exc_info.value) == "Network connection failed during profile switch"
+    assert exc_info.value.error_code != PROFILE_PIN_INVALID
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        _response(200, ok=True, body={}),
+        _response(200, ok=True, json_error=ValueError("not json")),
+    ],
+    ids=["no-code", "non-json"],
+)
+def test_profile_switch_passtoken_ok_without_code_does_not_switch(response):
+    """Without a passtoken code there is no proof of the PIN, so no profile token is requested."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = MagicMock()
+    scraper.post.return_value = response
+
+    with pytest.raises(LoginError) as exc_info:
+        _switch_profile_with_pin(manager, scraper)
+
+    assert exc_info.value.error_code != PROFILE_PIN_INVALID
+    assert scraper.post.call_count == 1
+
+
+def test_profile_switch_with_pin_refreshes_expired_access_token_first():
+    """An access token that expired while the PIN dialog was open is refreshed before the passtoken request."""
+    manager, api = _manager_for_profile_switch(access_token_valid=False)
+
+    def refresh():
+        api.account_data = AccountData(
+            {"access_token": "fresh", "refresh_token": "refresh2", "token_type": "Bearer", "expires": _expires_in(1)}
+        )
+
+    scraper = MagicMock()
+    scraper.post.side_effect = [
+        _response(200, ok=True, body={"code": "pass-123"}),
+        _response(200, ok=True, body=PROFILE_TOKENS),
+    ]
+
+    with patch.object(manager, "_handle_refresh_flow", side_effect=refresh) as mock_refresh:
+        _switch_profile_with_pin(manager, scraper)
+
+    mock_refresh.assert_called_once()
+    passtoken_call = scraper.post.call_args_list[0]
+    assert passtoken_call[1]["headers"]["Authorization"] == "Bearer fresh"
+    token_call = scraper.post.call_args_list[1]
+    assert token_call[1]["data"]["refresh_token"] == "refresh2"
+    assert token_call[1]["headers"]["CrPassToken"] == "pass-123"
+
+
+def test_profile_switch_without_pin_skips_passtoken():
+    """Without a PIN only the profile token request is sent, without CrPassToken header."""
+    manager, _api = _manager_for_profile_switch()
+    scraper = _scraper_returning(200, ok=True, body=PROFILE_TOKENS)
+
+    _switch_profile_with_pin(manager, scraper, pin=None)
+
+    scraper.post.assert_called_once()
+    assert scraper.post.call_args[1]["url"] == TOKEN_ENDPOINT
+    assert "CrPassToken" not in scraper.post.call_args[1]["headers"]
