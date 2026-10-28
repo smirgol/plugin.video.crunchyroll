@@ -27,6 +27,7 @@ from ..gui import (
     NEXT_EPISODE_BUTTON_CANCEL,
     NEXT_EPISODE_BUTTON_CONTINUE,
 )
+from .settings import read_clamped_int
 
 
 class NextEpisodeChoice(Enum):
@@ -182,10 +183,6 @@ def run_abort_watch(
 
 
 def read_countdown_seconds(addon) -> int:
-    try:
-        value = addon.getSettingInt(COUNTDOWN_SETTING)
-    except Exception:
-        return DEFAULT_COUNTDOWN_SECONDS
-    if not isinstance(value, int) or isinstance(value, bool):
-        return DEFAULT_COUNTDOWN_SECONDS
-    return min(MAX_COUNTDOWN_SECONDS, max(MIN_COUNTDOWN_SECONDS, value))
+    return read_clamped_int(
+        addon, COUNTDOWN_SETTING, DEFAULT_COUNTDOWN_SECONDS, MIN_COUNTDOWN_SECONDS, MAX_COUNTDOWN_SECONDS
+    )
