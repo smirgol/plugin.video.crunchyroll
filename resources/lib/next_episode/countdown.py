@@ -166,6 +166,21 @@ def run_countdown_ticks(
             pass  # control is gone once the dialog was closed
 
 
+def run_abort_watch(
+    latch: ChoiceLatch,
+    stop_event: threading.Event,
+    abort_requested: Callable[[], bool],
+    close: Callable[[], None],
+    interval: float = 1.0,
+) -> None:
+    """Closes a dialog without countdown once Kodi shuts down, unless a decision was made before."""
+    while not stop_event.wait(interval):
+        if abort_requested():
+            if latch.cancel():
+                close()
+            return
+
+
 def read_countdown_seconds(addon) -> int:
     try:
         value = addon.getSettingInt(COUNTDOWN_SETTING)
