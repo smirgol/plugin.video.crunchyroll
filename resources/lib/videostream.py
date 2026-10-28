@@ -248,11 +248,12 @@ class VideoStream(Object):
         subtitles_data_raw = []
         subtitles_url_cached = []
 
-        if args.subtitle in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle))
+        for lang in set(filter(None, (args.subtitle, args.subtitle_fallback))):
+            for key in ("subtitles", "captions"):
+                if subtitle_data := api_stream_data.get(key, {}).get(lang):
+                    subtitles_data_raw.append(subtitle_data)
 
-        if args.subtitle_fallback and args.subtitle_fallback in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle_fallback))
+        crunchy_log(f"subtitles found: {subtitles_data_raw}")
 
         if not subtitles_data_raw:
             return None
@@ -277,18 +278,26 @@ class VideoStream(Object):
         args = self._ctx.args
 
         try:
-            # api request streams
-            subtitles_req = api.make_request(
-                method="GET",
-                url=subtitle_url,
-            )
+            if "~hmac=" in subtitle_url:
+                # direct url to subtitle
+                subtitles_req = requests.get(subtitle_url)
+                # server doesn't set encoding, so requests would use iso8859-1 otherwise
+                subtitles_req.encoding = "utf-8"
+                subtitle_data = subtitles_req.text
+            else:
+                # api request streams
+                subtitles_req = api.make_request(
+                    method="GET",
+                    url=subtitle_url,
+                )
+                subtitle_data = subtitles_req.get("data")
         except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
             raise CrunchyrollError(
                 f"Failed to download subtitle for language {subtitle_language} from url {subtitle_url}"
             ) from e
 
-        if not subtitles_req.get("data", None):
+        if not subtitle_data:
             # error
             raise CrunchyrollError("Returned data is not text")
 
@@ -301,7 +310,7 @@ class VideoStream(Object):
         try:
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=cache_target, delete=False) as file:
                 temporary_path = file.name
-                result = file.write(subtitles_req.get("data"))
+                result = file.write(subtitle_data)
 
             if result <= 0:
                 return False
