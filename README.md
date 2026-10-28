@@ -12,7 +12,7 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 ### What this plugin currently can do:
 
 - [x] Supports all Crunchyroll regions
-- [x] Login with your account
+- [x] Login with your account via device activation (code or QR code)
 - [x] Search for anime
 - [x] Browse all popular anime
 - [x] Browse all simulcast seasons
@@ -30,11 +30,12 @@ This is a fork of the original repository by MrKrabat: https://github.com/MrKrab
 - [x] Display various information
 - [x] Watch videos with premium subscription
 - [x] Synchronizes playback stats with Crunchyroll
-- [x] Optionally offer the next episode after playback ends (countdown, auto-continue)
+- [x] Optionally offer the next episode after playback ends (countdown, auto-continue, "Are you still watching?" prompt)
+- [x] Optionally skip intro / credits, automatically or after asking
 - [x] Optionally soft-subs only
 - [x] Configure up to two languages for subtitles / dubs
 - [x] Crunchylists support
-- [x] Crunchyroll profiles
+- [x] Crunchyroll profiles, including PIN-protected profiles
 
 ### What it currently can't do:
 
@@ -165,25 +166,12 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 
 ### Recent Changes
 
-#### Version 2.0.0+ (Device Authentication Update)
-- **🔐 Device-Only Authentication**: Removed legacy email/password and mobile auth code paths; only device code flow remains.
-- **📱 Device Code Flow**: Authenticate using your phone/computer browser
-- **🔄 Automatic Token Refresh**: No more manual re-login required
-- **🌐 CloudFlare Routing**: All external Crunchyroll API calls now go through cloudscraper
-- **🛡️ Improved Security**: No credentials stored in Kodi settings
+#### Version 3.9 (Up next and profiles)
+- Optional **Up next** dialog after an episode ends: countdown, auto-continue and an optional "Are you still watching?" prompt after a configurable number of automatic episodes (off by default, see addon settings)
+- Support for PIN-protected profiles
+- Faster loading of several screens, independent API requests now run in parallel
+- Fixes for the skip intro / credits dialog
 
-#### Version 3.7.0 (Legacy Auth Cleanup)
-- Removed legacy and mobile authentication code paths.
-- All API traffic to Crunchyroll endpoints is routed through cloudscraper.
-- Existing users with old sessions are prompted to re-authenticate via device flow.
-
-#### Version 3.8.0 (Refactoring and Endpoint changes)
-- Refactored code structure
-- All API traffic to Crunchyroll endpoints now point to live endpoints, not beta.
-- Existing users probably need to re-authenticate via device flow.
-
-> [!IMPORTANT]
-> **Breaking Change**: Email/password and mobile authentication are no longer supported. Only device authentication remains. Existing users may be prompted to re-authenticate once.
 
 ***
 
@@ -206,6 +194,9 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 * Acidzero2020
 * Centulus
 * Natsu Tadama
+* Dominik Chmiel
+* hbrunn
+* Patrick Shinn
 * ...and all the forgotten heroes :)
 
 ***
