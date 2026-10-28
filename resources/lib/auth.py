@@ -25,6 +25,7 @@ need the authentication surface can use ``AuthManager`` directly.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 import requests
@@ -39,7 +40,7 @@ from .utils.datetime import date_to_str, get_date, str_to_date
 from .utils.logging import crunchy_log
 
 # Authentication credentials - single device-only identity (AndroidTV for device auth)
-AUTHORIZATION = "Basic dWQycnBrM21uemtiYTZ3bGV3dzE6M1pwU2dlaVh1SFVpd090NUJQZkNwZ0NBVThTd3dDcG4="
+AUTHORIZATION = "Basic ZXI5bmdnMmtvNW9oaXJsYTUxaTI6VmwxVDBQbjhRWko2d3o0NnhYRGxIekRGUDV0Wlgxb3E="
 
 TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
 PASSTOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/%s/passtoken"
@@ -651,23 +652,23 @@ class AuthManager:
             # Calculate and set token expiration
             account_data["expires"] = date_to_str(get_date() + timedelta(seconds=float(account_data["expires_in"])))
 
-            # Fetch index data (user info, account details)
-            crunchy_log("Fetching index data", xbmc.LOGDEBUG)
-            r = self.api.make_unauthenticated_request(
-                method="GET",
-                url=INDEX_ENDPOINT,
-                headers=self.api.api_headers,
-            )
-            account_data.update(r)
-
-            # Fetch profile data
-            crunchy_log("Fetching profile data", xbmc.LOGDEBUG)
-            r = self.api.make_unauthenticated_request(
-                method="GET",
-                url=PROFILE_ENDPOINT,
-                headers=self.api.api_headers,
-            )
-            account_data.update(r)
+            # Fetch index data (user info, account details) and profile data in parallel
+            crunchy_log("Fetching index and profile data", xbmc.LOGDEBUG)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                index_future = pool.submit(
+                    self.api.make_unauthenticated_request,
+                    method="GET",
+                    url=INDEX_ENDPOINT,
+                    headers=self.api.api_headers,
+                )
+                profile_future = pool.submit(
+                    self.api.make_unauthenticated_request,
+                    method="GET",
+                    url=PROFILE_ENDPOINT,
+                    headers=self.api.api_headers,
+                )
+            account_data.update(index_future.result())
+            account_data.update(profile_future.result())
 
             # Handle profile refresh specific logic
             if action == "refresh_profile" and profile_id:

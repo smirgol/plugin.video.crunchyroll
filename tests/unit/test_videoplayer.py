@@ -3,10 +3,12 @@
 TDD: written before implementation.
 """
 
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from resources.lib.gui import SkipModalDialog
 from resources.lib.videoplayer import VideoPlayer, update_playhead
 
 
@@ -107,3 +109,127 @@ class TestClearAllActiveStreams:
 
         mock_clear.assert_not_called()
         mock_log.assert_not_called()
+
+
+class TestClearActiveStreamWithoutStreamData:
+    @pytest.fixture(autouse=True)
+    def _episode_and_endpoint(self, video_player_ctx, monkeypatch):
+        ctx = video_player_ctx._ctx
+        monkeypatch.setattr(ctx.api, "STREAMS_ENDPOINT_CLEAR_STREAM", "https://play/{}/{}")
+        monkeypatch.setattr(ctx.args, "get_arg", lambda name, *a, **k: "EP1" if name == "episode_id" else None)
+
+    def test_finished_without_stream_data_does_not_raise(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        video_player_ctx.finished()
+
+        video_player_ctx._ctx.api.make_request.assert_not_called()
+        assert video_player_ctx.clearedStream is True
+
+    def test_clear_all_active_streams_uses_passed_token_without_stream_data(self, video_player_ctx, monkeypatch):
+        video_player_ctx._stream_data = None
+        monkeypatch.setattr(video_player_ctx, "get_active_streams", lambda: ["tok1"])
+
+        video_player_ctx.clear_all_active_streams()
+
+        video_player_ctx._ctx.api.make_request.assert_called_once_with(method="DELETE", url="https://play/EP1/tok1")
+
+    def test_clear_active_stream_uses_stream_token_by_default(self, video_player_ctx):
+        video_player_ctx._stream_data = MagicMock(token="tok9")
+
+        video_player_ctx.clear_active_stream()
+
+        video_player_ctx._ctx.api.make_request.assert_called_once_with(method="DELETE", url="https://play/EP1/tok9")
+
+    def test_clear_active_stream_without_episode_id_makes_no_request(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx._ctx.args, "get_arg", lambda name, *a, **k: None)
+        video_player_ctx._stream_data = None
+
+        video_player_ctx.clear_active_stream("tok1")
+
+        video_player_ctx._ctx.api.make_request.assert_not_called()
+
+
+class TestReadApi:
+    def test_playable_item_none_without_stream_data(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        assert video_player_ctx.playable_item is None
+
+    def test_playable_item_from_stream_data(self, video_player_ctx):
+        sentinel = object()
+        video_player_ctx._stream_data = MagicMock(playable_item=sentinel)
+
+        assert video_player_ctx.playable_item is sentinel
+
+    def test_skip_events_empty_without_stream_data(self, video_player_ctx):
+        video_player_ctx._stream_data = None
+
+        assert video_player_ctx.skip_events == {}
+
+    def test_skip_events_is_copy(self, video_player_ctx):
+        video_player_ctx._stream_data = MagicMock()
+        video_player_ctx._stream_data.skip_events_data = {"intro": {"start": 10, "end": 90}}
+
+        result = video_player_ctx.skip_events
+        assert result == {"intro": {"start": 10, "end": 90}}
+
+        result.pop("intro")
+        assert video_player_ctx._stream_data.skip_events_data == {"intro": {"start": 10, "end": 90}}
+
+    def test_playback_times_when_playing(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: True)
+        video_player_ctx._player.getTime.return_value = 200.0
+        video_player_ctx._player.getTotalTime.return_value = 1440.0
+
+        assert video_player_ctx.playback_times() == (200.0, 1440.0)
+
+    def test_playback_times_none_when_not_playing(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: False)
+
+        assert video_player_ctx.playback_times() is None
+        video_player_ctx._player.getTime.assert_not_called()
+
+    def test_playback_times_none_when_player_raises(self, video_player_ctx, monkeypatch):
+        monkeypatch.setattr(video_player_ctx, "isPlaying", lambda: True)
+        video_player_ctx._player.getTime.side_effect = RuntimeError
+
+        assert video_player_ctx.playback_times() is None
+
+
+class TestAskToSkip:
+    @pytest.fixture
+    def shown(self, video_player_ctx, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            "resources.lib.videoplayer.show_modal_dialog",
+            lambda dialog_class, xml, **kwargs: calls.append((dialog_class, xml, kwargs)),
+        )
+        video_player_ctx._stream_data = MagicMock()
+        video_player_ctx._stream_data.skip_events_data = {"credits": {"start": 1400, "end": 1500}}
+        return calls
+
+    def test_ask_to_skip_passes_playback_end_watch(self, video_player_ctx, shown):
+        video_player_ctx._ask_to_skip("credits")
+
+        kwargs = shown[0][2]
+        assert kwargs["is_playing"] == video_player_ctx.isPlaying
+        assert kwargs["abort_requested"] is video_player_ctx._ctx.monitor.abortRequested
+        assert isinstance(kwargs["stop_event"], threading.Event)
+        assert not kwargs["stop_event"].is_set()
+
+    def test_ask_to_skip_uses_fresh_stop_event_per_dialog(self, video_player_ctx, shown):
+        video_player_ctx._ask_to_skip("credits")
+        video_player_ctx._ask_to_skip("credits")
+
+        assert shown[0][2]["stop_event"] is not shown[1][2]["stop_event"]
+
+    def test_ask_to_skip_keeps_existing_dialog_arguments(self, video_player_ctx, shown):
+        """Characterization: existing arguments, may be green before the change."""
+        video_player_ctx._ask_to_skip("credits")
+
+        dialog_class, xml, kwargs = shown[0]
+        assert dialog_class is SkipModalDialog
+        assert xml == "plugin-video-crunchyroll-skip.xml"
+        assert kwargs["seconds"] == 10
+        assert "seek_time" not in kwargs  # removed on purpose: VideoPlayer seeks itself

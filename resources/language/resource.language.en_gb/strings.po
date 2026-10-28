@@ -446,3 +446,37 @@ msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr ""
 
+# Next Episode Dialog
+
+msgctxt "#30500"
+msgid "Offer next episode after playback"
+msgstr "Offer next episode after playback"
+
+msgctxt "#30501"
+msgid "Countdown until next episode (seconds)"
+msgstr "Countdown until next episode (seconds)"
+
+msgctxt "#30502"
+msgid "Up next"
+msgstr "Up next"
+
+msgctxt "#30503"
+msgid "Continue"
+msgstr "Continue"
+
+msgctxt "#30504"
+msgid "Cancel"
+msgstr "Cancel"
+
+msgctxt "#30505"
+msgid "Starts in %d s"
+msgstr "Starts in %d s"
+
+msgctxt "#30506"
+msgid "Are you still watching?"
+msgstr "Are you still watching?"
+
+msgctxt "#30507"
+msgid "Ask if still watching after automatic episodes (0 = off)"
+msgstr "Ask if still watching after automatic episodes (0 = off)"
+

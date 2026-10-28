@@ -1,0 +1,6 @@
+# Added by bin/kodi-box when `docker` is rootless Podman.
+# Rootless Podman maps the host uid to root in the container, so the host uid set via `user:` would lack write
+# access to the bind-mounted data dir. keep-id maps the host uid to the same uid inside the container.
+services:
+  kodi:
+    userns_mode: keep-id

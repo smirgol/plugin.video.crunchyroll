@@ -139,6 +139,24 @@ class TestEpisodeMapping:
 
         assert episode.stream_id and episode.stream_id in episode_raw["streams_link"]
 
+    def test_episode_title_without_episode_number(self):
+        raw = copy.deepcopy(get_list(load_captured_response("episodes_response"))[0])
+        raw["episode_number"] = None
+
+        episode = EpisodeData(raw)
+
+        assert episode.episode is None
+        assert episode.title == "TO BE HERO X - S01 - Nice"
+
+    def test_episode_title_missing_episode_key(self):
+        raw = copy.deepcopy(get_list(load_captured_response("episodes_response"))[0])
+        del raw["episode_number"]
+
+        episode = EpisodeData(raw)
+
+        assert episode.episode == 1
+        assert episode.title == "TO BE HERO X - S01E01 - Nice"
+
 
 def load_version_season():
     fixtures = Path(__file__).parent.parent / "fixtures"

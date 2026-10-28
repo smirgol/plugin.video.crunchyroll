@@ -49,7 +49,6 @@ if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
 types = presentation.KODI_INFO_TYPES
 
 
-
 def end_of_directory(ctx: PluginContext, content_type=None, update_listing=False, cache_to_disc=True):
     args = ctx.args
     # let xbmc know the items type in current directory
@@ -157,14 +156,14 @@ OPT_NO_SEASON_TITLE = 16  # only show title of episode (with numbering)
 OPT_SORT_EPISODES_EXPERIMENTAL = 32  # sort un-viewed queue items to top
 
 
-# actually not sure if this works, as the requests lib is not async
-# also not sure if this is thread safe in any way, what if session is timed-out when starting this?
 async def complement_listables(listables: list[ListableItem], api: API, args: Args) -> dict[str, dict[str, Any]]:
     # for all playable items fetch playhead data from api, as sometimes we already have them, sometimes not
     from .utils.api_data import (
         get_cms_object_data_by_ids,
         get_playheads_from_api,
         get_watchlist_status_from_api,
+        refresh_expiring_token,
+        run_in_thread,
     )
     from .utils.images import ImageType, get_img_from_struct, infer_img_from_id
 
@@ -187,19 +186,20 @@ async def complement_listables(listables: list[ListableItem], api: API, args: Ar
     ids_watchlist = [listable.id for listable in listables if isinstance(listable, SeriesData)]
 
     # prepare async requests
+    refresh_expiring_token(api)
     tasks_added = []
     tasks = []
     if ids_playhead:
-        tasks.append(asyncio.create_task(get_playheads_from_api(ids_playhead, api, args)))
+        tasks.append(run_in_thread(get_playheads_from_api(ids_playhead, api, args)))
         tasks_added.append("playheads")
     # @todo: for some reason objects endpoint stopped to deliver anything but thumbs in terms of images,
     #        but the sole reason for calling it are the additional images...
     #        for now we use the objects to fetch the series data only, to fetch its images and its rating
     if ids_objects:
-        tasks.append(asyncio.create_task(get_cms_object_data_by_ids(ids_objects, api, args)))
+        tasks.append(run_in_thread(get_cms_object_data_by_ids(ids_objects, api, args)))
         tasks_added.append("objects")
     if ids_watchlist:
-        tasks.append(asyncio.create_task(get_watchlist_status_from_api(ids_watchlist, api, args)))
+        tasks.append(run_in_thread(get_watchlist_status_from_api(ids_watchlist, api, args)))
         tasks_added.append("watchlist")
 
     # start async requests and fetch results

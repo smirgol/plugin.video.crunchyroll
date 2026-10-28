@@ -18,7 +18,9 @@ one data dir per version outside the repo.
 - **Audio** goes through the host's PulseAudio socket (PipeWire-Pulse works); the entrypoint forces Kodi's
   PulseAudio backend.
 
-Requirements: Linux with X11, Docker with the compose plugin, user in the groups `docker`, `video`, `render`.
+Requirements: Linux with X11 (or XWayland), Docker with the compose plugin, user in the groups `docker`, `video`,
+`render`. Rootless Podman works as `docker` too (e.g. podman-docker + podman-compose); `kodi-box` then adds
+`docker/compose.podman.yml` (`userns_mode: keep-id`) so the container can write to the data dir. `xhost` is required.
 
 ## Quickstart
 

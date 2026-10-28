@@ -78,17 +78,20 @@ class TestFilters:
             }.get(name, "false")
 
         mock_utils_args.addon.getSetting.side_effect = setting
-        assert filters.filter_series(
-            {
-                "panel": {
-                    "series_metadata": {
-                        "audio_locales": ["ja-JP"],
-                        "subtitle_locales": ["de-DE"],
+        assert (
+            filters.filter_series(
+                {
+                    "panel": {
+                        "series_metadata": {
+                            "audio_locales": ["ja-JP"],
+                            "subtitle_locales": ["de-DE"],
+                        }
                     }
-                }
-            },
-            args=mock_utils_args,
-        ) is True
+                },
+                args=mock_utils_args,
+            )
+            is True
+        )
 
     def test_filter_series_no_match(self, mock_utils_args):
         def setting(name):
@@ -144,6 +147,36 @@ class TestFormatting:
 
     def test_format_long_episode_title(self):
         assert formatting.format_long_episode_title("Sword Art", 1, 5, "Title") == "Sword Art - S01E05 - Title"
+
+    @pytest.mark.parametrize(
+        ("season", "episode", "title", "expected"),
+        [
+            (1, 5, "Titel", "S01E05 - Titel"),
+            (3, 27, "Titel", "S03E27 - Titel"),
+            (1, 105, "Titel", "S01E105 - Titel"),
+            (1, 0, "Titel", "S01E00 - Titel"),
+            (1, None, "Titel", "S01 - Titel"),
+            (None, 5, "Titel", "E05 - Titel"),
+            (None, None, "Titel", "Titel"),
+            (1, 5, "", "S01E05"),
+            (None, None, "", ""),
+        ],
+    )
+    def test_format_season_episode_title(self, season, episode, title, expected):
+        assert formatting.format_season_episode_title(season, episode, title) == expected
+
+    @pytest.mark.parametrize(
+        ("series", "season", "episode", "title", "expected"),
+        [
+            ("Serie", 1, None, "Titel", "Serie - S01 - Titel"),
+            ("Serie", None, None, "", "Serie"),
+            (None, 1, 5, "Titel", "S01E05 - Titel"),
+            ("", 1, 5, "Titel", "S01E05 - Titel"),
+            (None, None, None, "", ""),
+        ],
+    )
+    def test_format_long_episode_title_omits_empty_parts(self, series, season, episode, title, expected):
+        assert formatting.format_long_episode_title(series, season, episode, title) == expected
 
     def test_format_short_episode_title(self):
         assert formatting.format_short_episode_title(7, "Short") == "07 - Short"
