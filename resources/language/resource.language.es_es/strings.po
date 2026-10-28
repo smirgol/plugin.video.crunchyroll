@@ -448,6 +448,14 @@ msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr "- O ESCANEAR CÓDIGO QR -"
 
+msgctxt "#30314"
+msgid "Enter PIN"
+msgstr "Introducir PIN"
+
+msgctxt "#30315"
+msgid "Wrong PIN"
+msgstr "PIN incorrecto"
+
 # Next Episode Dialog
 
 msgctxt "#30500"

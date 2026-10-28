@@ -447,6 +447,14 @@ msgctxt "#30313"
 msgid "- OR SCAN QR CODE -"
 msgstr "- ODER QR-CODE SCANNEN -"
 
+msgctxt "#30314"
+msgid "Enter PIN"
+msgstr "PIN eingeben"
+
+msgctxt "#30315"
+msgid "Wrong PIN"
+msgstr "Falsche PIN"
+
 # Next Episode Dialog
 
 msgctxt "#30500"
