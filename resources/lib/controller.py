@@ -33,7 +33,7 @@ from .controller_helpers import (
 )
 from .models.account import ProfileData
 from .models.content import EpisodeData
-from .models.exceptions import CrunchyrollError
+from .models.exceptions import PROFILE_PIN_INVALID, CrunchyrollError, LoginError
 from .next_episode.chain import (
     ChainStore,
     HomeWindowChainStore,
@@ -95,9 +95,31 @@ def show_profiles(ctx):
 
     if selected == -1:
         return True
-    else:
-        ctx.api.create_session(action="refresh_profile", profile_id=profiles[selected].get("profile_id"))
+
+    profile = profiles[selected]
+    profile_id = profile.get("profile_id")
+
+    if not profile.get("is_pin_protected"):
+        ctx.api.create_session(action="refresh_profile", profile_id=profile_id)
         return True
+
+    while True:
+        profile_pin = xbmcgui.Dialog().numeric(0, ctx.args.addon.getLocalizedString(30314), bHiddenInput=True)
+        if not profile_pin:
+            return True
+
+        try:
+            ctx.api.create_session(action="refresh_profile", profile_id=profile_id, profile_pin=profile_pin)
+            return True
+        except LoginError as e:
+            if e.error_code != PROFILE_PIN_INVALID:
+                raise
+            xbmcgui.Dialog().notification(
+                ctx.args.addon_name,
+                ctx.args.addon.getLocalizedString(30315),
+                xbmcgui.NOTIFICATION_ERROR,
+                5000,
+            )
 
 
 def _with_wanted_versions(listables: list, ctx) -> list:

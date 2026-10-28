@@ -97,8 +97,13 @@ class API:
     def start(self) -> None:
         self.auth_manager.start()
 
-    def create_session(self, action: str = "login", profile_id: str | None = None) -> None:
-        self.auth_manager.create_session(action=action, profile_id=profile_id)
+    def create_session(
+        self,
+        action: str = "login",
+        profile_id: str | None = None,
+        profile_pin: str | None = None,
+    ) -> None:
+        self.auth_manager.create_session(action=action, profile_id=profile_id, profile_pin=profile_pin)
 
     def close(self) -> None:
         """Saves cookies and session"""

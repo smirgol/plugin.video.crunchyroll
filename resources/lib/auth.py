@@ -35,7 +35,7 @@ import xbmcgui
 from ..modules import cloudscraper
 from .http_utils import default_request_headers
 from .models.account import AccountData, ProfileData
-from .models.exceptions import LoginError
+from .models.exceptions import PROFILE_PIN_INVALID, LoginError
 from .utils.datetime import date_to_str, get_date, str_to_date
 from .utils.logging import crunchy_log
 
@@ -43,6 +43,7 @@ from .utils.logging import crunchy_log
 AUTHORIZATION = "Basic ZXI5bmdnMmtvNW9oaXJsYTUxaTI6VmwxVDBQbjhRWko2d3o0NnhYRGxIekRGUDV0Wlgxb3E="
 
 TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/token"
+PASSTOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/%s/passtoken"
 DEVICE_CODE_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/code"
 DEVICE_TOKEN_ENDPOINT = "https://www.crunchyroll.com/auth/v1/device/token"
 
@@ -56,6 +57,11 @@ INDEX_ENDPOINT = "https://beta-api.crunchyroll.com/index/v2"
 PROFILE_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/profile"
 PROFILES_LIST_ENDPOINT = "https://beta-api.crunchyroll.com/accounts/v1/me/multiprofile"
 
+WRONG_PIN_CODES = (
+    "auth.obtain_pass_token.failed_pass_token_credentials",
+    "auth.obtain_pass_token.data_validation_error",
+)
+
 
 def _oauth_error(response) -> str | None:
     """Return the OAuth ``error`` field of a response body, or None if the body is not an OAuth error JSON."""
@@ -64,6 +70,15 @@ def _oauth_error(response) -> str | None:
     except ValueError:
         return None
     return body.get("error") if isinstance(body, dict) else None
+
+
+def _payload_code(response) -> str | None:
+    """Return the ``code`` field of a response body, or None if the body is not a JSON object with one."""
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    return body.get("code") if isinstance(body, dict) else None
 
 
 class AuthManager:
@@ -116,7 +131,12 @@ class AuthManager:
         # session management
         self.create_session(action="refresh" if session_restart else "login")
 
-    def create_session(self, action: str = "login", profile_id: str | None = None) -> None:
+    def create_session(
+        self,
+        action: str = "login",
+        profile_id: str | None = None,
+        profile_pin: str | None = None,
+    ) -> None:
         """
         Create or refresh authentication session
 
@@ -149,7 +169,7 @@ class AuthManager:
 
         elif action == "refresh_profile":
             # Switch profile using existing refresh token
-            return self._handle_profile_refresh_flow(profile_id)
+            return self._handle_profile_refresh_flow(profile_id, profile_pin)
 
         else:
             raise LoginError(f"Unknown action: {action}")
@@ -251,7 +271,56 @@ class AuthManager:
 
         raise LoginError("Token refresh failed")
 
-    def _handle_profile_refresh_flow(self, profile_id: str | None) -> None:
+    def _obtain_pass_token(self, scraper, profile_id: str, profile_pin: str) -> str:
+        """Exchange a profile PIN for a pass token that authorizes the profile switch"""
+        # the user may have spent a long time in the PIN dialog
+        if not self.is_token_valid():
+            self._handle_refresh_flow()
+
+        pin_headers = {
+            "Authorization": f"Bearer {self.api.account_data.access_token}",
+            "User-Agent": self.api.CRUNCHYROLL_UA,
+            "Content-Type": "application/json",
+        }
+        pin_data = {
+            "credential_type": "profile_pin",
+            "profile_id": profile_id,
+            "value": profile_pin,
+        }
+
+        try:
+            r = scraper.post(
+                url=PASSTOKEN_ENDPOINT % profile_id,
+                headers=pin_headers,
+                json=pin_data,
+                timeout=30,
+            )
+        except LoginError:
+            raise
+        except requests.exceptions.RequestException as e:
+            crunchy_log(f"Network error during profile PIN verification: {e}", xbmc.LOGERROR)
+            raise LoginError("Network connection failed during profile switch") from e
+        except Exception as e:
+            crunchy_log(f"Unexpected profile PIN verification error: {e}", xbmc.LOGERROR)
+            raise LoginError(f"Unexpected error during profile PIN verification: {str(e)}") from e
+
+        code = _payload_code(r)
+
+        if r.ok:
+            if not code:
+                raise LoginError("Profile PIN verification returned no pass token")
+            return code
+
+        crunchy_log(f"Profile PIN verification failed with HTTP {r.status_code}: {str(r.text)[:200]}", xbmc.LOGERROR)
+
+        if code in WRONG_PIN_CODES:
+            raise LoginError("Wrong PIN", error_code=PROFILE_PIN_INVALID)
+        if r.status_code >= 500:
+            raise LoginError("Server error", error_code="SERVER_ERROR")
+
+        raise LoginError("Profile PIN verification failed")
+
+    def _handle_profile_refresh_flow(self, profile_id: str | None, profile_pin: str | None = None) -> None:
         """Handle profile refresh using existing refresh token"""
         if not profile_id:
             raise LoginError("Profile ID required for profile refresh")
@@ -261,11 +330,19 @@ class AuthManager:
 
         crunchy_log(f"Refreshing profile: {profile_id}", xbmc.LOGDEBUG)
 
+        scraper = self.create_auth_scraper()
+        if not scraper:
+            raise LoginError("CloudScraper initialization failed")
+
+        pin_token = self._obtain_pass_token(scraper, profile_id, profile_pin) if profile_pin else None
+
         headers = {
             "Authorization": AUTHORIZATION,
             "User-Agent": self.api.CRUNCHYROLL_UA,
             "Content-Type": "application/x-www-form-urlencoded",
         }
+        if pin_token:
+            headers["CrPassToken"] = pin_token
 
         data = {
             "device_id": self.api.args.device_id,
@@ -275,10 +352,6 @@ class AuthManager:
             "profile_id": profile_id,
             "refresh_token": self.api.account_data.refresh_token,
         }
-
-        scraper = self.create_auth_scraper()
-        if not scraper:
-            raise LoginError("CloudScraper initialization failed")
 
         try:
             r = scraper.post(
