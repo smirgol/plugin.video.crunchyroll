@@ -103,13 +103,14 @@ class SkipModalDialog(xbmcgui.WindowXMLDialog):
 
 
 class NextEpisodeDialog(xbmcgui.WindowXMLDialog):
-    """Offers the next episode with a countdown; the decision is stored in the countdown"""
+    """Offers the next episode, with or without countdown; the decision is stored in the decision latch."""
 
     def __init__(self, *args, **kwargs):
         self.series_title = kwargs["series_title"]
         self.episode_title = kwargs["episode_title"]
         self.thumb = kwargs["thumb"]
         self.labels = kwargs["labels"]
+        self.decision = kwargs["decision"]
         self.countdown = kwargs["countdown"]
         self.stop_event = kwargs["stop_event"]
         self.abort_requested = kwargs["abort_requested"]
@@ -117,21 +118,24 @@ class NextEpisodeDialog(xbmcgui.WindowXMLDialog):
         super().__init__(*args)
 
     def onInit(self):
-        from resources.lib.next_episode.countdown import run_countdown_ticks
+        from resources.lib.next_episode.countdown import run_abort_watch, run_countdown_ticks
 
         self.getControl(NEXT_EPISODE_LABEL_HEADER).setLabel(self.labels.header)  # noqa
         self.getControl(NEXT_EPISODE_LABEL_SERIES).setLabel(self.series_title)  # noqa
         self.getControl(NEXT_EPISODE_LABEL_EPISODE).setLabel(self.episode_title)  # noqa
         self.getControl(NEXT_EPISODE_IMAGE_THUMB).setImage(self.thumb)  # noqa
-        self._show_remaining(self.countdown.remaining)
         self.getControl(NEXT_EPISODE_BUTTON_CONTINUE).setLabel(self.labels.play)  # noqa
         self.getControl(NEXT_EPISODE_BUTTON_CANCEL).setLabel(self.labels.cancel)  # noqa
 
-        self.tick_thread = threading.Thread(
-            target=run_countdown_ticks,
-            args=(self.countdown, self.stop_event, self.abort_requested, self._show_remaining, self.close),
-            daemon=True,
-        )
+        if self.countdown is not None:
+            self._show_remaining(self.countdown.remaining)
+            target = run_countdown_ticks
+            args = (self.countdown, self.stop_event, self.abort_requested, self._show_remaining, self.close)
+        else:
+            self.getControl(NEXT_EPISODE_LABEL_COUNTDOWN).setVisible(False)  # noqa
+            target = run_abort_watch
+            args = (self.decision, self.stop_event, self.abort_requested, self.close)
+        self.tick_thread = threading.Thread(target=target, args=args, daemon=True)
         self.tick_thread.start()
 
     def onAction(self, action):
@@ -152,9 +156,9 @@ class NextEpisodeDialog(xbmcgui.WindowXMLDialog):
         from resources.lib.next_episode.countdown import NextEpisodeChoice
 
         if choice is NextEpisodeChoice.CONTINUE:
-            self.countdown.confirm()
+            self.decision.confirm()
         else:
-            self.countdown.cancel()
+            self.decision.cancel()
         self.stop_event.set()
         self.close()
 

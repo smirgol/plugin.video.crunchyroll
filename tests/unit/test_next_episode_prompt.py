@@ -10,7 +10,7 @@ import pytest
 from resources.lib import presentation
 from resources.lib.models.content import EpisodeData
 from resources.lib.next_episode import prompt
-from resources.lib.next_episode.countdown import NextEpisodeChoice
+from resources.lib.next_episode.countdown import ChoiceLatch, NextEpisodeChoice
 from resources.lib.next_episode.prompt import should_offer_next_episode
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -160,6 +160,99 @@ class TestOfferNextEpisode:
         prompt.offer_next_episode(ctx, episode)
 
         assert harness.instances[0].kwargs["thumb"] == ""
+
+    def test_offer_passes_countdown_decision(self, ctx, harness):
+        prompt.offer_next_episode(ctx, _next_episode())
+
+        dialog = harness.instances[0]
+        assert dialog.kwargs["decision"] is dialog.kwargs["countdown"].decision
+
+    def test_offer_result_follows_decision(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+
+        assert prompt.offer_next_episode(ctx, _next_episode()) is NextEpisodeChoice.CONTINUE
+
+
+class TestAskStillWatching:
+    def test_ask_passes_no_countdown_and_open_decision(self, ctx, harness):
+        seen = []
+        harness.on_modal = lambda d: seen.append(d.kwargs["decision"].result)
+
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        kwargs = harness.instances[0].kwargs
+        assert kwargs["countdown"] is None
+        assert isinstance(kwargs["decision"], ChoiceLatch)
+        assert seen == [None]
+
+    def test_ask_uses_still_watching_header(self, ctx, harness):
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        assert harness.instances[0].kwargs["labels"] == prompt.NextEpisodeLabels(
+            "String_30506", "String_30503", "String_30504", "String_30505"
+        )
+
+    def test_ask_passes_episode_texts(self, ctx, harness):
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        dialog = harness.instances[0]
+        assert dialog.args == ("plugin-video-crunchyroll-next-episode.xml", "/addon", "default", "1080i")
+        assert dialog.kwargs["series_title"] == "TO BE HERO X"
+        assert dialog.kwargs["episode_title"] == "S01E02 - Xiao Yueqing"
+
+    def test_ask_returns_continue_on_confirm(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+
+        assert prompt.ask_still_watching(ctx, _next_episode()) is NextEpisodeChoice.CONTINUE
+
+    def test_ask_returns_cancel_on_cancel(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].cancel()
+
+        assert prompt.ask_still_watching(ctx, _next_episode()) is NextEpisodeChoice.CANCEL
+
+    def test_ask_without_decision_returns_cancel(self, ctx, harness):
+        harness.on_modal = None
+
+        assert prompt.ask_still_watching(ctx, _next_episode()) is NextEpisodeChoice.CANCEL
+
+    def test_ask_abort_returns_cancel(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+        ctx.monitor.abortRequested.return_value = True
+
+        assert prompt.ask_still_watching(ctx, _next_episode()) is NextEpisodeChoice.CANCEL
+
+    def test_ask_cancels_skip_alarm_before_modal(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        assert harness.events[:2] == ["CancelAlarm(closedialog,true)", "doModal"]
+
+    def test_ask_joins_thread_and_sets_stop_event(self, ctx, harness):
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        dialog = harness.instances[0]
+        dialog.tick_thread.join.assert_called_once_with(timeout=2.0)
+        assert dialog.kwargs["stop_event"].is_set()
+
+    def test_ask_does_not_read_countdown_setting(self, ctx, harness, monkeypatch):
+        get_setting_int = MagicMock()
+        monkeypatch.setattr(ctx.args.addon, "getSettingInt", get_setting_int)
+
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        get_setting_int.assert_not_called()
+
+    def test_ask_logs_result(self, ctx, harness, monkeypatch):
+        records = []
+        monkeypatch.setattr(prompt, "crunchy_log", lambda message, level=None: records.append((message, level)))
+        harness.on_modal = lambda d: d.kwargs["decision"].confirm()
+
+        prompt.ask_still_watching(ctx, _next_episode())
+
+        assert ("next episode dialog result: continue", prompt.xbmc.LOGINFO) in records
 
 
 ADDON_URL = "plugin://plugin.video.crunchyroll"
