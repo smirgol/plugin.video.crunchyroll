@@ -80,6 +80,20 @@ NEXT_EPISODE_STRINGS = {
         "fr_fr": "Commence dans %d s",
         "pt_br": "Começa em %d s",
     },
+    30506: {
+        "en_gb": "Are you still watching?",
+        "de_de": "Schaust du noch?",
+        "es_es": "¿Sigues viendo?",
+        "fr_fr": "Vous regardez toujours ?",
+        "pt_br": "Você ainda está assistindo?",
+    },
+    30507: {
+        "en_gb": "Ask if still watching after automatic episodes (0 = off)",
+        "de_de": "Nach automatischen Folgen nachfragen, ob du noch schaust (0 = aus)",
+        "es_es": "Preguntar si sigues viendo tras episodios automáticos (0 = desactivado)",
+        "fr_fr": "Demander si vous regardez toujours après des épisodes automatiques (0 = désactivé)",
+        "pt_br": "Perguntar se ainda está assistindo após episódios automáticos (0 = desligado)",
+    },
 }
 NEXT_EPISODE_IDS = sorted(NEXT_EPISODE_STRINGS)
 NEXT_EPISODE_PAIRS = [(language, string_id) for language in LANGUAGES for string_id in NEXT_EPISODE_IDS]
@@ -110,6 +124,14 @@ def test_countdown_format_has_single_int_placeholder(language):
     assert msgstr.count("%d") == 1
     assert msgstr.count("%") == 1
     assert "15" in msgstr % 15
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_still_watching_setting_label_says_zero_is_off(language):
+    entry = _entry(language, 30507)
+
+    assert entry is not None, f"#30507 missing in {language}"
+    assert "(0 = " in entry.group("msgstr")
 
 
 @pytest.mark.parametrize("language", LANGUAGES)

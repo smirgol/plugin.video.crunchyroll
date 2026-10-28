@@ -165,6 +165,21 @@
                         <popup>false</popup>
                     </control>
                 </setting>
+                <setting id="next_episode_still_watching_after" type="integer" label="30507" help="">
+                    <level>0</level>
+                    <default>3</default>
+                    <constraints>
+                        <minimum>0</minimum>
+                        <step>1</step>
+                        <maximum>10</maximum>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="enable" setting="enable_next_episode_dialog">true</dependency>
+                    </dependencies>
+                    <control type="slider" format="integer">
+                        <popup>false</popup>
+                    </control>
+                </setting>
             </group>
         </category>
         <category id="developer_options" label="30240" help="">
