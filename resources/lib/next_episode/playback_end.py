@@ -16,7 +16,11 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import xbmc
+
+from ..utils.logging import crunchy_log
 
 END_EVENT_TIMEOUT_SECONDS = 2.0
 
@@ -68,19 +72,24 @@ def await_end_result(
 
 
 class PlaybackEndHandler:
-    """Forwards Kodi end-of-playback events to the tracker."""
+    """Forwards Kodi end-of-playback events to the tracker and logs each event."""
 
     def __init__(self, tracker: PlaybackEndTracker) -> None:
         self._tracker = tracker
 
     def ended(self) -> None:
-        self._tracker.on_ended()
+        self._forward(_ENDED, self._tracker.on_ended)
 
     def stopped(self) -> None:
-        self._tracker.on_stopped()
+        self._forward(_STOPPED, self._tracker.on_stopped)
 
     def error(self) -> None:
-        self._tracker.on_error()
+        self._forward(_ERROR, self._tracker.on_error)
+
+    def _forward(self, event: str, latch: Callable[[], None]) -> None:
+        ignored = " (ignored, already latched)" if self._tracker.has_result else ""
+        crunchy_log(f"playback end event: {event}{ignored}", xbmc.LOGINFO)
+        latch()
 
 
 class PlaybackEndListener(xbmc.Player):

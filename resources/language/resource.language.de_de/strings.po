@@ -473,3 +473,11 @@ msgctxt "#30505"
 msgid "Starts in %d s"
 msgstr "Startet in %d s"
 
+msgctxt "#30506"
+msgid "Are you still watching?"
+msgstr "Schaust du noch?"
+
+msgctxt "#30507"
+msgid "Ask if still watching after automatic episodes (0 = off)"
+msgstr "Nach automatischen Folgen nachfragen, ob du noch schaust (0 = aus)"
+

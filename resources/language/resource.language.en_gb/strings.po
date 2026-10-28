@@ -468,3 +468,11 @@ msgctxt "#30505"
 msgid "Starts in %d s"
 msgstr "Starts in %d s"
 
+msgctxt "#30506"
+msgid "Are you still watching?"
+msgstr "Are you still watching?"
+
+msgctxt "#30507"
+msgid "Ask if still watching after automatic episodes (0 = off)"
+msgstr "Ask if still watching after automatic episodes (0 = off)"
+

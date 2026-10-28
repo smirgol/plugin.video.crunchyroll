@@ -162,3 +162,58 @@ class TestPlaybackEndHandler:
 
         assert tracker.has_result is True
         assert tracker.ended_regularly is False
+
+
+class TestPlaybackEndHandlerLogging:
+    @pytest.fixture
+    def logs(self, monkeypatch):
+        records = []
+        monkeypatch.setattr(
+            playback_end, "crunchy_log", lambda message, level=None: records.append((message, level)), raising=False
+        )
+        return records
+
+    def test_ended_logs_event(self, logs):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.ended()
+
+        assert logs == [("playback end event: ended", playback_end.xbmc.LOGINFO)]
+        assert tracker.ended_regularly is True
+
+    def test_stopped_logs_event(self, logs):
+        handler = playback_end.PlaybackEndHandler(PlaybackEndTracker())
+
+        handler.stopped()
+
+        assert logs == [("playback end event: stopped", playback_end.xbmc.LOGINFO)]
+
+    def test_error_logs_event(self, logs):
+        handler = playback_end.PlaybackEndHandler(PlaybackEndTracker())
+
+        handler.error()
+
+        assert logs == [("playback end event: error", playback_end.xbmc.LOGINFO)]
+
+    def test_event_after_latched_result_is_logged_as_ignored(self, logs):
+        tracker = PlaybackEndTracker()
+        handler = playback_end.PlaybackEndHandler(tracker)
+
+        handler.ended()
+        handler.stopped()
+
+        assert logs[1] == ("playback end event: stopped (ignored, already latched)", playback_end.xbmc.LOGINFO)
+        assert tracker.ended_regularly is True
+
+    def test_one_line_per_event(self, logs):
+        handler = playback_end.PlaybackEndHandler(PlaybackEndTracker())
+
+        handler.stopped()
+        handler.ended()
+        handler.error()
+
+        assert len(logs) == 3
+        assert logs[0][0] == "playback end event: stopped"
+        assert logs[1][0].endswith(" (ignored, already latched)")
+        assert logs[2][0].endswith(" (ignored, already latched)")

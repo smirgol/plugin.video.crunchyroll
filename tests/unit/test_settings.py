@@ -12,6 +12,7 @@ EN_GB_STRINGS = RESOURCES_DIR / "language" / "resource.language.en_gb" / "string
 
 ENABLE_ID = "enable_next_episode_dialog"
 COUNTDOWN_ID = "next_episode_countdown"
+STILL_WATCHING_ID = "next_episode_still_watching_after"
 
 
 def _root():
@@ -79,3 +80,46 @@ def test_next_episode_setting_labels_exist():
 
     for string_id in (30500, 30501):
         assert re.search(rf'^msgctxt "#{string_id}"$', content, re.MULTILINE), f"#{string_id} missing in en_gb"
+
+
+def test_still_watching_setting():
+    setting = _setting(STILL_WATCHING_ID)
+
+    assert setting is not None
+    assert _playback_setting(STILL_WATCHING_ID) is not None
+    assert setting.get("type") == "integer"
+    assert setting.get("label") == "30507"
+    assert setting.get("help") == ""
+    assert setting.findtext("default") == "3"
+    assert setting.findtext("constraints/minimum") == "0"
+    assert setting.findtext("constraints/step") == "1"
+    assert setting.findtext("constraints/maximum") == "10"
+    control = setting.find("control")
+    assert control.get("type") == "slider"
+    assert control.get("format") == "integer"
+    assert control.findtext("popup") == "false"
+
+
+def test_still_watching_depends_on_enable():
+    setting = _setting(STILL_WATCHING_ID)
+
+    assert setting is not None
+    dependency = setting.find("dependencies/dependency")
+    assert dependency is not None
+    assert dependency.get("type") == "enable"
+    assert dependency.get("setting") == ENABLE_ID
+    assert (dependency.text or "").strip() == "true"
+
+
+def test_still_watching_follows_countdown():
+    group = _root().find(".//category[@id='playback_options']/group[@id='1']")
+
+    assert group is not None
+    ids = [setting.get("id") for setting in group.findall("setting")]
+    assert ids[ids.index(COUNTDOWN_ID) + 1] == STILL_WATCHING_ID
+
+
+def test_still_watching_label_exists():
+    content = EN_GB_STRINGS.read_text(encoding="utf-8")
+
+    assert re.search(r'^msgctxt "#30507"$', content, re.MULTILINE), "#30507 missing in en_gb"
