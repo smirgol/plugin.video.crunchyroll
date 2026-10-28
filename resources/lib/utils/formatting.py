@@ -22,11 +22,22 @@ from ..models import EpisodeData, ListableItem, MovieData
 from . import logging
 
 
-def format_long_episode_title(season_title: str, series_number: int, episode_number: int, title: str) -> str:
-    series_number_str = str(series_number)
-    episode_number_str = str(episode_number)
+def format_long_episode_title(
+    season_title: str | None, series_number: int | None, episode_number: int | None, title: str
+) -> str:
+    episode_part = format_season_episode_title(series_number, episode_number, title)
 
-    return season_title + " - S" + f"{series_number_str:0>2}" + "E" + f"{episode_number_str:0>2}" + " - " + title
+    return " - ".join(part for part in (season_title, episode_part) if part)
+
+
+def format_season_episode_title(season: int | None, episode: int | None, title: str) -> str:
+    code = ""
+    if season is not None:
+        code += "S" + f"{season:0>2}"
+    if episode is not None:
+        code += "E" + f"{episode:0>2}"
+
+    return " - ".join(part for part in (code, title) if part)
 
 
 def format_short_episode_title(episode_number: int, title: str) -> str:

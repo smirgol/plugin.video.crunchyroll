@@ -34,6 +34,25 @@ from .controller_helpers import (
 from .models.account import ProfileData
 from .models.content import EpisodeData
 from .models.exceptions import CrunchyrollError
+from .next_episode.chain import (
+    ChainStore,
+    HomeWindowChainStore,
+    asks_presence,
+    consume_streak,
+    handoff_after,
+    publish_handoff,
+    read_presence_limit,
+)
+from .next_episode.countdown import NextEpisodeChoice
+from .next_episode.playback_end import PlaybackEndListener, PlaybackEndTracker, await_end_result
+from .next_episode.prompt import (
+    ENABLE_SETTING,
+    ask_still_watching,
+    offer_next_episode,
+    should_offer_next_episode,
+    start_episode,
+)
+from .next_episode.resolver import PrefetchTrigger, fetch_next_episode
 from .utils.api_data import get_listables_from_response
 from .utils.images import get_img_from_struct
 from .utils.language import (
@@ -545,20 +564,63 @@ def _render_episodes(ctx, season_id, url_audio):
 
 def start_playback(ctx):
     """plays an episode"""
+    enabled = ctx.args.addon.getSetting(ENABLE_SETTING) == "true"
+    tracker = PlaybackEndTracker() if enabled else None
+    # create the listener in the main thread before setResolvedUrl and keep the reference until after
+    # await_end_result, as Kodi only delivers callbacks while the thread is inside a Kodi call
+    listener = PlaybackEndListener(tracker) if enabled else None
+    prefetch = PrefetchTrigger() if enabled else None
+    chain_store = HomeWindowChainStore() if enabled else None
+    # consume the handoff before playback starts, so a failed or stopped playback cannot count it later
+    streak = consume_streak(chain_store, ctx.args.get_arg("episode_id")) if chain_store is not None else 0
+    next_episode = None
     video_player = VideoPlayer(ctx=ctx)
-    video_player.start_playback()
+    try:
+        video_player.start_playback()
 
-    crunchy_log("Starting loop", xbmc.LOGINFO)
-    # stay in this method while playing to not lose video_player, as backgrounds threads reference it
-    monitor = ctx.monitor
-    args = ctx.args
-    while (not monitor.abortRequested()) and video_player.isStartingOrPlaying():
-        video_player.check_skipping()
-        if args.addon.getSetting("sync_playtime") == "true":
-            video_player.update_playhead()
-        monitor.waitForAbort(1)
-    video_player.finished()
+        crunchy_log("Starting loop", xbmc.LOGINFO)
+        # stay in this method while playing to not lose video_player, as backgrounds threads reference it
+        monitor = ctx.monitor
+        args = ctx.args
+        while (not monitor.abortRequested()) and video_player.isStartingOrPlaying():
+            video_player.check_skipping()
+            if args.addon.getSetting("sync_playtime") == "true":
+                video_player.update_playhead()
+            if prefetch is not None:
+                times = video_player.playback_times()
+                if times is not None and prefetch.should_fetch(times[0], times[1], video_player.skip_events):
+                    next_episode = fetch_next_episode(ctx, video_player.playable_item)
+                    # no further position queries needed once the next episode is fetched
+                    prefetch = None
+            monitor.waitForAbort(1)
+    finally:
+        video_player.finished()
     del video_player
+    if tracker is not None and next_episode is not None:
+        _continue_with_next_episode(ctx, tracker, next_episode, chain_store, streak)
+    del listener
+
+
+def _continue_with_next_episode(
+    ctx, tracker: PlaybackEndTracker, next_episode: EpisodeData, chain_store: ChainStore, streak: int
+) -> None:
+    """Offers the prefetched next episode after regular playback end; never raises, playback is already over"""
+    try:
+        await_end_result(tracker, ctx.monitor)
+        if not should_offer_next_episode(tracker.ended_regularly, ctx.monitor.abortRequested(), next_episode):
+            return
+        limit = read_presence_limit(ctx.args.addon)
+        asking = asks_presence(streak, limit)
+        suffix = ", asking whether still watching" if asking else ""
+        crunchy_log(f"next episode: auto-continue streak {streak}/{limit}{suffix}", xbmc.LOGINFO)
+        choice = ask_still_watching(ctx, next_episode) if asking else offer_next_episode(ctx, next_episode)
+        if choice in (NextEpisodeChoice.CONTINUE, NextEpisodeChoice.TIMEOUT):
+            handoff = handoff_after(choice, streak, next_episode.episode_id)
+            if handoff is not None:
+                publish_handoff(chain_store, handoff)
+            start_episode(ctx, next_episode)
+    except Exception:
+        log_error_with_trace("Next episode dialog failed", show_notification=False)
 
 
 def add_to_queue(ctx) -> bool:
