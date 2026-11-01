@@ -248,17 +248,21 @@ class VideoStream(Object):
         subtitles_data_raw = []
         subtitles_url_cached = []
 
-        if args.subtitle in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle))
-
-        if args.subtitle_fallback and args.subtitle_fallback in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle_fallback))
+        for lang in list(dict.fromkeys(filter(None, (args.subtitle, args.subtitle_fallback)))):
+            for key in ("subtitles", "captions"):
+                if subtitle_data := (api_stream_data.get(key) or {}).get(lang):
+                    if key == "captions":
+                        subtitle_data["language"] = f"{subtitle_data.get('language')} [cc]"
+                    subtitles_data_raw.append(subtitle_data)
 
         if not subtitles_data_raw:
             return None
 
         # we need to download the subtitles, cache and rename them to show proper labels in the kodi video player
         for subtitle_data in subtitles_data_raw:
+            crunchy_log(
+                f"found subtitle language {subtitle_data.get('language')}, format {subtitle_data.get('format')}"
+            )
             cache_result = self._get_subtitle_from_cache(
                 subtitle_data.get("url", ""),
                 subtitle_data.get("language", ""),
@@ -270,25 +274,42 @@ class VideoStream(Object):
 
         return subtitles_url_cached if subtitles_url_cached is not None else None
 
-    def _cache_subtitle(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> bool:
-        """cache a subtitle from the given url and rename it for kodi to label it correctly"""
+    def _fetch_subtitle(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> bool:
+        """fetch a subtitle from given URL"""
 
         api = self._ctx.api
-        args = self._ctx.args
 
         try:
-            # api request streams
-            subtitles_req = api.make_request(
-                method="GET",
-                url=subtitle_url,
-            )
+            if "~hmac=" in subtitle_url:
+                # direct url to subtitle
+                subtitles_req = requests.get(subtitle_url, timeout=30)
+                subtitles_req.raise_for_status()
+                # server doesn't set encoding, so requests would use iso8859-1 otherwise
+                subtitles_req.encoding = "utf-8"
+                subtitle_data = subtitles_req.text
+            else:
+                # api request streams
+                subtitles_req = api.make_request(
+                    method="GET",
+                    url=subtitle_url,
+                )
+                subtitle_data = subtitles_req.get("data")
         except Exception as e:
             log_error_with_trace("error in requesting subtitle data from api")
             raise CrunchyrollError(
                 f"Failed to download subtitle for language {subtitle_language} from url {subtitle_url}"
             ) from e
 
-        if not subtitles_req.get("data", None):
+        return subtitle_data
+
+    def _cache_subtitle(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> bool:
+        """cache a subtitle from the given url and rename it for kodi to label it correctly"""
+
+        args = self._ctx.args
+
+        subtitle_data = self._fetch_subtitle(subtitle_url, subtitle_language, subtitle_format)
+
+        if not subtitle_data:
             # error
             raise CrunchyrollError("Returned data is not text")
 
@@ -301,7 +322,7 @@ class VideoStream(Object):
         try:
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=cache_target, delete=False) as file:
                 temporary_path = file.name
-                result = file.write(subtitles_req.get("data"))
+                result = file.write(subtitle_data)
 
             if result <= 0:
                 return False
