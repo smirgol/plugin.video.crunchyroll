@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - nexus-staging
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Install dependencies
+        run: uv sync --locked --extra test --extra dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Check formatting
+        run: uv run ruff format --check .
+      # The ignored files need captured API responses that are not part of the repository.
+      - name: Unit tests
+        run: >-
+          uv run pytest
+          --ignore=tests/unit/test_api_trace.py
+          --ignore=tests/unit/test_get_listables.py
+          --ignore=tests/unit/test_model_mapping.py
+          --ignore=tests/unit/test_next_episode_resolver.py
