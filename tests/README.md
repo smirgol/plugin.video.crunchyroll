@@ -56,6 +56,26 @@ uv run ruff check --fix .
 uv run ruff format .
 ```
 
+### Pre-commit Hooks
+
+[pre-commit](https://pre-commit.com) runs `ruff check` and `ruff format` on the
+staged files. Set it up once per checkout:
+
+```bash
+uv tool install pre-commit
+pre-commit install
+```
+
+The hooks run ruff through `uv`, so the version comes from `uv.lock` and matches
+CI. To check everything manually, run `pre-commit run --all-files`.
+
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main` and
+`nexus-staging`. It checks linting and formatting and runs the unit tests. Unit
+test files that need captured responses are skipped because those fixtures are
+not part of the repository, so run them locally as well.
+
 ## Credentials Setup
 
 Both **capturing** and the **integration tests** make real API calls and need

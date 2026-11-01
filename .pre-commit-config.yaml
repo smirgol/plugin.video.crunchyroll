@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      # Runs ruff through uv so the version comes from uv.lock and matches CI.
+      # --force-exclude is needed because pre-commit passes file names explicitly.
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --extra dev ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --extra dev ruff format --force-exclude
+        language: system
+        types: [python]
