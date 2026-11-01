@@ -247,61 +247,96 @@ class VideoStream(Object):
 
         subtitles_data_raw = []
         subtitles_url_cached = []
+        failed_tracks = 0
 
-        if args.subtitle in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle))
-
-        if args.subtitle_fallback and args.subtitle_fallback in api_stream_data["subtitles"]:
-            subtitles_data_raw.append(api_stream_data.get("subtitles").get(args.subtitle_fallback))
+        for lang in dict.fromkeys(filter(None, (args.subtitle, args.subtitle_fallback))):
+            for key in ("subtitles", "captions"):
+                if subtitle_data := (api_stream_data.get(key) or {}).get(lang):
+                    subtitles_data_raw.append((subtitle_data, key == "captions"))
 
         if not subtitles_data_raw:
             return None
 
         # we need to download the subtitles, cache and rename them to show proper labels in the kodi video player
-        for subtitle_data in subtitles_data_raw:
-            cache_result = self._get_subtitle_from_cache(
-                subtitle_data.get("url", ""),
-                subtitle_data.get("language", ""),
-                subtitle_data.get("format", ""),
+        for subtitle_data, is_caption in subtitles_data_raw:
+            crunchy_log(
+                f"found subtitle language {subtitle_data.get('language')}, format {subtitle_data.get('format')}"
+                f"{' [cc]' if is_caption else ''}"
             )
+            try:
+                cache_result = self._get_subtitle_from_cache(
+                    subtitle_data.get("url", ""),
+                    subtitle_data.get("language", ""),
+                    subtitle_data.get("format", ""),
+                    is_caption=is_caption,
+                )
+            except CrunchyrollError as e:
+                failed_tracks += 1
+                crunchy_log(f"Skipping subtitle track: {redact_url(str(e))}", xbmc.LOGERROR)
+                continue
 
             if cache_result is not None:
                 subtitles_url_cached.append(cache_result)
 
+        if failed_tracks and not subtitles_url_cached:
+            raise CrunchyrollError("Failed to retrieve any subtitle track")
+
         return subtitles_url_cached if subtitles_url_cached is not None else None
 
-    def _cache_subtitle(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> bool:
-        """cache a subtitle from the given url and rename it for kodi to label it correctly"""
+    def _fetch_subtitle(self, subtitle_url: str, subtitle_language: str) -> str | None:
+        """fetch a subtitle from given URL"""
 
         api = self._ctx.api
-        args = self._ctx.args
 
         try:
-            # api request streams
-            subtitles_req = api.make_request(
-                method="GET",
-                url=subtitle_url,
-            )
+            if "~hmac=" in subtitle_url:
+                # direct url to subtitle: the signed cdn url authorizes the download and the body is raw subtitle
+                # text. make_request() would send our bearer token and CMS params to the CDN and only accepts a fixed
+                # set of content types as text.
+                subtitles_req = requests.get(subtitle_url, timeout=30)
+                subtitles_req.raise_for_status()
+                # server doesn't set encoding, so requests would use iso8859-1 otherwise
+                subtitles_req.encoding = "utf-8"
+                subtitle_data = subtitles_req.text
+            else:
+                # api request streams
+                subtitles_req = api.make_request(
+                    method="GET",
+                    url=subtitle_url,
+                )
+                subtitle_data = subtitles_req.get("data")
         except Exception as e:
-            log_error_with_trace("error in requesting subtitle data from api")
-            raise CrunchyrollError(
-                f"Failed to download subtitle for language {subtitle_language} from url {subtitle_url}"
-            ) from e
+            crunchy_log(
+                f"error in requesting subtitle data from api: {redact_url(str(e))}",
+                xbmc.LOGERROR,
+            )
+            raise CrunchyrollError(f"Failed to download subtitle for language {subtitle_language}") from e
 
-        if not subtitles_req.get("data", None):
+        return subtitle_data
+
+    def _cache_subtitle(
+        self, subtitle_url: str, subtitle_language: str, subtitle_format: str, is_caption: bool = False
+    ) -> bool:
+        """cache a subtitle from the given url and rename it for kodi to label it correctly"""
+
+        args = self._ctx.args
+
+        subtitle_data = self._fetch_subtitle(subtitle_url, subtitle_language)
+
+        if not subtitle_data:
             # error
             raise CrunchyrollError("Returned data is not text")
 
         cache_target = xbmcvfs.translatePath(self.get_cache_path() + args.get_arg("stream_id") + "/")
         xbmcvfs.mkdirs(cache_target)
 
-        cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
+        cache_file = self.get_cache_file_name(subtitle_language, subtitle_format, is_caption)
 
         temporary_path = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=cache_target, delete=False) as file:
                 temporary_path = file.name
-                result = file.write(subtitles_req.get("data"))
+                result = file.write(subtitle_data)
 
             if result <= 0:
                 return False
@@ -315,7 +350,9 @@ class VideoStream(Object):
 
         return True
 
-    def _get_subtitle_from_cache(self, subtitle_url: str, subtitle_language: str, subtitle_format: str) -> str | None:
+    def _get_subtitle_from_cache(
+        self, subtitle_url: str, subtitle_language: str, subtitle_format: str, is_caption: bool = False
+    ) -> str | None:
         """try to get a subtitle using its url, language info and format either from cache or api"""
 
         args = self._ctx.args
@@ -325,7 +362,7 @@ class VideoStream(Object):
             return None
 
         # prepare the filename for the subtitles
-        cache_file = self.get_cache_file_name(subtitle_language, subtitle_format)
+        cache_file = self.get_cache_file_name(subtitle_language, subtitle_format, is_caption)
 
         # build full path to cached file
         cache_target = xbmcvfs.translatePath(self.get_cache_path() + args.get_arg("stream_id") + "/") + cache_file
@@ -333,7 +370,7 @@ class VideoStream(Object):
         # check if cached file exists
         if not xbmcvfs.exists(cache_target):
             # download and cache file
-            if not self._cache_subtitle(subtitle_url, subtitle_language, subtitle_format):
+            if not self._cache_subtitle(subtitle_url, subtitle_language, subtitle_format, is_caption):
                 # log error
                 log_error_with_trace("Failed to write subtitle to cache")
                 return None
@@ -370,13 +407,19 @@ class VideoStream(Object):
         return xbmcvfs.translatePath(args.addon.getAddonInfo("profile") + "cache_subtitles/")
 
     @staticmethod
-    def get_cache_file_name(subtitle_language: str, subtitle_format: str) -> str:
+    def get_cache_file_name(subtitle_language: str, subtitle_format: str, is_caption: bool = False) -> str:
         """build a file name for the subtitles file that kodi can display with a readable label"""
 
-        # kodi ignores the first part of e.g. de-DE - split and use only first part in uppercase
+        # kodi splits the file name at " .-", so e.g. de-DE is split here to control what ends up in the label
         iso_parts = subtitle_language.split("-")
 
-        filename = xbmcvfs.makeLegalFilename(subtitle_language + "." + iso_parts[0] + "." + subtitle_format)
+        # kodi reads the tokens from the end: the first one it recognizes as a language becomes the language, the rest
+        # the label. so region tokens go before the language token (BR alone would be read as breton). leading
+        # non-alphanumeric characters get trimmed, so "[cc]" must not come first.
+        # a region that merely repeats the language (de-DE) is dropped
+        regions = [part for part in iso_parts[1:] if part.lower() != iso_parts[0].lower()]
+        tokens = regions + [iso_parts[0]] + (["[cc]"] if is_caption else [])
+        filename = xbmcvfs.makeLegalFilename(".".join(tokens) + "." + subtitle_format)
 
         # for some reason, makeLegalFilename likes to append a '/' at the end, effectively making the file a directory
         if filename.endswith("/"):
