@@ -171,6 +171,7 @@ This plugin uses **Device Authentication** for secure login to your Crunchyroll 
 - Support for PIN-protected profiles
 - Faster loading of several screens, independent API requests now run in parallel
 - Fixes for the skip intro / credits dialog
+- Soft subtitles are downloaded directly from the CDN when possible, closed captions are supported, and a failing subtitle track no longer stops playback
 
 
 ***
